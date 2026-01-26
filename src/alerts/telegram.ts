@@ -577,6 +577,111 @@ export class TelegramAlertService {
   }
 
   /**
+   * Send wallet status across all chains.
+   */
+  async sendWalletStatus(
+    address: string,
+    balances: Array<{ chainName: string; symbol: string; nativeFormatted: string; usd: number; status: string }>,
+    totalUsd: number,
+    needsFunding: Array<{ chainName: string; symbol: string; needed: string }>,
+  ): Promise<boolean> {
+    const lines = [
+      `\u{1F510} <b>Verification Wallet Status</b>`,
+      '',
+      `Address: <code>${this.escapeHtml(address)}</code>`,
+      '',
+    ];
+
+    // Balance table
+    for (const b of balances) {
+      const statusIcon = b.status === 'ok' ? '\u2705' : (b.status === 'low' ? '\u26A0\uFE0F' : '\u274C');
+      lines.push(`${statusIcon} ${this.escapeHtml(b.chainName)}: ${b.nativeFormatted.slice(0, 10)} ${this.escapeHtml(b.symbol)} ($${b.usd.toFixed(2)})`);
+    }
+
+    lines.push('', `Total Value: ~$${totalUsd.toFixed(2)}`);
+
+    if (needsFunding.length > 0) {
+      lines.push('', `\u26A0\uFE0F <b>Needs funding:</b>`);
+      for (const { chainName, symbol, needed } of needsFunding) {
+        lines.push(`  ${this.escapeHtml(chainName)}: send ${needed} ${this.escapeHtml(symbol)}`);
+      }
+      lines.push('', 'Reply "fund [chain]" for deposit address');
+    }
+
+    return this.sendMessage(lines.join('\n'), { parse_mode: 'HTML' });
+  }
+
+  /**
+   * Send 4-stage verification result with wallet proof.
+   */
+  async sendEnhancedVerificationAlert(
+    finding: VerifiedFinding,
+    contractAddress: string,
+    chainName: string,
+    protocolName: string | undefined,
+    stages: Array<{ stage: string; success: boolean; value: number; detail?: string }>,
+    confirmedValue: number,
+    confidence: string,
+    walletAddress?: string,
+  ): Promise<boolean> {
+    const messageHash = this.computeVerifiedHash(finding);
+    if (this.sentHashes.has(messageHash)) return false;
+
+    const confLabel = confidence === 'definitive' ? 'DEFINITIVE (4-stage verified)' :
+                      confidence === 'high' ? 'HIGH (multi-stage verified)' :
+                      confidence === 'medium' ? 'MEDIUM (fork verified)' : 'LOW';
+
+    const contractLabel = protocolName
+      ? `${this.escapeHtml(protocolName)} (<code>${this.escapeHtml(contractAddress.slice(0, 10))}...</code>)`
+      : `<code>${this.escapeHtml(contractAddress)}</code>`;
+
+    const lines = [
+      `\u{1F534} <b>VERIFIED EXPLOIT (${confLabel.split(' ')[0]})</b>`,
+      '',
+      `\u{1F517} ${this.escapeHtml(chainName)} | ${contractLabel}`,
+      '',
+      `\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}`,
+      `\u{1F4B0} <b>EXPLOITABLE VALUE: ${formatTvlDisplay(confirmedValue)}</b>`,
+      `   Confidence: ${confLabel}`,
+      `\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}`,
+      '',
+      '<b>Verification Chain:</b>',
+    ];
+
+    for (const s of stages) {
+      const icon = s.success ? '\u2705' : '\u274C';
+      const valueStr = s.value > 0 ? ` — ${formatTvlDisplay(s.value)}` : '';
+      const label = s.stage === 'fork' ? 'Fork simulation' :
+                    s.stage === 'wallet_sim' ? 'Wallet simulation' :
+                    s.stage === 'trace' ? 'Trace analysis' :
+                    s.stage === 'testnet' ? 'Testnet execution' : s.stage;
+      lines.push(`  ${icon} ${label}${valueStr}`);
+      if (s.detail && !s.success) {
+        lines.push(`     <i>${this.escapeHtml(s.detail)}</i>`);
+      }
+    }
+
+    // Finding details
+    lines.push('', `<b>Issue:</b> ${this.escapeHtml(finding.detectorName)} (${finding.severity.toUpperCase()})`);
+    lines.push(this.escapeHtml(this.truncate(finding.description, 200)));
+
+    if (walletAddress) {
+      lines.push('', `\u{1F510} Verified using wallet <code>${this.escapeHtml(walletAddress.slice(0, 10))}...</code>`);
+      lines.push('   Simulation only — no mainnet execution');
+    }
+
+    // Bounty
+    if (confirmedValue > 0) {
+      const bountyEst = Math.min(confirmedValue * 0.1, 500_000);
+      lines.push('', `\u{1F3AF} Bounty potential: ${formatTvlDisplay(bountyEst)} (10% of exploitable)`);
+    }
+
+    const result = await this.sendMessage(lines.join('\n'), { parse_mode: 'HTML', disable_notification: false });
+    if (result) this.sentHashes.add(messageHash);
+    return result;
+  }
+
+  /**
    * Send autonomous mode status update.
    */
   async sendStatusUpdate(status: string): Promise<boolean> {

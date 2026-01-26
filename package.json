@@ -14,11 +14,18 @@
     "dev:worker": "tsx src/worker.ts",
     "migrate": "node dist/migrate.js"
   },
-  "keywords": ["smart-contract", "security", "vulnerability-scanner", "defi", "slither"],
+  "keywords": [
+    "smart-contract",
+    "security",
+    "vulnerability-scanner",
+    "defi",
+    "slither"
+  ],
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "bullmq": "^5.0.0",
+    "ethers": "^6.16.0",
     "ioredis": "^5.4.0",
     "pg": "^8.13.0",
     "uuid": "^10.0.0"

@@ -100,8 +100,11 @@ White-Rabbit/
     ├── services/
     │   ├── chains.ts          # Dynamic chain discovery from DeFiLlama (top N by TVL)
     │   ├── context.ts         # Audit history, FP pattern detection, confidence scoring
+    │   ├── crypto.ts          # AES-256-GCM encrypted mnemonic storage (scrypt KDF)
     │   ├── exploitEstimator.ts # Exploitable value estimation (TVL ≠ exploitable)
+    │   ├── exploitVerifier.ts # 4-stage wallet-based verification pipeline
     │   ├── verifier.ts        # PoC generation & Foundry fork testing with value measurement
+    │   ├── walletManager.ts   # Multi-chain HD wallet (simulation only, no mainnet)
     │   └── state.ts           # File-based state persistence for Clawd integration
     ├── alerts/
     │   └── telegram.ts        # Telegram Bot API alerting (mobile-optimized)
@@ -132,6 +135,15 @@ White-Rabbit/
 | `ALERT_MIN_SEVERITY` | No | Minimum severity to alert on (default: medium) |
 | `CLAWD_AGENT_ID` | No | Clawd bot agent identifier (default: white-rabbit) |
 | `CLAWD_DELIVERY_CHANNEL` | No | Clawd delivery channel (default: telegram) |
+| `WALLET_ENCRYPTION_PASSWORD` | No | Password for wallet mnemonic encryption (or use WALLET_PASSWORD_FILE) |
+| `WALLET_PASSWORD_FILE` | No | Path to file containing wallet encryption password |
+| `BSC_RPC_URL` | No | BNB Chain RPC for wallet verification |
+| `AVALANCHE_RPC_URL` | No | Avalanche RPC for wallet verification |
+| `FANTOM_RPC_URL` | No | Fantom RPC for wallet verification |
+| `LINEA_RPC_URL` | No | Linea RPC for wallet verification |
+| `SCROLL_RPC_URL` | No | Scroll RPC for wallet verification |
+| `BLAST_RPC_URL` | No | Blast RPC for wallet verification |
+| `GNOSIS_RPC_URL` | No | Gnosis RPC for wallet verification |
 
 ## Key Commands
 
@@ -174,6 +186,15 @@ npx tsx src/cli.ts stats
 
 # Show recent findings
 npx tsx src/cli.ts findings --limit 20
+
+# Initialize verification wallet
+npx tsx src/cli.ts wallet:init
+
+# Check wallet balances across all chains
+npx tsx src/cli.ts wallet:balances
+
+# Show deposit address for a specific chain
+npx tsx src/cli.ts wallet:fund ethereum
 
 # Run scanner (one-shot, legacy)
 npm start
@@ -235,6 +256,9 @@ Users can control the scanner through Telegram via Clawd:
 | "add chain fantom" | Add chain to scan list |
 | "skip bsc" | Remove chain from scan list |
 | "protocols on base" | List high-TVL protocols |
+| "wallet status" / "wallet balances" | Show verification wallet balances across chains |
+| "fund ethereum" / "fund [chain]" | Show deposit address for a chain |
+| "init wallet" / "setup wallet" | Initialize new verification wallet |
 
 ### Cron Jobs
 
@@ -254,6 +278,7 @@ Scanner state persists to `~/.etherscan-auditor/state.json`:
 - Chain TVL rankings cache (1 hour TTL)
 - Per-chain last scan timestamps
 - Recent findings (last 100, verified/likely-real, with exploitable value and PoC extraction amounts)
+- Wallet state (initialized, address, chain count, balance, lock status)
 
 ## 6-Stage Verification Pipeline
 
@@ -367,6 +392,52 @@ Use `npx tsx src/cli.ts chains` to see current TVL rankings. Non-EVM chains (Sol
 - **Telegram Bot:** 1 msg/sec per chat, 30 msg/sec global
 - **Anthropic API:** Follows your plan's rate limits
 
+## Wallet Infrastructure (4-Stage Verification)
+
+The scanner optionally uses an HD wallet for enhanced 4-stage exploit verification. The wallet is used for **simulation only** — mainnet execution is blocked at the code level.
+
+### Architecture
+
+```
+Finding (critical/high)
+    │
+    ▼
+Stage 1: Fork Simulation (Foundry/Anvil) ──► Free, always runs
+    │ (if succeeded)
+    ▼
+Stage 2: Wallet Simulation (eth_call) ──► Real wallet state, no gas
+    │ (if succeeded)
+    ▼
+Stage 3: Trace Analysis (debug_traceCall) ──► Exact value flows
+    │ (if $100K+ finding)
+    ▼
+Stage 4: Testnet Execution ──► Definitive proof, real tx
+```
+
+### Key Components
+
+- **`src/services/crypto.ts`** — AES-256-GCM encryption with scrypt KDF for mnemonic storage
+- **`src/services/walletManager.ts`** — HD wallet from single mnemonic, same address on 12+ EVM chains
+- **`src/services/exploitVerifier.ts`** — 4-stage pipeline orchestrator with graceful degradation
+
+### Security Model
+
+- Mnemonic encrypted at rest (AES-256-GCM, scrypt N=2^14)
+- Stored at `~/.etherscan-auditor/wallet.enc` with 0o600 permissions
+- Auto-lock after 30 minutes of inactivity
+- Mainnet execution blocked — simulation only (eth_call, debug_traceCall)
+- Max balance enforcement ($1,000 per chain)
+- Testnet execution only for high-value ($100K+) findings
+
+### Confidence Levels
+
+| Confidence | Meaning |
+|---|---|
+| **Definitive** | Testnet execution succeeded (Stage 4) |
+| **High** | 2+ stages verified successfully |
+| **Medium** | Fork-only verification (Stage 1) |
+| **Low** | Fork failed or inconclusive |
+
 ## Security & Ethics
 
 - **Never test vulnerabilities on mainnet** — PoC verification uses forked state only
@@ -385,3 +456,8 @@ Use `npx tsx src/cli.ts chains` to see current TVL rankings. Non-EVM chains (Sol
 - The context service recognizes 13 known audited protocols and 10 false positive patterns. Extend these lists in `src/services/context.ts`.
 - The exploit estimator uses vulnerability-type-specific logic for 12+ detector types. Add new estimators in `src/services/exploitEstimator.ts` via the `EXPLOIT_ESTIMATORS` record. Native token prices are fetched from DeFiLlama with hardcoded fallbacks.
 - PoC verification now measures extracted value by parsing `EXTRACTED_WEI` and `TARGET_DRAINED_WEI` log entries from Foundry test output.
+- The wallet infrastructure requires `ethers` (v6). HD wallet derives the same address on all EVM chains from a single mnemonic (m/44'/60'/0'/0/0).
+- Wallet encryption uses scrypt (N=2^14, r=8, p=1) for key derivation. The encrypted mnemonic is stored at `~/.etherscan-auditor/wallet.enc`.
+- The 4-stage enhanced verifier gracefully degrades — if no wallet is configured, it falls back to fork-only verification (PoCVerifier).
+- The WalletManager supports 12 chains with RPC configuration via environment variables. Each chain has a minimum balance threshold for verification operations.
+- Stage 4 (testnet execution) only triggers for findings with $100K+ estimated exploitable value, to conserve testnet funds.

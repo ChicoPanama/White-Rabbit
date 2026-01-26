@@ -299,3 +299,15 @@ export interface DiscoveryJobData {
   chain: string;
   minTvl: number;
 }
+
+// ── Wallet & Enhanced Verification ──
+
+export type EnhancedConfidence = 'definitive' | 'high' | 'medium' | 'low';
+
+export interface WalletStatusInfo {
+  address: string;
+  chainCount: number;
+  totalValueUsd: number;
+  lowBalanceChains: string[];
+  isUnlocked: boolean;
+}
