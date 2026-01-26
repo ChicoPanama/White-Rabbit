@@ -47,6 +47,16 @@ export interface ScannerState {
     exploitableValueByChain: Record<string, number>; // Per-chain USD
   };
   wallet: WalletState;
+  intelligence: {
+    totalPatterns: number;
+    totalInstances: number;
+    totalFingerprints: number;
+    totalValueTracked: number;
+    overallAccuracy: number;
+    lastEvolutionAt: string | null;
+    forkHuntsRun: number;
+    forksFound: number;
+  };
   chainRankings: {
     chains: ChainRankingEntry[];
     updatedAt: string | null;
@@ -101,6 +111,16 @@ const DEFAULT_STATE: ScannerState = {
     lowBalanceChains: [],
     lastCheckedAt: null,
     isUnlocked: false,
+  },
+  intelligence: {
+    totalPatterns: 0,
+    totalInstances: 0,
+    totalFingerprints: 0,
+    totalValueTracked: 0,
+    overallAccuracy: 0,
+    lastEvolutionAt: null,
+    forkHuntsRun: 0,
+    forksFound: 0,
   },
   chainRankings: {
     chains: [],
@@ -221,6 +241,29 @@ export class StateManager {
     this.save();
   }
 
+  // ── Intelligence ──
+
+  updateIntelligence(updates: Partial<ScannerState['intelligence']>): void {
+    Object.assign(this.state.intelligence, updates);
+    this.save();
+  }
+
+  recordForkHunt(forksFound: number): void {
+    this.state.intelligence.forkHuntsRun++;
+    this.state.intelligence.forksFound += forksFound;
+    this.save();
+  }
+
+  recordEvolution(accuracy: number): void {
+    this.state.intelligence.overallAccuracy = accuracy;
+    this.state.intelligence.lastEvolutionAt = new Date().toISOString();
+    this.save();
+  }
+
+  getIntelligence(): ScannerState['intelligence'] {
+    return this.state.intelligence;
+  }
+
   // ── Chain Rankings ──
 
   updateChainRankings(chains: ChainRankingEntry[]): void {
@@ -317,6 +360,16 @@ export class StateManager {
       }
     }
 
+    // Intelligence stats
+    if (s.intelligence.totalPatterns > 0) {
+      lines.push('', 'Intelligence:');
+      lines.push(`  Patterns learned: ${s.intelligence.totalPatterns}`);
+      lines.push(`  Fingerprints cached: ${s.intelligence.totalFingerprints}`);
+      lines.push(`  Accuracy: ${(s.intelligence.overallAccuracy * 100).toFixed(1)}%`);
+      lines.push(`  Fork hunts: ${s.intelligence.forkHuntsRun} (${s.intelligence.forksFound} forks found)`);
+      lines.push(`  Value tracked: $${s.intelligence.totalValueTracked.toLocaleString()}`);
+    }
+
     if (s.autonomous.enabled) {
       lines.push(``, `Next scan in ~${s.config.intervalMinutes} min`);
     }
@@ -374,6 +427,15 @@ export class StateManager {
       if (s.wallet.lowBalanceChains.length > 0) {
         lines.push(`  \u{26A0}\u{FE0F} Low: ${s.wallet.lowBalanceChains.join(', ')}`);
       }
+    }
+
+    // Intelligence stats
+    if (s.intelligence.totalPatterns > 0) {
+      lines.push('');
+      lines.push(`\u{1F9E0} <b>Intelligence:</b>`);
+      lines.push(`  Patterns: ${s.intelligence.totalPatterns} | Accuracy: ${(s.intelligence.overallAccuracy * 100).toFixed(1)}%`);
+      lines.push(`  Fingerprints: ${s.intelligence.totalFingerprints}`);
+      lines.push(`  Fork hunts: ${s.intelligence.forkHuntsRun} (${s.intelligence.forksFound} vulnerable forks)`);
     }
 
     if (s.autonomous.enabled) {

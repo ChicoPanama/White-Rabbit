@@ -36,6 +36,11 @@ TVL ≠ Exploitable Value. A protocol might have $10M TVL but only $267K sits in
 | "wallet status" / "wallet balances" | Show verification wallet balances | `npx tsx src/cli.ts wallet:balances` |
 | "fund ethereum" / "fund [chain]" | Show deposit address for a chain | `npx tsx src/cli.ts wallet:fund <chain>` |
 | "init wallet" / "setup wallet" | Initialize verification wallet | `npx tsx src/cli.ts wallet:init` |
+| "what have you learned" / "knowledge" | Show learning statistics | `npx tsx src/cli.ts knowledge` |
+| "show patterns" / "learned patterns" | Show learned vulnerability patterns | `npx tsx src/cli.ts patterns` |
+| "hunt forks of [contract]" | Find all forks of a vulnerable contract | Auto-triggered on verified findings |
+| "evolve" / "self-improve" | Run self-evolution cycle | `npx tsx src/cli.ts evolve` |
+| "found a false positive" | Record FP to improve accuracy | Interactive FP recording |
 
 ### Verification Pipeline
 
@@ -167,6 +172,34 @@ Confidence levels:
 
 > User: "fund ethereum"
 > Bot: Shows deposit address and minimum balance needed
+
+### Intelligence Layer (Pattern Propagation)
+
+**Key Insight:** When you find a vulnerability in one contract, there are likely dozens of forks across all chains with the same vulnerability. One finding triggers a systematic hunt.
+
+The scanner learns from every audit:
+- **Pattern Cache:** Stores learned vulnerability signatures (exact code, regex, function structure)
+- **Contract Fingerprints:** Hashes of source code, structure, and interface for fast fork detection
+- **Fork Hunter:** Searches all 20+ chains for matching contracts when a vulnerability is verified
+- **Self-Evolution:** Periodically analyzes false positives, refines patterns, discovers new ones
+
+**Example Flow:**
+1. Find reentrancy in YieldVault.sol on Base
+2. Learn the vulnerability pattern (code signatures, function layout)
+3. Generate contract fingerprint (code hash, structure hash)
+4. Search all 20+ chains for forks/clones
+5. Verify each match has exploitable value
+6. One audit → 15 verified findings
+
+**Learning commands:**
+> User: "what have you learned?"
+> Bot: Shows patterns learned, accuracy, fingerprints cached, evolution history
+
+> User: "show patterns"
+> Bot: Lists all learned vulnerability patterns with instances and value tracked
+
+> User: "evolve"
+> Bot: Runs self-evolution cycle — refines patterns, identifies FPs, discovers new patterns
 
 ### Security Notes
 

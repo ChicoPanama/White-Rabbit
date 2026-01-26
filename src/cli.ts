@@ -2,6 +2,8 @@ import { loadConfig } from './config.js';
 import { Scanner } from './scanner.js';
 import { CHAINS } from './types/index.js';
 import { ChainDiscoveryService } from './services/chains.js';
+import { PatternCache } from './services/patternCache.js';
+import { SelfEvolutionEngine } from './services/selfEvolution.js';
 import { sleep } from './utils/helpers.js';
 import { StateManager } from './services/state.js';
 import { WalletManager, CHAIN_NAMES, NATIVE_SYMBOLS, MIN_BALANCES } from './services/walletManager.js';
@@ -32,6 +34,9 @@ Commands:
   wallet:init      Initialize verification wallet (generates mnemonic)
   wallet:balances  Check wallet balances across all chains
   wallet:fund      Show deposit address for gas funding
+  patterns         Show learned vulnerability patterns
+  knowledge        Show learning statistics and evolution history
+  evolve           Run self-evolution cycle (refine patterns, analyze FPs)
 
 Options:
   --chain <name>       Chain name (default: ethereum)
@@ -76,6 +81,18 @@ async function main() {
   }
   if (command === 'wallet:fund') {
     await runWalletFund();
+    return;
+  }
+  if (command === 'patterns') {
+    runPatterns(args.slice(1));
+    return;
+  }
+  if (command === 'knowledge') {
+    runKnowledge();
+    return;
+  }
+  if (command === 'evolve') {
+    runEvolve();
     return;
   }
 
@@ -588,6 +605,115 @@ async function runWalletFund() {
   console.log('The wallet never executes actual exploits on mainnet.');
 
   wm.destroy();
+}
+
+// ── Intelligence Commands ──
+
+function runPatterns(args: string[]) {
+  const cache = new PatternCache();
+  const patterns = cache.getAllPatterns();
+
+  if (patterns.length === 0) {
+    console.log('No vulnerability patterns learned yet.');
+    console.log('Patterns are learned automatically when verified findings are discovered.');
+    cache.close();
+    return;
+  }
+
+  const topN = Number(getFlag(args, '--top') ?? 20);
+  const typeFilter = getFlag(args, '--type');
+
+  const filtered = typeFilter
+    ? patterns.filter(p => p.patternType === typeFilter)
+    : patterns;
+
+  console.log(`Learned Vulnerability Patterns (${filtered.length} total)\n`);
+  console.log(`${'#'.padStart(3)}  ${'Type'.padEnd(22)}  ${'Instances'.padStart(9)}  ${'Value'.padStart(12)}  ${'Accuracy'.padStart(8)}  ${'First Seen'.padEnd(12)}`);
+  console.log(`${'-'.repeat(3)}  ${'-'.repeat(22)}  ${'-'.repeat(9)}  ${'-'.repeat(12)}  ${'-'.repeat(8)}  ${'-'.repeat(12)}`);
+
+  for (let i = 0; i < Math.min(filtered.length, topN); i++) {
+    const p = filtered[i];
+    const instances = cache.getPatternInstances(p.id);
+    const valueStr = p.totalValueAtRisk >= 1e6
+      ? `$${(p.totalValueAtRisk / 1e6).toFixed(1)}M`
+      : p.totalValueAtRisk >= 1e3
+      ? `$${(p.totalValueAtRisk / 1e3).toFixed(0)}K`
+      : `$${p.totalValueAtRisk.toFixed(0)}`;
+    const accuracy = `${(p.truePositiveRate * 100).toFixed(0)}%`;
+    const date = p.firstSeenDate.slice(0, 10);
+
+    console.log(
+      `${String(i + 1).padStart(3)}  ${p.patternType.padEnd(22)}  ${String(instances.length).padStart(9)}  ${valueStr.padStart(12)}  ${accuracy.padStart(8)}  ${date.padEnd(12)}`,
+    );
+  }
+
+  // Summary
+  const totalValue = filtered.reduce((s, p) => s + p.totalValueAtRisk, 0);
+  const avgAccuracy = filtered.reduce((s, p) => s + p.truePositiveRate, 0) / (filtered.length || 1);
+  console.log(`\nTotal value tracked: $${totalValue.toLocaleString()}`);
+  console.log(`Average accuracy: ${(avgAccuracy * 100).toFixed(1)}%`);
+  console.log(`Fingerprints cached: ${cache.getFingerprintCount()}`);
+
+  cache.close();
+}
+
+function runKnowledge() {
+  const cache = new PatternCache();
+  const evolution = new SelfEvolutionEngine(cache);
+  const stats = evolution.getEvolutionStats();
+
+  console.log('Learning & Knowledge Report\n');
+  console.log(`Patterns learned:     ${stats.totalPatterns}`);
+  console.log(`Pattern instances:    ${stats.totalInstances}`);
+  console.log(`Fingerprints cached:  ${stats.totalFingerprints}`);
+  console.log(`Total value tracked:  $${stats.totalValueTracked.toLocaleString()}`);
+  console.log(`Overall accuracy:     ${(stats.overallAccuracy * 100).toFixed(1)}%`);
+  console.log(`Learning velocity:    ${stats.learningVelocity > 0 ? '+' : ''}${stats.learningVelocity.toFixed(0)}% (week-over-week)`);
+
+  if (stats.topPatterns.length > 0) {
+    console.log('\nTop Patterns by Value:');
+    for (const tp of stats.topPatterns.slice(0, 5)) {
+      const valueStr = tp.totalValue >= 1e6
+        ? `$${(tp.totalValue / 1e6).toFixed(1)}M`
+        : `$${(tp.totalValue / 1e3).toFixed(0)}K`;
+      console.log(`  ${tp.patternType}: ${valueStr} (${tp.instanceCount} instances, ${(tp.avgAccuracy * 100).toFixed(0)}% accuracy)`);
+    }
+  }
+
+  if (stats.patternsByType.length > 0) {
+    console.log('\nPatterns by Type:');
+    for (const pt of stats.patternsByType) {
+      console.log(`  ${pt.patternType}: ${pt.count} patterns, $${pt.value.toLocaleString()} value`);
+    }
+  }
+
+  if (stats.recentLearningEvents.length > 0) {
+    console.log('\nRecent Learning Events (last 7 days):');
+    for (const ev of stats.recentLearningEvents) {
+      console.log(`  ${ev.eventType}: ${ev.count}`);
+    }
+  }
+
+  if (stats.evolutionHistory.length > 0) {
+    console.log('\nEvolution History (last 30 days):');
+    console.log(`${'Date'.padEnd(12)} ${'TP'.padStart(4)} ${'FP'.padStart(4)} ${'New'.padStart(4)}`);
+    for (const eh of stats.evolutionHistory.slice(0, 10)) {
+      console.log(`${eh.date.padEnd(12)} ${String(eh.truePositives).padStart(4)} ${String(eh.falsePositives).padStart(4)} ${String(eh.newPatterns).padStart(4)}`);
+    }
+  }
+
+  cache.close();
+}
+
+function runEvolve() {
+  const cache = new PatternCache();
+  const evolution = new SelfEvolutionEngine(cache);
+
+  console.log('Running self-evolution cycle...\n');
+  const report = evolution.evolve();
+  console.log(`\n${report.summary}`);
+
+  cache.close();
 }
 
 // ── Helpers ──

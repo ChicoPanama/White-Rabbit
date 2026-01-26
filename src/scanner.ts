@@ -10,12 +10,15 @@ import { ExploitEstimator, formatExploitValue, exploitValueIcon, estimateBounty 
 import { EnhancedExploitVerifier } from './services/exploitVerifier.js';
 import type { EnhancedVerificationResult } from './services/exploitVerifier.js';
 import { WalletManager } from './services/walletManager.js';
+import { PatternCache } from './services/patternCache.js';
+import { ForkHunter } from './services/forkHunter.js';
+import { SelfEvolutionEngine } from './services/selfEvolution.js';
 import { ChainDiscoveryService } from './services/chains.js';
 import type { DynamicChainConfig } from './services/chains.js';
 import { TelegramAlertService } from './alerts/telegram.js';
 import { Database } from './database.js';
 import { CHAINS, SEVERITY_ORDER } from './types/index.js';
-import type { Contract, Finding, VerifiedFinding, VerificationStatus, ExploitEstimate } from './types/index.js';
+import type { Contract, Finding, VerifiedFinding, VerificationStatus, ExploitEstimate, ForkHuntResult } from './types/index.js';
 import { EXPLOIT_VALUE_THRESHOLDS } from './types/index.js';
 import { capitalize } from './utils/helpers.js';
 
@@ -40,6 +43,9 @@ export class Scanner {
   private readonly exploitEstimator: ExploitEstimator;
   private readonly enhancedVerifier: EnhancedExploitVerifier;
   private readonly walletManager: WalletManager | null;
+  readonly patternCache: PatternCache;
+  readonly forkHunter: ForkHunter;
+  readonly evolutionEngine: SelfEvolutionEngine;
   readonly chainDiscovery: ChainDiscoveryService;
   private readonly telegram: TelegramAlertService;
   private readonly db: Database;
@@ -57,7 +63,16 @@ export class Scanner {
     this.exploitEstimator = new ExploitEstimator();
     this.walletManager = walletManager ?? null;
     this.enhancedVerifier = new EnhancedExploitVerifier(this.walletManager);
-    this.chainDiscovery = new ChainDiscoveryService();
+    this.patternCache = new PatternCache();
+    this.forkHunter = new ForkHunter(
+      this.patternCache,
+      this.etherscan,
+      this.defillama,
+      this.chainDiscovery = new ChainDiscoveryService(),
+      this.verifier,
+      this.exploitEstimator,
+    );
+    this.evolutionEngine = new SelfEvolutionEngine(this.patternCache);
     this.telegram = new TelegramAlertService(config.telegramBotToken, config.telegramChatId);
     this.db = new Database(config.databaseUrl);
   }
@@ -304,6 +319,58 @@ export class Scanner {
         }
       }
 
+      // ── Stage 5c: PATTERN LEARNING & FORK HUNTING ──
+      const verifiedOrLikely = verifiedFindings.filter(
+        f => f.verificationStatus === 'verified' || f.verificationStatus === 'likely_real',
+      );
+      let forkHuntResults: ForkHuntResult[] = [];
+
+      if (verifiedOrLikely.length > 0) {
+        console.log(`[Stage 5c] Learning patterns from ${verifiedOrLikely.length} actionable findings`);
+
+        // Learn patterns from each verified finding
+        for (const vf of verifiedOrLikely) {
+          try {
+            const fingerprint = this.patternCache.generateFingerprint(address, chainId, source.name, source.sourceCode);
+            this.patternCache.saveFingerprint(fingerprint);
+            const pattern = this.patternCache.learnPattern(vf, address, chainId, source.sourceCode);
+            console.log(`[Stage 5c] Pattern ${pattern.id.slice(0, 8)} learned (type: ${pattern.patternType}, instances: ${this.patternCache.getPatternInstances(pattern.id).length})`);
+          } catch (err) {
+            console.warn(`[Stage 5c] Pattern learning failed for ${vf.detectorName}: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+
+        // Hunt for forks of verified findings (critical/high only to save API calls)
+        const highValueVerified = verifiedOrLikely.filter(
+          f => f.verificationStatus === 'verified' &&
+               SEVERITY_ORDER[f.severity] >= SEVERITY_ORDER['high'] &&
+               (f.exploitEstimate?.estimatedExploitable ?? 0) >= 25_000,
+        );
+
+        if (highValueVerified.length > 0) {
+          console.log(`[Stage 5c] Hunting forks for ${highValueVerified.length} high-value verified findings`);
+          for (const vf of highValueVerified.slice(0, 3)) { // Max 3 fork hunts per scan
+            try {
+              const result = await this.forkHunter.huntForks(vf, address, chainId, source.sourceCode, source.name);
+              forkHuntResults.push(result);
+              if (result.verifiedVulnerable.length > 0) {
+                console.log(`[Stage 5c] Fork hunt found ${result.verifiedVulnerable.length} vulnerable forks ($${result.totalValueAtRisk.toLocaleString()} total)`);
+              }
+            } catch (err) {
+              console.warn(`[Stage 5c] Fork hunt failed for ${vf.detectorName}: ${err instanceof Error ? err.message : String(err)}`);
+            }
+          }
+        }
+
+        // Record audit in pattern cache
+        this.patternCache.recordAudit(
+          address, chainId, source.name,
+          findings.length, verifiedOrLikely.filter(f => f.verificationStatus === 'verified').length,
+          falsePositives.length, verifiedOrLikely.reduce((s, f) => s + (f.exploitEstimate?.estimatedExploitable ?? 0), 0),
+          Date.now(), ['slither'],
+        );
+      }
+
       // Save all findings
       for (const finding of findings) {
         finding.scanId = scan.id;
@@ -363,6 +430,13 @@ export class Scanner {
         }
         // Batch summary
         await this.telegram.sendVerifiedBatchSummary(verifiedFindings, address, chainName, source.name);
+      }
+
+      // Send fork hunt results if any forks were found
+      for (const hunt of forkHuntResults) {
+        if (hunt.verifiedVulnerable.length > 0) {
+          await this.telegram.sendForkHuntResult(hunt, address, chainName, source.name);
+        }
       }
 
       return verifiedFindings;
@@ -513,6 +587,7 @@ export class Scanner {
 
   async shutdown(): Promise<void> {
     this.walletManager?.destroy();
+    this.patternCache.close();
     await this.db.close();
   }
 }
