@@ -21,7 +21,9 @@ async function main() {
     if (targetAddress) {
       console.log(`Scanning specific contract: ${targetAddress} on chain ${targetChainId}\n`);
       const findings = await scanner.scanContract(targetAddress, targetChainId);
-      console.log(`\nCompleted. ${findings.length} deduplicated findings.`);
+      const verified = findings.filter(f => f.verificationStatus === 'verified').length;
+      const likelyReal = findings.filter(f => f.verificationStatus === 'likely_real').length;
+      console.log(`\nCompleted. ${findings.length} findings (${verified} verified, ${likelyReal} likely real).`);
     } else {
       const summary = await scanner.runFullScan();
       if (summary.errors.length > 0) {

@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import type { Finding, Severity, TelegramSendResult } from '../types/index.js';
+import type { Finding, Severity, TelegramSendResult, VerifiedFinding, VerificationStatus } from '../types/index.js';
 import { SEVERITY_ORDER } from '../types/index.js';
 
 const SEVERITY_EMOJI: Record<Severity, string> = {
@@ -9,6 +9,22 @@ const SEVERITY_EMOJI: Record<Severity, string> = {
   low: '\u{1F7E2}',       // green circle
   informational: '\u{26AA}', // white circle
 };
+
+const VERIFICATION_BADGE: Record<VerificationStatus, string> = {
+  verified: '\u{2705} VERIFIED',
+  likely_real: '\u{26A0}\u{FE0F} LIKELY REAL',
+  needs_review: '\u{1F50D} NEEDS REVIEW',
+  likely_false: '\u{274C} LIKELY FALSE',
+  false_positive: '\u{1F6AB} FALSE POSITIVE',
+};
+
+const CONFIDENCE_BAR_LENGTH = 10;
+
+function confidenceBar(score: number): string {
+  const filled = Math.round((score / 100) * CONFIDENCE_BAR_LENGTH);
+  const empty = CONFIDENCE_BAR_LENGTH - filled;
+  return '\u{2588}'.repeat(filled) + '\u{2591}'.repeat(empty) + ` ${score}%`;
+}
 
 export class TelegramAlertService {
   private readonly baseUrl: string;
@@ -23,7 +39,7 @@ export class TelegramAlertService {
   }
 
   /**
-   * Send alert for a single vulnerability finding.
+   * Send alert for a single vulnerability finding (legacy format).
    * Returns true if sent, false if deduplicated/skipped.
    */
   async sendFindingAlert(finding: Finding, contractAddress: string, chainName: string): Promise<boolean> {
@@ -70,7 +86,155 @@ export class TelegramAlertService {
   }
 
   /**
-   * Send a batch summary for multiple findings on the same contract.
+   * Send verified finding alert with verification status badge, confidence bar,
+   * and mobile-friendly concise format. This is the primary alert method.
+   */
+  async sendVerifiedFindingAlert(
+    finding: VerifiedFinding,
+    contractAddress: string,
+    chainName: string,
+    protocolName?: string,
+    chainTvl?: number,
+  ): Promise<boolean> {
+    const messageHash = this.computeVerifiedHash(finding);
+    if (this.sentHashes.has(messageHash)) {
+      return false;
+    }
+
+    const sevEmoji = SEVERITY_EMOJI[finding.severity] ?? '';
+    const badge = VERIFICATION_BADGE[finding.verificationStatus];
+    const bar = confidenceBar(finding.confidenceScore);
+    const contractLabel = protocolName
+      ? `${this.escapeHtml(protocolName)} (<code>${this.escapeHtml(contractAddress.slice(0, 10))}...</code>)`
+      : `<code>${this.escapeHtml(contractAddress)}</code>`;
+
+    // Chain label with TVL context
+    const chainLabel = chainTvl
+      ? `${this.escapeHtml(chainName)} (${formatTvlDisplay(chainTvl)})`
+      : this.escapeHtml(chainName);
+
+    const lines = [
+      `${sevEmoji} <b>${finding.severity.toUpperCase()}: ${this.escapeHtml(finding.detectorName)}</b>`,
+      `${badge}`,
+      '',
+      `\u{1F517} ${chainLabel} | ${contractLabel}`,
+      `\u{1F4CA} Confidence: ${bar}`,
+    ];
+
+    // Tools agreeing (consensus indicator)
+    if (finding.toolsAgreeing.length > 1) {
+      lines.push(`\u{1F91D} Tools: ${finding.toolsAgreeing.map(t => this.escapeHtml(t)).join(', ')}`);
+    }
+
+    // PoC result badge
+    if (finding.pocResult?.attempted) {
+      const pocIcon = finding.pocResult.succeeded ? '\u{1F4A5}' : '\u{1F6E1}\u{FE0F}';
+      const pocText = finding.pocResult.succeeded ? 'PoC exploit SUCCEEDED' : 'PoC exploit failed';
+      lines.push(`${pocIcon} ${pocText}`);
+    }
+
+    lines.push('');
+    lines.push(this.escapeHtml(this.truncate(finding.description, 300)));
+
+    // AI assessment (compact)
+    if (finding.aiAssessment) {
+      lines.push('', `\u{1F916} ${this.escapeHtml(this.truncate(finding.aiAssessment, 200))}`);
+    }
+
+    // Context hints
+    if (finding.contextInfo) {
+      const ctx = finding.contextInfo;
+      const hints: string[] = [];
+      if (ctx.isAudited) hints.push(`Audited by ${ctx.auditedBy.join(', ')}`);
+      if (ctx.knownProtocol) hints.push(`Protocol: ${ctx.knownProtocol}`);
+      if (hints.length > 0) {
+        lines.push('', `\u{1F4DD} ${this.escapeHtml(hints.join(' | '))}`);
+      }
+    }
+
+    // Quick action hints
+    lines.push('', '\u{2699}\u{FE0F} <i>Reply "status" for scanner status</i>');
+
+    const result = await this.sendMessage(lines.join('\n'), {
+      parse_mode: 'HTML',
+      disable_notification: false, // Always notify for verified/likely_real
+    });
+
+    if (result) {
+      this.sentHashes.add(messageHash);
+    }
+    return result;
+  }
+
+  /**
+   * Send a verified batch summary with verification breakdown.
+   */
+  async sendVerifiedBatchSummary(
+    findings: VerifiedFinding[],
+    contractAddress: string,
+    chainName: string,
+    protocolName: string | null,
+  ): Promise<boolean> {
+    const verified = findings.filter(f => f.verificationStatus === 'verified').length;
+    const likelyReal = findings.filter(f => f.verificationStatus === 'likely_real').length;
+    const needsReview = findings.filter(f => f.verificationStatus === 'needs_review').length;
+    const filtered = findings.filter(f =>
+      f.verificationStatus === 'likely_false' || f.verificationStatus === 'false_positive',
+    ).length;
+
+    const bySeverity: Record<string, number> = {};
+    const actionable = findings.filter(f =>
+      f.verificationStatus === 'verified' || f.verificationStatus === 'likely_real',
+    );
+    for (const f of actionable) {
+      bySeverity[f.severity] = (bySeverity[f.severity] ?? 0) + 1;
+    }
+
+    const severityLine = Object.entries(bySeverity)
+      .sort(([a], [b]) => SEVERITY_ORDER[b as Severity] - SEVERITY_ORDER[a as Severity])
+      .map(([sev, count]) => `${SEVERITY_EMOJI[sev as Severity] ?? ''} ${sev}: ${count}`)
+      .join('  ');
+
+    const topActionable = actionable
+      .sort((a, b) => b.confidenceScore - a.confidenceScore)
+      .slice(0, 5)
+      .map((f, i) => {
+        const badge = f.verificationStatus === 'verified' ? '\u{2705}' : '\u{26A0}\u{FE0F}';
+        return `${i + 1}. ${badge} [${f.severity.toUpperCase()}] ${this.escapeHtml(f.detectorName)} (${f.confidenceScore}%)`;
+      })
+      .join('\n');
+
+    const label = protocolName ? this.escapeHtml(protocolName) : `<code>${this.escapeHtml(contractAddress)}</code>`;
+
+    const lines = [
+      `\u{1F9EA} <b>Scan Complete: ${label}</b>`,
+      '',
+      `\u{1F517} ${this.escapeHtml(chainName)} | <code>${this.escapeHtml(contractAddress)}</code>`,
+      '',
+      `<b>Verification Results:</b>`,
+      `  \u{2705} Verified: ${verified}`,
+      `  \u{26A0}\u{FE0F} Likely Real: ${likelyReal}`,
+      `  \u{1F50D} Needs Review: ${needsReview}`,
+      `  \u{1F6AB} Filtered (FP): ${filtered}`,
+    ];
+
+    if (severityLine) {
+      lines.push('', severityLine);
+    }
+
+    if (topActionable) {
+      lines.push('', `<b>Actionable Findings:</b>`, topActionable);
+    }
+
+    if (actionable.length === 0) {
+      lines.push('', '\u{2705} No actionable findings. All clear.');
+    }
+
+    return this.sendMessage(lines.join('\n'), { parse_mode: 'HTML' });
+  }
+
+  /**
+   * Send a batch summary for multiple findings on the same contract (legacy).
    */
   async sendBatchSummary(
     findings: Finding[],
@@ -108,6 +272,110 @@ export class TelegramAlertService {
     ];
 
     return this.sendMessage(message.join('\n'), { parse_mode: 'HTML' });
+  }
+
+  /**
+   * Send daily summary digest. Compact format for mobile.
+   */
+  async sendDailySummary(stats: {
+    totalScans: number;
+    contractsScanned: number;
+    verified: number;
+    likelyReal: number;
+    fpFiltered: number;
+    networks: string[];
+  }): Promise<boolean> {
+    const total = stats.verified + stats.likelyReal;
+    const icon = total > 0 ? '\u{1F6A8}' : '\u{2705}';
+
+    const lines = [
+      `\u{1F4CB} <b>Daily Summary</b>`,
+      '',
+      `${icon} <b>${total} actionable findings</b> across ${stats.contractsScanned} contracts`,
+      '',
+      `  \u{2705} Verified: ${stats.verified}`,
+      `  \u{26A0}\u{FE0F} Likely Real: ${stats.likelyReal}`,
+      `  \u{1F6AB} FPs Filtered: ${stats.fpFiltered}`,
+      '',
+      `\u{1F517} Networks: ${stats.networks.join(', ')}`,
+      `\u{1F50E} Scans: ${stats.totalScans}`,
+    ];
+
+    if (total === 0) {
+      lines.push('', '\u{1F389} Clean sweep. No vulnerabilities found today.');
+    }
+
+    return this.sendMessage(lines.join('\n'), { parse_mode: 'HTML' });
+  }
+
+  /**
+   * Send top chains scan start notification.
+   */
+  async sendTopChainsScanStart(chains: Array<{ name: string; tvl: number }>, minTvl: number): Promise<boolean> {
+    const chainList = chains
+      .map(c => `${this.escapeHtml(c.name)} (${formatTvlDisplay(c.tvl)})`)
+      .join(' \u{2192} ');
+
+    const lines = [
+      `\u{1F99E} <b>Scanning Top ${chains.length} EVM Chains by TVL</b>`,
+      '',
+      `\u{1F3AF} ${chainList}`,
+      '',
+      `\u{1F4B0} Min TVL: $${formatTvlDisplay(minTvl)}`,
+      `\u{1F50E} Mode: Full sweep`,
+      '',
+      `Starting now... I'll alert you on verified findings only.`,
+    ];
+
+    return this.sendMessage(lines.join('\n'), { parse_mode: 'HTML' });
+  }
+
+  /**
+   * Send chain rankings message.
+   */
+  async sendChainRankings(rankings: string): Promise<boolean> {
+    return this.sendMessage(rankings, { parse_mode: 'HTML' });
+  }
+
+  /**
+   * Send per-chain scan status breakdown.
+   */
+  async sendChainStatusBreakdown(chainStats: Array<{
+    name: string;
+    contracts: number;
+    verified: number;
+    likelyReal: number;
+    status: 'done' | 'scanning' | 'queued';
+  }>): Promise<boolean> {
+    const lines = [
+      `\u{1F4CA} <b>Per-Chain Scan Status</b>`,
+      '',
+    ];
+
+    for (const cs of chainStats) {
+      let icon: string;
+      if (cs.status === 'done') icon = '\u2705';
+      else if (cs.status === 'scanning') icon = '\u{1F504}';
+      else icon = '\u23F3';
+
+      let detail = `${cs.contracts} contracts`;
+      if (cs.verified > 0) detail += `, ${cs.verified} VERIFIED \u{1F534}`;
+      else if (cs.likelyReal > 0) detail += `, ${cs.likelyReal} likely real`;
+      else detail += ', 0 verified';
+
+      const statusText = cs.status === 'scanning' ? 'scanning now...' :
+                         cs.status === 'queued' ? 'queued' : detail;
+      lines.push(`${icon} ${this.escapeHtml(cs.name)} - ${statusText}`);
+    }
+
+    return this.sendMessage(lines.join('\n'), { parse_mode: 'HTML' });
+  }
+
+  /**
+   * Send autonomous mode status update.
+   */
+  async sendStatusUpdate(status: string): Promise<boolean> {
+    return this.sendMessage(status, { parse_mode: 'HTML' });
   }
 
   /**
@@ -162,6 +430,11 @@ export class TelegramAlertService {
     return crypto.createHash('sha256').update(key).digest('hex').slice(0, 16);
   }
 
+  private computeVerifiedHash(finding: VerifiedFinding): string {
+    const key = `${finding.detectorName}:${finding.filePath}:${finding.lineStart}:${finding.severity}:${finding.verificationStatus}`;
+    return crypto.createHash('sha256').update(key).digest('hex').slice(0, 16);
+  }
+
   private escapeHtml(text: string): string {
     return text
       .replace(/&/g, '&amp;')
@@ -182,4 +455,11 @@ export class TelegramAlertService {
   clearDedupCache(): void {
     this.sentHashes.clear();
   }
+}
+
+function formatTvlDisplay(tvl: number): string {
+  if (tvl >= 1e9) return `$${(tvl / 1e9).toFixed(1)}B`;
+  if (tvl >= 1e6) return `$${(tvl / 1e6).toFixed(0)}M`;
+  if (tvl >= 1e3) return `$${(tvl / 1e3).toFixed(0)}K`;
+  return `$${tvl.toFixed(0)}`;
 }

@@ -1,0 +1,64 @@
+{
+  "agent_id": "white-rabbit",
+  "display_name": "White Rabbit Scanner",
+  "emoji": "\ud83e\udd9e",
+  "heartbeat": {
+    "interval_minutes": 30,
+    "active_hours": {
+      "start": 6,
+      "end": 24
+    },
+    "on_wake": "npx tsx src/cli.ts stats",
+    "on_idle": "echo 'Scanner idle. Use: start hunting'"
+  },
+  "skills_dir": "./skills",
+  "primary_skill": "contract-scanner",
+  "delivery": {
+    "default_channel": "telegram",
+    "channels": {
+      "telegram": {
+        "bot_token_env": "TELEGRAM_BOT_TOKEN",
+        "chat_id_env": "TELEGRAM_CHAT_ID"
+      }
+    }
+  },
+  "crons": [
+    {
+      "name": "ETH Mainnet scan",
+      "cron": "0 */4 * * *",
+      "session": "isolated",
+      "message": "Run vulnerability scan on ethereum",
+      "deliver": true,
+      "channel": "telegram"
+    },
+    {
+      "name": "L2 networks scan",
+      "cron": "0 */6 * * *",
+      "session": "isolated",
+      "message": "Run vulnerability scan on base,arbitrum,optimism",
+      "deliver": true,
+      "channel": "telegram"
+    },
+    {
+      "name": "Daily summary",
+      "cron": "0 9 * * *",
+      "session": "isolated",
+      "message": "Send daily vulnerability summary to telegram",
+      "deliver": true,
+      "channel": "telegram"
+    }
+  ],
+  "environment": {
+    "required": [
+      "ETHERSCAN_API_KEY",
+      "TELEGRAM_BOT_TOKEN",
+      "TELEGRAM_CHAT_ID"
+    ],
+    "recommended": [
+      "ANTHROPIC_API_KEY",
+      "ETH_RPC_URL",
+      "DATABASE_URL",
+      "REDIS_URL"
+    ]
+  }
+}
