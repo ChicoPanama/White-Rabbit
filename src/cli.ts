@@ -2,6 +2,7 @@ import { loadConfig } from './config.js';
 import { Scanner } from './scanner.js';
 import { CHAINS } from './types/index.js';
 import { sleep } from './utils/helpers.js';
+import { StateManager } from './services/state.js';
 
 const HELP = `
 White-Rabbit: Autonomous Smart Contract Vulnerability Scanner
@@ -11,18 +12,23 @@ Usage:
   npx tsx src/cli.ts scan <network>
   npx tsx src/cli.ts protocols <network> [--min-tvl <usd>]
   npx tsx src/cli.ts auto [--networks <list>] [--min-tvl <usd>] [--interval <min>]
+  npx tsx src/cli.ts stats
+  npx tsx src/cli.ts findings [--limit <n>]
 
 Commands:
   audit       Audit a single contract address
   scan        Scan a network for high-TVL protocol vulnerabilities
   protocols   List high-TVL protocols on a network
   auto        Start autonomous scanning loop
+  stats       Show scanner status and statistics
+  findings    Show recent verified/likely-real findings
 
 Options:
   --chain <name>       Chain name (default: ethereum)
   --min-tvl <usd>      Minimum TVL threshold (default: 10000000)
   --networks <list>    Comma-separated networks (default: ethereum,base,arbitrum)
   --interval <min>     Minutes between scan cycles in auto mode (default: 30)
+  --limit <n>          Number of findings to show (default: 10)
   --help               Show this help
 `;
 
@@ -33,6 +39,16 @@ async function main() {
   if (!command || command === '--help' || command === '-h') {
     console.log(HELP);
     process.exit(0);
+  }
+
+  // Stats and findings don't need the full scanner
+  if (command === 'stats') {
+    runStats();
+    return;
+  }
+  if (command === 'findings') {
+    runFindings(args.slice(1));
+    return;
   }
 
   const config = loadConfig();
@@ -70,7 +86,7 @@ async function runAudit(scanner: Scanner, args: string[]) {
     process.exit(1);
   }
 
-  const chainName = getFlag(args, '--chain') ?? 'ethereum';
+  const chainName = getFlag(args, '--chain') ?? getFlag(args, '-n') ?? 'ethereum';
   const chain = CHAINS[chainName.toLowerCase()];
   if (!chain) {
     console.error(`Unknown chain: ${chainName}. Available: ${Object.keys(CHAINS).join(', ')}`);
@@ -80,6 +96,25 @@ async function runAudit(scanner: Scanner, args: string[]) {
   console.log(`Auditing ${address} on ${chain.name} (chain ID: ${chain.chainId})\n`);
 
   const findings = await scanner.scanContract(address, chain.chainId);
+
+  // Record findings in state
+  const state = new StateManager();
+  for (const f of findings) {
+    if (f.verificationStatus === 'verified' || f.verificationStatus === 'likely_real') {
+      state.addFinding({
+        id: f.id,
+        timestamp: new Date().toISOString(),
+        contractAddress: address,
+        contractName: f.title || address,
+        chain: chain.name,
+        detector: f.detectorName,
+        severity: f.severity,
+        confidenceScore: f.confidenceScore,
+        verificationStatus: f.verificationStatus,
+        description: f.description.slice(0, 200),
+      });
+    }
+  }
 
   console.log(`\n${'='.repeat(60)}`);
   console.log(`Audit complete: ${findings.length} findings\n`);
@@ -122,6 +157,17 @@ async function runScan(scanner: Scanner, args: string[], config: ReturnType<type
   console.log(`Scanning ${chain.name} for vulnerable protocols (min TVL: $${(config.minTvlThreshold / 1e6).toFixed(0)}M)\n`);
 
   const summary = await scanner.runFullScan();
+
+  // Record stats
+  const state = new StateManager();
+  state.recordScan(
+    network,
+    summary.contractsAnalyzed,
+    summary.verifiedFindings,
+    summary.likelyRealFindings,
+    summary.falsePositivesFiltered,
+    summary.alertsSent,
+  );
 
   if (summary.errors.length > 0) {
     console.log('\nErrors:');
@@ -172,6 +218,15 @@ async function runAuto(scanner: Scanner, args: string[], config: ReturnType<type
   const intervalMin = Number(getFlag(args, '--interval') ?? 30);
   const intervalMs = intervalMin * 60 * 1000;
 
+  const state = new StateManager();
+  state.setAutonomous(true);
+  state.updateConfig({
+    networks: config.scanChains.map(c => c.name.toLowerCase()),
+    minTvlUsd: config.minTvlThreshold,
+    intervalMinutes: intervalMin,
+    alertThreshold: config.alertMinSeverity,
+  });
+
   console.log('Starting autonomous scanning mode');
   console.log(`  Networks: ${config.scanChains.map(c => c.name).join(', ')}`);
   console.log(`  Min TVL: $${(config.minTvlThreshold / 1e6).toFixed(0)}M`);
@@ -184,6 +239,7 @@ async function runAuto(scanner: Scanner, args: string[], config: ReturnType<type
 
   const shutdown = () => {
     console.log('\nShutting down autonomous scanner...');
+    state.setAutonomous(false);
     process.exit(0);
   };
   process.on('SIGINT', shutdown);
@@ -196,13 +252,51 @@ async function runAuto(scanner: Scanner, args: string[], config: ReturnType<type
     console.log('='.repeat(60));
 
     try {
-      await scanner.runFullScan();
+      const summary = await scanner.runFullScan();
+      for (const chain of config.scanChains) {
+        state.recordScan(
+          chain.name.toLowerCase(),
+          summary.contractsAnalyzed,
+          summary.verifiedFindings,
+          summary.likelyRealFindings,
+          summary.falsePositivesFiltered,
+          summary.alertsSent,
+        );
+      }
     } catch (err) {
       console.error(`Cycle #${cycle} failed:`, err);
     }
 
     console.log(`\nNext scan in ${intervalMin} minutes...`);
     await sleep(intervalMs);
+  }
+}
+
+function runStats() {
+  const state = new StateManager();
+  console.log(state.formatStatus());
+}
+
+function runFindings(args: string[]) {
+  const limit = Number(getFlag(args, '--limit') ?? 10);
+  const state = new StateManager();
+  const findings = state.getVerifiedFindings(limit);
+
+  if (findings.length === 0) {
+    console.log('No verified or likely-real findings recorded yet.');
+    return;
+  }
+
+  console.log(`Recent verified/likely-real findings (${findings.length}):\n`);
+
+  for (const f of findings) {
+    const statusIcon = f.verificationStatus === 'verified' ? 'VERIFIED' : 'LIKELY REAL';
+    console.log(`[${f.severity.toUpperCase()}] ${statusIcon} - ${f.detector}`);
+    console.log(`  Contract: ${f.contractAddress} (${f.chain})`);
+    console.log(`  Confidence: ${f.confidenceScore}%`);
+    console.log(`  ${f.description}`);
+    console.log(`  Found: ${f.timestamp}`);
+    console.log();
   }
 }
 

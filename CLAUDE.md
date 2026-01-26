@@ -67,15 +67,22 @@ White-Rabbit/
 ├── Dockerfile                 # Scanner container
 ├── .env.example               # Environment variable template
 ├── .gitignore
+├── scripts/
+│   ├── scan.sh                # Scan a network (bash wrapper)
+│   ├── audit.sh               # Audit a contract (bash wrapper)
+│   ├── hunt.sh                # Start autonomous scanning (bash wrapper)
+│   ├── status.sh              # Show status/findings (bash wrapper)
+│   ├── install-clawd.sh       # Clawd bot installation script
+│   └── clawdbot.json          # Clawd bot heartbeat config
 ├── skills/
 │   └── contract-scanner/
-│       └── SKILL.md           # Clawd bot skill definition
+│       └── SKILL.md           # Clawd bot skill definition (NL commands)
 ├── migrations/
 │   └── 001_initial_schema.sql # Database schema
 └── src/
     ├── index.ts               # Main entry point (one-shot)
     ├── worker.ts              # BullMQ worker entry point
-    ├── cli.ts                 # CLI interface (audit, scan, protocols, auto)
+    ├── cli.ts                 # CLI interface (audit, scan, protocols, auto, stats, findings)
     ├── config.ts              # Environment & configuration
     ├── scanner.ts             # Orchestrator - 6-stage verification pipeline
     ├── database.ts            # PostgreSQL client
@@ -90,9 +97,10 @@ White-Rabbit/
     │   └── deduplicator.ts    # Cross-tool finding dedup
     ├── services/
     │   ├── context.ts         # Audit history, FP pattern detection, confidence scoring
-    │   └── verifier.ts        # PoC generation & Foundry fork testing
+    │   ├── verifier.ts        # PoC generation & Foundry fork testing
+    │   └── state.ts           # File-based state persistence for Clawd integration
     ├── alerts/
-    │   └── telegram.ts        # Telegram Bot API alerting
+    │   └── telegram.ts        # Telegram Bot API alerting (mobile-optimized)
     ├── queue/
     │   ├── queues.ts          # Queue definitions
     │   └── workers.ts         # Worker processors
@@ -118,6 +126,8 @@ White-Rabbit/
 | `MIN_TVL_THRESHOLD` | No | Minimum TVL in USD to scan (default: 10000000) |
 | `SCAN_CHAINS` | No | Comma-separated chain names (default: ethereum,base,arbitrum) |
 | `ALERT_MIN_SEVERITY` | No | Minimum severity to alert on (default: medium) |
+| `CLAWD_AGENT_ID` | No | Clawd bot agent identifier (default: white-rabbit) |
+| `CLAWD_DELIVERY_CHANNEL` | No | Clawd delivery channel (default: telegram) |
 
 ## Key Commands
 
@@ -140,6 +150,12 @@ npm run protocols -- ethereum --min-tvl 10000000
 # Start autonomous scanning
 npm run dev -- auto --networks ethereum,base --interval 30
 
+# Show scanner status
+npx tsx src/cli.ts stats
+
+# Show recent findings
+npx tsx src/cli.ts findings --limit 20
+
 # Run scanner (one-shot, legacy)
 npm start
 
@@ -152,6 +168,65 @@ docker compose up -d
 # Run database migrations
 npm run migrate
 ```
+
+## Bash Wrapper Scripts
+
+```bash
+# Quick access scripts (chmod +x)
+./scripts/scan.sh ethereum           # Scan a network
+./scripts/audit.sh 0xADDRESS        # Audit a contract
+./scripts/hunt.sh                    # Start autonomous mode
+./scripts/hunt.sh --interval 15     # Custom scan interval
+./scripts/status.sh                  # Show status
+./scripts/status.sh findings         # Show findings
+./scripts/install-clawd.sh          # Install as Clawd skill
+```
+
+## Clawd Bot Integration
+
+White Rabbit integrates with Clawd bot for Telegram-controlled autonomous operation.
+
+### Setup
+
+```bash
+# Install as Clawd skill
+./scripts/install-clawd.sh
+```
+
+This creates:
+- `~/.clawdbot/clawdbot.json` — heartbeat config (30min interval, 6AM-midnight)
+- `~/.clawdbot/skills/contract-scanner/SKILL.md` — symlinked skill definition
+- `~/.etherscan-auditor/state.json` — scanner state persistence
+
+### Natural Language Commands
+
+Users can control the scanner through Telegram via Clawd:
+
+| Command | Action |
+|---------|--------|
+| "start hunting" | Start autonomous scanning loop |
+| "stop hunting" | Stop the scanner |
+| "scan ethereum" | Scan a specific network |
+| "audit 0x..." | Audit a single contract |
+| "status" | Show scanner status |
+| "what did you find" | Show recent findings |
+| "protocols on base" | List high-TVL protocols |
+
+### Cron Jobs
+
+| Schedule | Network | Description |
+|----------|---------|-------------|
+| Every 4 hours | Ethereum | Mainnet scan |
+| Every 6 hours | Base, Arbitrum, Optimism | L2 networks |
+| Daily 9 AM | All | Summary digest |
+
+### State Persistence
+
+Scanner state persists to `~/.etherscan-auditor/state.json`:
+- Autonomous mode status (active/inactive, PID)
+- Configuration (networks, TVL threshold, interval)
+- Cumulative stats (scans, contracts, findings, FPs filtered)
+- Recent findings (last 100, verified/likely-real)
 
 ## 6-Stage Verification Pipeline
 
