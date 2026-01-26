@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { Finding, PoCResult, Severity } from '../types/index.js';
+import type { Finding, PoCResult, PoCValueResult, Severity } from '../types/index.js';
 import { CHAIN_RPC_ENV, CHAINS, SEVERITY_ORDER } from '../types/index.js';
 
 const POC_DIR = path.resolve(process.cwd(), '.poc-workspace');
@@ -32,10 +32,17 @@ contract ReentrancyPoC is Test {
 
     function testReentrancy() public {
         deal(address(this), 1 ether);
-        uint256 balBefore = address(target).balance;
+        uint256 attackerBefore = address(this).balance;
+        uint256 targetBefore = address(target).balance;
         target.deposit{value: 0.1 ether}();
         target.withdraw();
-        uint256 balAfter = address(target).balance;
+        uint256 attackerAfter = address(this).balance;
+        uint256 targetAfter = address(target).balance;
+        uint256 profit = attackerAfter > attackerBefore ? attackerAfter - attackerBefore : 0;
+        uint256 drained = targetBefore > targetAfter ? targetBefore - targetAfter : 0;
+        emit log_named_uint("EXTRACTED_WEI", profit);
+        emit log_named_uint("TARGET_DRAINED_WEI", drained);
+        emit log_named_uint("GAS_USED", gasleft());
         // If we drained more than deposited, reentrancy worked
         assertTrue(address(this).balance > 0.1 ether, "Reentrancy exploit did not succeed");
     }
@@ -159,6 +166,7 @@ export class PoCVerifier {
         forkBlockNumber: null,
         errorMessage: `No PoC template for detector: ${finding.detectorName}`,
         gasUsed: null,
+        extractedValue: null,
       };
     }
 
@@ -171,6 +179,7 @@ export class PoCVerifier {
         forkBlockNumber: null,
         errorMessage: `No PoC template for category: ${pocCategory}`,
         gasUsed: null,
+        extractedValue: null,
       };
     }
 
@@ -184,6 +193,7 @@ export class PoCVerifier {
         forkBlockNumber: null,
         errorMessage: `Unknown chain ID: ${chainId}`,
         gasUsed: null,
+        extractedValue: null,
       };
     }
 
@@ -196,6 +206,7 @@ export class PoCVerifier {
         forkBlockNumber: null,
         errorMessage: `No RPC URL configured for ${chainName} (set ${CHAIN_RPC_ENV[chainName]})`,
         gasUsed: null,
+        extractedValue: null,
       };
     }
 
@@ -249,6 +260,9 @@ export class PoCVerifier {
       const succeeded = result.exitCode === 0 && result.stdout.includes('PASS');
       const gasMatch = result.stdout.match(/Gas used:\s*(\d+)/);
 
+      // Parse extracted value from PoC output
+      const extractedValue = this.parseExtractedValue(result.stdout);
+
       return {
         attempted: true,
         succeeded,
@@ -256,6 +270,7 @@ export class PoCVerifier {
         forkBlockNumber: this.extractBlockNumber(result.stdout),
         errorMessage: succeeded ? null : this.extractError(result.stderr || result.stdout),
         gasUsed: gasMatch?.[1] ?? null,
+        extractedValue,
       };
     } catch (err) {
       return {
@@ -265,6 +280,7 @@ export class PoCVerifier {
         forkBlockNumber: null,
         errorMessage: err instanceof Error ? err.message : String(err),
         gasUsed: null,
+        extractedValue: null,
       };
     } finally {
       // Cleanup
@@ -324,6 +340,42 @@ export class PoCVerifier {
   private extractBlockNumber(output: string): number | null {
     const match = output.match(/Block:\s*(\d+)/i) || output.match(/fork.*block\s*#?(\d+)/i);
     return match ? Number(match[1]) : null;
+  }
+
+  /**
+   * Parse extracted value from PoC test output.
+   * Looks for EXTRACTED_WEI and TARGET_DRAINED_WEI log entries.
+   */
+  private parseExtractedValue(output: string): PoCValueResult | null {
+    const extractedMatch = output.match(/EXTRACTED_WEI:\s*(\d+)/);
+    const drainedMatch = output.match(/TARGET_DRAINED_WEI:\s*(\d+)/);
+    const gasMatch = output.match(/Gas used:\s*(\d+)/);
+
+    if (!extractedMatch && !drainedMatch) {
+      return null;
+    }
+
+    const extractedWei = BigInt(extractedMatch?.[1] ?? '0');
+    const drainedWei = BigInt(drainedMatch?.[1] ?? '0');
+    const extractedEth = Number(extractedWei) / 1e18;
+    const drainedEth = Number(drainedWei) / 1e18;
+
+    // Approximate USD (in production, use live price)
+    const ethPrice = 2500;
+    const extractedUsd = extractedEth * ethPrice;
+    const gasUsed = gasMatch?.[1] ?? null;
+    const gasCostEth = gasUsed ? (Number(gasUsed) * 30 * 1e-9) : 0; // ~30 gwei
+    const gasCostUsd = gasCostEth * ethPrice;
+
+    return {
+      succeeded: extractedWei > 0n || drainedWei > 0n,
+      extractedEth: Math.max(extractedEth, drainedEth),
+      extractedTokensUsd: 0, // Token extraction requires more complex parsing
+      extractedValueUsd: Math.max(extractedUsd, drainedEth * ethPrice),
+      gasUsed,
+      gasCostUsd,
+      netProfit: Math.max(extractedUsd, drainedEth * ethPrice) - gasCostUsd,
+    };
   }
 
   private extractError(output: string): string {

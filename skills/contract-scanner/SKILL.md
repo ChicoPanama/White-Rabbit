@@ -1,12 +1,16 @@
 ---
 name: contract-scanner
-description: Autonomous smart contract vulnerability scanner with dynamic top-10 chain discovery
-metadata: {"clawdbot":{"requires":{"bins":["slither","node"],"env":["ETHERSCAN_API_KEY","TELEGRAM_BOT_TOKEN","TELEGRAM_CHAT_ID"]},"primaryEnv":"ETHERSCAN_API_KEY","emoji":"🦞","installers":{"slither":"pip install slither-analyzer solc-select && solc-select install 0.8.20 && solc-select use 0.8.20","foundry":"curl -L https://foundry.paradigm.xyz | bash && foundryup"},"heartbeat":{"interval_minutes":30,"active_hours":{"start":6,"end":24}},"crons":[{"name":"Top Chain Sweep","cron":"0 */4 * * *","message":"Scan top 10 chains by TVL for vulnerabilities, min TVL 1M, alert me only on verified findings","deliver":true,"channel":"telegram"},{"name":"Daily Summary","cron":"0 9 * * *","message":"Refresh chain TVL rankings, show me the current top 10, and summarize vulnerabilities found in the last 24 hours","deliver":true,"channel":"telegram"}]}}
+description: Autonomous smart contract vulnerability scanner with exploitable value estimation
+metadata: {"clawdbot":{"requires":{"bins":["slither","node"],"env":["ETHERSCAN_API_KEY","TELEGRAM_BOT_TOKEN","TELEGRAM_CHAT_ID"]},"primaryEnv":"ETHERSCAN_API_KEY","emoji":"🦞","installers":{"slither":"pip install slither-analyzer solc-select && solc-select install 0.8.20 && solc-select use 0.8.20","foundry":"curl -L https://foundry.paradigm.xyz | bash && foundryup"},"heartbeat":{"interval_minutes":30,"active_hours":{"start":6,"end":24}},"crons":[{"name":"Top Chain Sweep","cron":"0 */4 * * *","message":"Scan top 10 chains by TVL for vulnerabilities, min TVL 1M, alert on findings over $25K exploitable","deliver":true,"channel":"telegram"},{"name":"Daily Summary","cron":"0 9 * * *","message":"Give me a value breakdown of all findings from the last 24 hours, sorted by exploitable amount. Refresh chain TVL rankings.","deliver":true,"channel":"telegram"}]}}
 ---
 
 ## Instructions
 
-Scan smart contracts for vulnerabilities across the top EVM chains by TVL using a 6-stage verification pipeline. Dynamically discovers chains from DeFiLlama. Only alerts on verified or high-confidence findings. Never cry wolf.
+Scan smart contracts for vulnerabilities across the top EVM chains by TVL using a 6-stage verification pipeline. Dynamically discovers chains from DeFiLlama. Estimates **actual exploitable value** (not just TVL) for every finding. Only alerts on verified or high-confidence findings above value thresholds. Never cry wolf.
+
+### Key Insight
+
+TVL ≠ Exploitable Value. A protocol might have $10M TVL but only $267K sits in the vulnerable contract and is actually exploitable. This scanner answers: **"How much money is actually at risk?"**
 
 ### Natural Language Commands
 
@@ -17,16 +21,17 @@ Scan smart contracts for vulnerabilities across the top EVM chains by TVL using 
 | "stop hunting" / "stand down" | Stop the autonomous scanner | Send SIGTERM to scanner PID |
 | "scan top 10" / "scan top chains" / "scan everything" | Scan top 10 chains by TVL | `./scripts/scan.sh top10` |
 | "scan ethereum" / "scan [network]" | Scan a specific network | `./scripts/scan.sh <network>` |
-| "scan base and arbitrum" / "scan [chain1], [chain2]" | Scan specific chains | Run scan for each chain |
 | "audit 0x..." / "check 0x..." / "analyze 0x..." | Audit a single contract | `./scripts/audit.sh <address>` |
 | "audit 0x... on base" | Audit contract on specific chain | `./scripts/audit.sh <address> --chain base` |
 | "show top chains" / "chain rankings" / "which chains" | Show current TVL rankings | `./scripts/chains.sh` |
-| "what did you find" / "findings" / "any vulns?" | Show recent verified findings | `./scripts/status.sh findings` |
-| "status" / "how's the hunt going" / "sitrep" | Show scanner status with per-chain breakdown | `./scripts/status.sh` |
+| "what did you find" / "findings" / "any vulns?" | Show recent findings with exploitable values | `./scripts/status.sh findings` |
+| "what's the total value at risk?" / "value breakdown" | Sum of all exploitable values found | `./scripts/status.sh` |
+| "show findings over $100K" | Filter findings by exploitable value | Filter recent findings ≥ $100K |
+| "details on [finding]" | Full breakdown including value analysis | Show full exploit estimate |
+| "set alert threshold to $50K" | Only alert on $50K+ exploitable | Update config alertMinExploitable |
+| "status" / "how's the hunt going" / "sitrep" | Show scanner status with value summary | `./scripts/status.sh` |
 | "add chain [name]" / "also scan [chain]" | Add chain to scan list | Update config |
 | "remove chain [name]" / "skip [chain]" | Remove chain from scan list | Update config |
-| "set min tvl to 5M" | Update TVL threshold | Update config via CLI |
-| "focus on ethereum,base" | Change target networks | Update config via CLI |
 | "protocols on base" / "high tvl on [chain]" | List high-TVL protocols on a chain | `npx tsx src/cli.ts protocols <network>` |
 
 ### Verification Pipeline
@@ -36,7 +41,17 @@ Scan smart contracts for vulnerabilities across the top EVM chains by TVL using 
 3. **FP Filtering** — Match against known false positive patterns, remove AI-flagged FPs, deduplicate
 4. **Verification** — Generate PoC exploits and test on forked mainnet via Foundry (critical/high only)
 5. **Risk Scoring** — Weighted confidence score (0-100) from tool consensus, context, and PoC results
-6. **Smart Alerting** — Only alert on verified or likely-real findings. No cry wolf.
+5b. **Exploit Value Estimation** — Calculate actual exploitable value (contract balances, locked funds, vulnerability-type-specific logic)
+6. **Smart Alerting** — Only alert on verified findings above value thresholds. No cry wolf.
+
+### Value-Based Alert Thresholds
+
+| Exploitable Value | Alert Action |
+|---|---|
+| ≥ $100K or PoC verified | Immediate Telegram alert |
+| ≥ $25K | Alert during active hours |
+| ≥ $1K | Log only (query via "what did you find") |
+| < $1K | Ignore completely |
 
 ### Dynamic Chain Discovery
 
@@ -51,62 +66,82 @@ Rankings refresh every hour. Non-EVM chains (Solana, Bitcoin, etc.) are shown bu
 ### Trigger
 
 ```bash
-# Every 4 hours: scan top 10 chains
+# Every 4 hours: scan top 10 chains, alert on $25K+ exploitable
 clawdbot cron add \
   --name "Top Chain Sweep" \
   --cron "0 */4 * * *" \
   --session isolated \
-  --message "Scan top 10 chains by TVL for vulnerabilities, min TVL 1M, alert me only on verified findings" \
+  --message "Scan top 10 chains by TVL for vulnerabilities, min TVL 1M, alert on findings over $25K exploitable" \
   --deliver --channel telegram
 
-# Daily: refresh rankings and summarize
+# Daily: value breakdown summary
 clawdbot cron add \
   --name "Daily Summary" \
   --cron "0 9 * * *" \
   --session isolated \
-  --message "Refresh chain TVL rankings, show me the current top 10, and summarize vulnerabilities found in the last 24 hours" \
+  --message "Give me a value breakdown of all findings from the last 24 hours, sorted by exploitable amount. Refresh chain TVL rankings." \
   --deliver --channel telegram
 ```
 
 ### Example Conversations
 
-**Asking about chains:**
-> User: "What chains can you scan?"
-> Bot: 📊 Top 10 Chains by TVL (DeFiLlama)
-> 1. 🥇 Ethereum - $52.3B ✅
-> 2. 🥈 BSC - $4.8B ✅
-> 3. 🥉 Arbitrum - $3.2B ✅
-> 4. Solana - $2.9B ❌ (not EVM)
-> 5. Base - $2.1B ✅
-> ...
-> I can scan all 8 EVM chains. Want me to start hunting?
-
-**Starting a full hunt:**
-> User: "Hunt top 10 chains, 1M min tvl"
-> Bot: 🦞 Starting the hunt across TOP 10 CHAINS!
-> Targets: Ethereum ($52.3B) → BSC ($4.8B) → Arbitrum ($3.2B) → Base ($2.1B) → ...
-> Min TVL: $1,000,000 | Mode: Autonomous (every 30 min)
-> Let the hunt begin! 🎯
-
-**Finding across chains:**
-> Bot: 🔴 CRITICAL: reentrancy-eth | ✅ VERIFIED
-> 🔵 Base ($2.1B) | SomeProtocol Vault (0x1234...5678)
-> 📊 Confidence: ████████░░ 94%
+**Finding with high exploitable value:**
+> Bot: 🚨 CRITICAL: reentrancy-eth | ✅ VERIFIED
+> 🔗 Ethereum | YieldVault (0x1234...5678)
+>
+> ━━━━━━━━━━━━━━━━━━━━━━━━━━
+> 💰 VALUE AT RISK
+> ━━━━━━━━━━━━━━━━━━━━━━━━━━
+> Protocol TVL:     $8,500,000
+> Contract Balance: $3,200,000
+> Exploitable:      $1,200,000 (37%)
+>                   HIGH CONFIDENCE
+> ━━━━━━━━━━━━━━━━━━━━━━━━━━
+>
 > 💥 PoC exploit SUCCEEDED
+> 💸 PoC extracted: $1,247,832 (net profit: $1,247,820)
+>
+> Breakdown:
+>   • ETH at risk: $1,784,000
+>   • Locked/safe: $2,000,000
+>
+> Required capital: $0 (direct drain)
+> 🎯 Bounty potential: $120K (10% of exploitable)
 
-**Status with chain breakdown:**
-> User: "Status"
+**Low-value finding (logged, not alerted):**
+> Bot: 🟡 Low-Value Finding (logging only)
+> Chain: Arbitrum | SmallPool
+> Issue: Reentrancy in claim()
+> Exploitable: ~$3,200 (0.6%)
+> Not alerting — below $10K threshold.
+
+**Value summary:**
+> User: "what have you found?"
+> Bot: 🦞 Findings Summary
+> 💰 Total Exploitable Value Found: $1,847,000
+>
+> 🔴 VERIFIED:
+>   YieldVault (ETH) - $1.2M exploitable
+>   LendingPool (Base) - $340K exploitable
+>
+> ⚠️ LIKELY REAL:
+>   SwapRouter (Arbitrum) - $180K estimated
+>   StakingContract (Polygon) - $127K estimated
+>
+> 📊 By Chain:
+>   Ethereum: $1.2M
+>   Base: $340K
+>   Arbitrum: $180K
+>   Polygon: $127K
+
+**Status with value tracking:**
+> User: "status"
 > Bot: 🦞 Hunt Status
 > 🟢 Mode: ACTIVE (top 10 chains)
-> ✅ Ethereum - 12 contracts, 0 verified
-> ✅ BSC - 8 contracts, 1 likely real
-> ✅ Base - 18 contracts, 1 VERIFIED 🔴
-> 🔄 Polygon - scanning now...
-> ⏳ Optimism - queued
-> Findings: 1 verified, 2 likely real, 156 FPs filtered
-
-**Clean sweep:**
-> Bot: 📋 Daily Summary | ✅ 0 actionable findings across 156 contracts | 🎉 Clean sweep.
+> 💰 Total exploitable: $1,847,000
+>   Ethereum: $1,200,000
+>   Base: $340,000
+> Findings: 2 verified, 3 likely real, 156 FPs filtered
 
 ### Security Notes
 

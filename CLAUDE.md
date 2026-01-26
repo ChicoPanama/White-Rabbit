@@ -24,7 +24,8 @@ Contract Fetching (Etherscan V2) ──► Multi-chain, rate-limited
 │  Stage 3: FP FILTERING    → Known FP patterns, AI FP removal   │
 │  Stage 4: VERIFICATION    → PoC exploit on forked mainnet      │
 │  Stage 5: RISK SCORING    → Confidence 0-100, tool consensus   │
-│  Stage 6: SMART ALERTING  → Only verified/likely-real findings  │
+│  Stage 5b: VALUE ESTIMATE → Exploitable $, not just TVL        │
+│  Stage 6: SMART ALERTING  → Value-gated, verified findings     │
 └──────────────────────────────────────────────────────────────────┘
     │
     ▼
@@ -99,7 +100,8 @@ White-Rabbit/
     ├── services/
     │   ├── chains.ts          # Dynamic chain discovery from DeFiLlama (top N by TVL)
     │   ├── context.ts         # Audit history, FP pattern detection, confidence scoring
-    │   ├── verifier.ts        # PoC generation & Foundry fork testing
+    │   ├── exploitEstimator.ts # Exploitable value estimation (TVL ≠ exploitable)
+    │   ├── verifier.ts        # PoC generation & Foundry fork testing with value measurement
     │   └── state.ts           # File-based state persistence for Clawd integration
     ├── alerts/
     │   └── telegram.ts        # Telegram Bot API alerting (mobile-optimized)
@@ -247,9 +249,11 @@ Scanner state persists to `~/.etherscan-auditor/state.json`:
 - Autonomous mode status (active/inactive, PID)
 - Configuration (networks, TVL threshold, interval)
 - Cumulative stats (scans, contracts, findings, FPs filtered)
+- **Total exploitable value found (lifetime USD)**
+- **Exploitable value breakdown by chain**
 - Chain TVL rankings cache (1 hour TTL)
 - Per-chain last scan timestamps
-- Recent findings (last 100, verified/likely-real)
+- Recent findings (last 100, verified/likely-real, with exploitable value and PoC extraction amounts)
 
 ## 6-Stage Verification Pipeline
 
@@ -285,11 +289,47 @@ Confidence score (0-100) computed from:
 - Security pattern penalties (ReentrancyGuard + reentrancy detector: -30)
 - PoC result (+40 if succeeds, -30 if fails)
 
+### Stage 5b: Exploitable Value Estimation
+
+**Key insight: TVL ≠ Exploitable Value.** A protocol with $10M TVL may only have $267K actually exploitable.
+
+The `ExploitEstimator` service (`src/services/exploitEstimator.ts`) calculates real value at risk:
+- Fetches on-chain contract balances (ETH + tokens via RPC)
+- Applies vulnerability-type-specific extraction logic (reentrancy = full ETH, oracle manipulation = 5% of pool, etc.)
+- Detects timelocked/restricted funds and subtracts them
+- For flash loan attacks, calculates capital efficiency
+- Uses PoC simulation results when available (most accurate)
+
+**Vulnerability-specific estimators:**
+
+| Vulnerability | Exploitable Estimate | Confidence |
+|---|---|---|
+| reentrancy-eth | Full ETH balance (or 10% if withdrawal limits) | High |
+| reentrancy-no-eth | Full token balance | High |
+| arbitrary-send-eth | Full ETH balance | High |
+| oracle-manipulation | 5% of pool TVL | Medium |
+| price-manipulation | 10-30% of pool | Low |
+| access-control (mint) | 10x total balance (supply inflation) | Medium |
+| access-control (withdraw) | Full balance | Medium |
+| suicidal / unprotected-upgrade | Full balance | High |
+
+**Value-based alert thresholds:**
+
+| Exploitable Value | Alert Action |
+|---|---|
+| ≥ $100K or PoC verified | Immediate Telegram alert |
+| ≥ $25K | Alert during active hours |
+| ≥ $1K | Log only (queryable via "what did you find") |
+| < $1K | Ignore completely |
+
 ### Stage 6: Smart Alerting
 Only alerts on findings that are:
 - **Verified** or **Likely Real** verification status
 - Above the configured severity threshold
+- Above the exploitable value threshold ($25K+ for alerts, $100K+ for immediate)
 - Not already sent (24h dedup window)
+
+Alerts include: exploitable value, contract balance breakdown, PoC extraction results, bounty estimates, and capital requirements.
 
 ## Supported Chains
 
@@ -343,3 +383,5 @@ Use `npx tsx src/cli.ts chains` to see current TVL rankings. Non-EVM chains (Sol
 - PostgreSQL uses a UNIQUE constraint on (address, chain_id) to prevent duplicate contract entries.
 - PoC verification requires Foundry (`forge`) and at least one RPC URL configured. Without these, Stages 4-5 still run but without PoC confirmation — findings are scored on tool confidence and context alone.
 - The context service recognizes 13 known audited protocols and 10 false positive patterns. Extend these lists in `src/services/context.ts`.
+- The exploit estimator uses vulnerability-type-specific logic for 12+ detector types. Add new estimators in `src/services/exploitEstimator.ts` via the `EXPLOIT_ESTIMATORS` record. Native token prices are fetched from DeFiLlama with hardcoded fallbacks.
+- PoC verification now measures extracted value by parsing `EXTRACTED_WEI` and `TARGET_DRAINED_WEI` log entries from Foundry test output.

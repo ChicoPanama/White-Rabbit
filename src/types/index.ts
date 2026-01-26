@@ -170,6 +170,7 @@ export interface VerifiedFinding extends Finding {
   pocResult: PoCResult | null;
   contextInfo: ContractContext | null;
   toolsAgreeing: string[];
+  exploitEstimate: ExploitEstimate | null;
 }
 
 export interface PoCResult {
@@ -179,6 +180,7 @@ export interface PoCResult {
   forkBlockNumber: number | null;
   errorMessage: string | null;
   gasUsed: string | null;
+  extractedValue: PoCValueResult | null;
 }
 
 export interface ContractContext {
@@ -216,6 +218,69 @@ export const CHAIN_RPC_ENV: Record<string, string> = {
   blast: 'BLAST_RPC_URL',
   gnosis: 'GNOSIS_RPC_URL',
 };
+
+// ── Exploit Value Estimation ──
+
+export interface TokenBalance {
+  symbol: string;
+  address: string;
+  amount: number;
+  valueUsd: number;
+}
+
+export interface ContractBalances {
+  eth: number;
+  ethUsd: number;
+  tokens: TokenBalance[];
+  total: number; // Total USD value
+}
+
+export interface AtRiskAnalysis {
+  atRiskFunds: number;      // USD at risk
+  lockedFunds: number;      // USD detected as timelocked/locked
+  safeFunds: number;        // USD not reachable via this vuln
+  methodology: string;      // Explanation of how we calculated
+}
+
+export interface ExploitEstimate {
+  protocolTvl: number;            // Total protocol TVL
+  contractBalance: number;         // ETH + token balance in vulnerable contract (USD)
+  estimatedExploitable: number;    // Our estimate of what could be drained (USD)
+  exploitablePercentage: number;   // % of contract balance that's at risk
+  confidence: 'high' | 'medium' | 'low';
+  methodology: string;             // How we calculated this
+  breakdown: {
+    ethBalance: number;            // USD
+    tokenBalances: TokenBalance[];
+    lockedFunds: number;           // USD detected as timelocked/locked
+    atRiskFunds: number;           // USD directly at risk
+  };
+  maxSingleTx: number;            // Max extractable in single tx (USD)
+  requiredCapital: number;         // Capital needed to execute (for flash loan attacks, USD)
+}
+
+export interface PoCValueResult {
+  succeeded: boolean;
+  extractedEth: number;
+  extractedTokensUsd: number;
+  extractedValueUsd: number;
+  gasUsed: string | null;
+  gasCostUsd: number;
+  netProfit: number;
+}
+
+export interface FlashLoanEfficiency {
+  requiredCapital: number;   // USD
+  extractable: number;       // USD
+  efficiency: number;        // extractable / requiredCapital (0-1)
+}
+
+export const EXPLOIT_VALUE_THRESHOLDS = {
+  critical: { minExploitable: 100_000 },  // $100K+ = immediate alert
+  high:     { minExploitable: 25_000 },    // $25K+ = alert during active hours
+  logged:   { minExploitable: 1_000 },     // $1K+ = log only
+  ignore:   { maxExploitable: 1_000 },     // <$1K = ignore completely
+} as const;
 
 // ── Queue Jobs ──
 

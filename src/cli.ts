@@ -157,6 +157,8 @@ async function runAudit(scanner: Scanner, args: string[]) {
         confidenceScore: f.confidenceScore,
         verificationStatus: f.verificationStatus,
         description: f.description.slice(0, 200),
+        exploitableValue: f.exploitEstimate?.estimatedExploitable ?? 0,
+        pocExtractedValue: f.pocResult?.extractedValue?.extractedValueUsd ?? null,
       });
     }
   }
