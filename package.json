@@ -1,0 +1,30 @@
+{
+  "name": "white-rabbit",
+  "version": "1.0.0",
+  "description": "Autonomous smart contract vulnerability scanner for DeFi protocols",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "worker": "node dist/worker.js",
+    "dev": "tsx src/index.ts",
+    "dev:worker": "tsx src/worker.ts",
+    "migrate": "node dist/migrate.js"
+  },
+  "keywords": ["smart-contract", "security", "vulnerability-scanner", "defi", "slither"],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.4.0",
+    "pg": "^8.13.0",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

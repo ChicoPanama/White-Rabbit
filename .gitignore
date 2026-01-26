@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+*.js.map
+*.d.ts
+!src/**/*.d.ts
+/tmp/
+/contracts/
+postgres_data/
+redis_data/
+*.log
+.DS_Store
