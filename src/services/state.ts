@@ -33,6 +33,8 @@ export interface ScannerState {
     alertsSent: number;
     lastScanAt: string | null;
     lastScanPerNetwork: Record<string, string>;
+    totalExploitableValue: number;       // Lifetime USD exploitable value found
+    exploitableValueByChain: Record<string, number>; // Per-chain USD
   };
   chainRankings: {
     chains: ChainRankingEntry[];
@@ -52,6 +54,8 @@ export interface RecentFinding {
   confidenceScore: number;
   verificationStatus: string;
   description: string;
+  exploitableValue: number;      // USD estimated exploitable
+  pocExtractedValue: number | null; // USD extracted in PoC simulation
 }
 
 const DEFAULT_STATE: ScannerState = {
@@ -75,6 +79,8 @@ const DEFAULT_STATE: ScannerState = {
     alertsSent: 0,
     lastScanAt: null,
     lastScanPerNetwork: {},
+    totalExploitableValue: 0,
+    exploitableValueByChain: {},
   },
   chainRankings: {
     chains: [],
@@ -157,6 +163,21 @@ export class StateManager {
     return this.state.stats;
   }
 
+  recordExploitableValue(chain: string, valueUsd: number): void {
+    this.state.stats.totalExploitableValue += valueUsd;
+    this.state.stats.exploitableValueByChain[chain] =
+      (this.state.stats.exploitableValueByChain[chain] ?? 0) + valueUsd;
+    this.save();
+  }
+
+  getTotalExploitableValue(): number {
+    return this.state.stats.totalExploitableValue;
+  }
+
+  getExploitableValueByChain(): Record<string, number> {
+    return this.state.stats.exploitableValueByChain;
+  }
+
   // ── Chain Rankings ──
 
   updateChainRankings(chains: ChainRankingEntry[]): void {
@@ -220,7 +241,17 @@ export class StateManager {
       `  Likely real: ${s.stats.likelyRealVulns}`,
       `  FPs filtered: ${s.stats.falsePositivesFiltered}`,
       `  Alerts sent: ${s.stats.alertsSent}`,
+      `  Total exploitable value: $${s.stats.totalExploitableValue.toLocaleString()}`,
     ];
+
+    // Per-chain value breakdown
+    const valueByChain = Object.entries(s.stats.exploitableValueByChain);
+    if (valueByChain.length > 0) {
+      lines.push('', 'Exploitable value by chain:');
+      for (const [chain, value] of valueByChain.sort(([,a], [,b]) => b - a)) {
+        lines.push(`  ${chain}: $${value.toLocaleString()}`);
+      }
+    }
 
     // Per-chain last scan
     const perNetwork = Object.entries(s.stats.lastScanPerNetwork);
@@ -266,6 +297,18 @@ export class StateManager {
 
     lines.push('');
     lines.push(`Findings: ${s.stats.verifiedVulns} verified, ${s.stats.likelyRealVulns} likely real, ${s.stats.falsePositivesFiltered} FPs filtered`);
+
+    if (s.stats.totalExploitableValue > 0) {
+      lines.push(`\u{1F4B0} Total exploitable: $${s.stats.totalExploitableValue.toLocaleString()}`);
+      const topChains = Object.entries(s.stats.exploitableValueByChain)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5);
+      if (topChains.length > 0) {
+        for (const [chain, value] of topChains) {
+          lines.push(`  ${chain}: $${value.toLocaleString()}`);
+        }
+      }
+    }
 
     if (s.autonomous.enabled) {
       lines.push(``, `Next scan in ~${s.config.intervalMinutes} min.`);

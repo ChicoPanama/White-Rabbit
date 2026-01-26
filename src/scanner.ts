@@ -6,12 +6,14 @@ import { AIAnalyzer } from './analyzers/ai-analyzer.js';
 import { FindingDeduplicator } from './analyzers/deduplicator.js';
 import { ContextService } from './services/context.js';
 import { PoCVerifier } from './services/verifier.js';
+import { ExploitEstimator, formatExploitValue, exploitValueIcon, estimateBounty } from './services/exploitEstimator.js';
 import { ChainDiscoveryService } from './services/chains.js';
 import type { DynamicChainConfig } from './services/chains.js';
 import { TelegramAlertService } from './alerts/telegram.js';
 import { Database } from './database.js';
 import { CHAINS, SEVERITY_ORDER } from './types/index.js';
-import type { Finding, VerifiedFinding, VerificationStatus } from './types/index.js';
+import type { Contract, Finding, VerifiedFinding, VerificationStatus, ExploitEstimate } from './types/index.js';
+import { EXPLOIT_VALUE_THRESHOLDS } from './types/index.js';
 import { capitalize } from './utils/helpers.js';
 
 /**
@@ -32,6 +34,7 @@ export class Scanner {
   private readonly deduplicator: FindingDeduplicator;
   private readonly context: ContextService;
   private readonly verifier: PoCVerifier;
+  private readonly exploitEstimator: ExploitEstimator;
   readonly chainDiscovery: ChainDiscoveryService;
   private readonly telegram: TelegramAlertService;
   private readonly db: Database;
@@ -46,6 +49,7 @@ export class Scanner {
     this.deduplicator = new FindingDeduplicator();
     this.context = new ContextService();
     this.verifier = new PoCVerifier();
+    this.exploitEstimator = new ExploitEstimator();
     this.chainDiscovery = new ChainDiscoveryService();
     this.telegram = new TelegramAlertService(config.telegramBotToken, config.telegramChatId);
     this.db = new Database(config.databaseUrl);
@@ -68,6 +72,7 @@ export class Scanner {
       likelyRealFindings: 0,
       falsePositivesFiltered: 0,
       alertsSent: 0,
+      totalExploitableValue: 0,
       errors: [],
     };
 
@@ -219,6 +224,7 @@ export class Scanner {
           pocResult,
           contextInfo,
           toolsAgreeing,
+          exploitEstimate: null,
         };
 
         verifiedFindings.push(verified);
@@ -234,6 +240,45 @@ export class Scanner {
         console.log(`  ${statusIcon(status as VerificationStatus)} ${status}: ${count}`);
       }
 
+      // ── Stage 5b: EXPLOIT VALUE ESTIMATION ──
+      const actionableFindings = verifiedFindings.filter(f =>
+        f.verificationStatus === 'verified' || f.verificationStatus === 'likely_real',
+      );
+      if (actionableFindings.length > 0) {
+        console.log(`[Stage 5b] Estimating exploitable value for ${actionableFindings.length} actionable findings`);
+        const contract: Contract = {
+          id: contractId,
+          address,
+          chainId,
+          name: source.name,
+          sourceCode: source.sourceCode,
+          abi: [],
+          compilerVersion: source.compilerVersion,
+          isProxy: source.isProxy,
+          implementationAddress: source.implementationAddress,
+          tvlUsd: null,
+          protocolName: null,
+        };
+
+        for (const finding of actionableFindings) {
+          try {
+            finding.exploitEstimate = await this.exploitEstimator.estimate(finding, contract, chainId);
+            const est = finding.exploitEstimate;
+            const valueStr = formatExploitValue(est.estimatedExploitable, est.breakdown.atRiskFunds);
+            console.log(`[Stage 5b] ${finding.detectorName}: ${valueStr} (${est.confidence} confidence)`);
+          } catch (err) {
+            console.warn(`[Stage 5b] Failed to estimate value for ${finding.detectorName}: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
+
+        const totalExploitable = actionableFindings.reduce(
+          (sum, f) => sum + (f.exploitEstimate?.estimatedExploitable ?? 0), 0,
+        );
+        if (totalExploitable > 0) {
+          console.log(`[Stage 5b] Total exploitable value: $${totalExploitable.toLocaleString()}`);
+        }
+      }
+
       // Save all findings
       for (const finding of findings) {
         finding.scanId = scan.id;
@@ -243,19 +288,44 @@ export class Scanner {
       await this.db.updateScanStatus(scan.id, 'completed');
 
       // ── Stage 6: SMART ALERTING ──
-      // Only alert on verified or likely_real findings that meet severity threshold
-      const alertable = verifiedFindings.filter(f =>
-        (f.verificationStatus === 'verified' || f.verificationStatus === 'likely_real') &&
-        SEVERITY_ORDER[f.severity] >= SEVERITY_ORDER[this.config.alertMinSeverity]
+      // Alert based on verification status AND exploitable value thresholds
+      const alertable = verifiedFindings.filter(f => {
+        const isActionable = f.verificationStatus === 'verified' || f.verificationStatus === 'likely_real';
+        if (!isActionable) return false;
+        if (SEVERITY_ORDER[f.severity] < SEVERITY_ORDER[this.config.alertMinSeverity]) return false;
+
+        // Value-based filtering: skip low-value findings
+        const exploitable = f.exploitEstimate?.estimatedExploitable ?? 0;
+        if (exploitable > 0 && exploitable < EXPLOIT_VALUE_THRESHOLDS.logged.minExploitable) {
+          console.log(`[Stage 6] Skipping ${f.detectorName}: $${exploitable.toFixed(0)} below $1K threshold`);
+          return false;
+        }
+
+        return true;
+      });
+
+      // Separate into high-value (immediate alert) vs standard
+      const criticalValue = alertable.filter(f =>
+        (f.exploitEstimate?.estimatedExploitable ?? 0) >= EXPLOIT_VALUE_THRESHOLDS.critical.minExploitable ||
+        f.verificationStatus === 'verified',
+      );
+      const standardValue = alertable.filter(f =>
+        !criticalValue.includes(f) &&
+        (f.exploitEstimate?.estimatedExploitable ?? 0) >= EXPLOIT_VALUE_THRESHOLDS.high.minExploitable,
       );
 
-      console.log(`[Stage 6] ${alertable.length} findings qualify for alerting`);
+      console.log(`[Stage 6] ${alertable.length} findings qualify for alerting (${criticalValue.length} critical value, ${standardValue.length} standard)`);
 
       if (alertable.length > 0) {
-        await this.telegram.sendBatchSummary(alertable, address, chainName, source.name);
-        for (const finding of alertable.filter(f => SEVERITY_ORDER[f.severity] >= SEVERITY_ORDER['high'])) {
-          await this.telegram.sendFindingAlert(finding, address, chainName);
+        // Send detailed alerts for critical-value and verified findings
+        for (const finding of criticalValue) {
+          await this.telegram.sendExploitValueAlert(finding, address, chainName, source.name);
         }
+        for (const finding of standardValue) {
+          await this.telegram.sendExploitValueAlert(finding, address, chainName, source.name);
+        }
+        // Batch summary
+        await this.telegram.sendVerifiedBatchSummary(verifiedFindings, address, chainName, source.name);
       }
 
       return verifiedFindings;
@@ -303,6 +373,7 @@ export class Scanner {
       likelyRealFindings: 0,
       falsePositivesFiltered: 0,
       alertsSent: 0,
+      totalExploitableValue: 0,
       errors: [],
     };
 
@@ -417,6 +488,7 @@ export interface ScanSummary {
   likelyRealFindings: number;
   falsePositivesFiltered: number;
   alertsSent: number;
+  totalExploitableValue: number; // USD
   errors: string[];
 }
 

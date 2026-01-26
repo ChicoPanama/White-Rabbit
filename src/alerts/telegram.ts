@@ -1,6 +1,7 @@
 import * as crypto from 'crypto';
-import type { Finding, Severity, TelegramSendResult, VerifiedFinding, VerificationStatus } from '../types/index.js';
-import { SEVERITY_ORDER } from '../types/index.js';
+import type { Finding, Severity, TelegramSendResult, VerifiedFinding, VerificationStatus, ExploitEstimate } from '../types/index.js';
+import { SEVERITY_ORDER, EXPLOIT_VALUE_THRESHOLDS } from '../types/index.js';
+import { formatExploitValue, exploitValueIcon, estimateBounty } from '../services/exploitEstimator.js';
 
 const SEVERITY_EMOJI: Record<Severity, string> = {
   critical: '\u{1F534}',  // red circle
@@ -167,6 +168,192 @@ export class TelegramAlertService {
   }
 
   /**
+   * Send exploit value alert — the primary alert method.
+   * Shows exploitable value, PoC results, bounty estimate, and breakdown.
+   */
+  async sendExploitValueAlert(
+    finding: VerifiedFinding,
+    contractAddress: string,
+    chainName: string,
+    protocolName?: string,
+  ): Promise<boolean> {
+    const messageHash = this.computeVerifiedHash(finding);
+    if (this.sentHashes.has(messageHash)) {
+      return false;
+    }
+
+    const est = finding.exploitEstimate;
+    const badge = VERIFICATION_BADGE[finding.verificationStatus];
+    const bar = confidenceBar(finding.confidenceScore);
+    const contractLabel = protocolName
+      ? `${this.escapeHtml(protocolName)} (<code>${this.escapeHtml(contractAddress.slice(0, 10))}...</code>)`
+      : `<code>${this.escapeHtml(contractAddress)}</code>`;
+
+    const lines: string[] = [];
+
+    // Header with value-based severity
+    if (est && est.estimatedExploitable > 0) {
+      const valueIcon = exploitValueIcon(est.estimatedExploitable);
+      const valueStr = formatExploitValue(
+        est.estimatedExploitable,
+        finding.pocResult?.extractedValue?.extractedValueUsd,
+      );
+      lines.push(
+        `${valueIcon} <b>${finding.severity.toUpperCase()}: ${this.escapeHtml(finding.detectorName)}</b>`,
+        `${badge}`,
+        '',
+        `\u{1F517} ${this.escapeHtml(chainName)} | ${contractLabel}`,
+        '',
+        `\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}`,
+        `\u{1F4B0} <b>VALUE AT RISK</b>`,
+        `\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}`,
+      );
+
+      // Value breakdown
+      if (est.protocolTvl > 0) {
+        lines.push(`Protocol TVL:     ${formatTvlDisplay(est.protocolTvl)}`);
+      }
+      lines.push(`Contract Balance: ${formatTvlDisplay(est.contractBalance)}`);
+      lines.push(
+        `<b>Exploitable:      ${formatTvlDisplay(est.estimatedExploitable)} (${est.exploitablePercentage.toFixed(0)}%)</b>`,
+        `                  ${est.confidence.toUpperCase()} CONFIDENCE`,
+      );
+      lines.push(`\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}`);
+    } else {
+      // No value estimate available — fall back to standard format
+      const sevEmoji = SEVERITY_EMOJI[finding.severity] ?? '';
+      lines.push(
+        `${sevEmoji} <b>${finding.severity.toUpperCase()}: ${this.escapeHtml(finding.detectorName)}</b>`,
+        `${badge}`,
+        '',
+        `\u{1F517} ${this.escapeHtml(chainName)} | ${contractLabel}`,
+      );
+    }
+
+    // Confidence
+    lines.push('', `\u{1F4CA} Confidence: ${bar}`);
+
+    // PoC result with extraction value
+    if (finding.pocResult?.attempted) {
+      const pocIcon = finding.pocResult.succeeded ? '\u{1F4A5}' : '\u{1F6E1}\u{FE0F}';
+      const pocText = finding.pocResult.succeeded ? 'PoC exploit SUCCEEDED' : 'PoC exploit failed';
+      lines.push(`${pocIcon} ${pocText}`);
+
+      if (finding.pocResult.extractedValue?.extractedValueUsd) {
+        const ext = finding.pocResult.extractedValue;
+        lines.push(`\u{1F4B8} PoC extracted: ${formatTvlDisplay(ext.extractedValueUsd)} (net profit: ${formatTvlDisplay(ext.netProfit)})`);
+      }
+    }
+
+    // Description
+    lines.push('', this.escapeHtml(this.truncate(finding.description, 250)));
+
+    // Value breakdown details
+    if (est && est.estimatedExploitable > 0) {
+      const breakdownLines: string[] = [];
+      if (est.breakdown.ethBalance > 0) {
+        breakdownLines.push(`ETH at risk: ${formatTvlDisplay(est.breakdown.ethBalance)}`);
+      }
+      for (const token of est.breakdown.tokenBalances.slice(0, 3)) {
+        breakdownLines.push(`${this.escapeHtml(token.symbol)} at risk: ${formatTvlDisplay(token.valueUsd)}`);
+      }
+      if (est.breakdown.lockedFunds > 0) {
+        breakdownLines.push(`Locked/safe: ${formatTvlDisplay(est.breakdown.lockedFunds)}`);
+      }
+      if (breakdownLines.length > 0) {
+        lines.push('', '<b>Breakdown:</b>');
+        for (const bl of breakdownLines) {
+          lines.push(`  \u{2022} ${bl}`);
+        }
+      }
+
+      // Capital requirements
+      if (est.requiredCapital > 0) {
+        lines.push(``, `Required capital: ${formatTvlDisplay(est.requiredCapital)} (flash loan)`);
+      } else {
+        lines.push(``, `Required capital: $0 (direct drain)`);
+      }
+
+      // Bounty estimate
+      const bounty = estimateBounty(est.estimatedExploitable);
+      if (bounty.amount > 0) {
+        lines.push(`\u{1F3AF} Bounty potential: ${bounty.formatted} (10% of exploitable)`);
+      }
+    }
+
+    // Methodology
+    if (est?.methodology) {
+      lines.push('', `\u{1F9EA} <i>${this.escapeHtml(this.truncate(est.methodology, 150))}</i>`);
+    }
+
+    const result = await this.sendMessage(lines.join('\n'), {
+      parse_mode: 'HTML',
+      disable_notification: false,
+    });
+
+    if (result) {
+      this.sentHashes.add(messageHash);
+    }
+    return result;
+  }
+
+  /**
+   * Send findings summary with total exploitable value breakdown.
+   */
+  async sendValueSummary(
+    findings: VerifiedFinding[],
+    chainBreakdown: Array<{ chain: string; exploitable: number; count: number }>,
+  ): Promise<boolean> {
+    const totalExploitable = findings.reduce(
+      (sum, f) => sum + (f.exploitEstimate?.estimatedExploitable ?? 0), 0,
+    );
+
+    const verified = findings.filter(f => f.verificationStatus === 'verified');
+    const likelyReal = findings.filter(f => f.verificationStatus === 'likely_real');
+
+    const lines = [
+      `\u{1F99E} <b>Findings Summary</b>`,
+      '',
+      `\u{1F4B0} <b>Total Exploitable Value: ${formatTvlDisplay(totalExploitable)}</b>`,
+      '',
+    ];
+
+    // Verified findings
+    if (verified.length > 0) {
+      lines.push(`\u{1F534} <b>VERIFIED (PoC succeeded):</b>`);
+      for (const f of verified.slice(0, 5)) {
+        const est = f.exploitEstimate;
+        const value = est ? formatTvlDisplay(est.estimatedExploitable) : 'unknown';
+        lines.push(`  ${this.escapeHtml(f.detectorName)} - ${value}`);
+      }
+      lines.push('');
+    }
+
+    // Likely real findings
+    if (likelyReal.length > 0) {
+      lines.push(`\u{26A0}\u{FE0F} <b>LIKELY REAL:</b>`);
+      for (const f of likelyReal.slice(0, 5)) {
+        const est = f.exploitEstimate;
+        const value = est ? formatTvlDisplay(est.estimatedExploitable) : 'unknown';
+        lines.push(`  ${this.escapeHtml(f.detectorName)} - ${value}`);
+      }
+      lines.push('');
+    }
+
+    // By chain breakdown
+    if (chainBreakdown.length > 0) {
+      lines.push(`\u{1F4CA} <b>By Chain:</b>`);
+      for (const cb of chainBreakdown.sort((a, b) => b.exploitable - a.exploitable)) {
+        lines.push(`  ${this.escapeHtml(cb.chain)}: ${formatTvlDisplay(cb.exploitable)} (${cb.count} findings)`);
+      }
+    }
+
+    lines.push('', '<i>Reply "details on [finding]" for full report</i>');
+
+    return this.sendMessage(lines.join('\n'), { parse_mode: 'HTML' });
+  }
+
+  /**
    * Send a verified batch summary with verification breakdown.
    */
   async sendVerifiedBatchSummary(
@@ -284,14 +471,24 @@ export class TelegramAlertService {
     likelyReal: number;
     fpFiltered: number;
     networks: string[];
+    totalExploitableValue?: number;
+    valueByChain?: Array<{ chain: string; value: number }>;
   }): Promise<boolean> {
     const total = stats.verified + stats.likelyReal;
     const icon = total > 0 ? '\u{1F6A8}' : '\u{2705}';
+    const totalValue = stats.totalExploitableValue ?? 0;
 
     const lines = [
       `\u{1F4CB} <b>Daily Summary</b>`,
       '',
       `${icon} <b>${total} actionable findings</b> across ${stats.contractsScanned} contracts`,
+    ];
+
+    if (totalValue > 0) {
+      lines.push(`\u{1F4B0} <b>Total exploitable value: ${formatTvlDisplay(totalValue)}</b>`);
+    }
+
+    lines.push(
       '',
       `  \u{2705} Verified: ${stats.verified}`,
       `  \u{26A0}\u{FE0F} Likely Real: ${stats.likelyReal}`,
@@ -299,7 +496,15 @@ export class TelegramAlertService {
       '',
       `\u{1F517} Networks: ${stats.networks.join(', ')}`,
       `\u{1F50E} Scans: ${stats.totalScans}`,
-    ];
+    );
+
+    // Value by chain
+    if (stats.valueByChain && stats.valueByChain.length > 0) {
+      lines.push('', `\u{1F4CA} <b>Value by Chain:</b>`);
+      for (const vc of stats.valueByChain.sort((a, b) => b.value - a.value)) {
+        lines.push(`  ${this.escapeHtml(vc.chain)}: ${formatTvlDisplay(vc.value)}`);
+      }
+    }
 
     if (total === 0) {
       lines.push('', '\u{1F389} Clean sweep. No vulnerabilities found today.');
