@@ -103,6 +103,9 @@ White-Rabbit/
     │   ├── crypto.ts          # AES-256-GCM encrypted mnemonic storage (scrypt KDF)
     │   ├── exploitEstimator.ts # Exploitable value estimation (TVL ≠ exploitable)
     │   ├── exploitVerifier.ts # 4-stage wallet-based verification pipeline
+    │   ├── forkHunter.ts      # Systematic fork detection across 20+ chains
+    │   ├── patternCache.ts    # SQLite vulnerability pattern learning brain
+    │   ├── selfEvolution.ts   # Self-improvement: refine patterns, analyze FPs
     │   ├── verifier.ts        # PoC generation & Foundry fork testing with value measurement
     │   ├── walletManager.ts   # Multi-chain HD wallet (simulation only, no mainnet)
     │   └── state.ts           # File-based state persistence for Clawd integration
@@ -144,6 +147,11 @@ White-Rabbit/
 | `SCROLL_RPC_URL` | No | Scroll RPC for wallet verification |
 | `BLAST_RPC_URL` | No | Blast RPC for wallet verification |
 | `GNOSIS_RPC_URL` | No | Gnosis RPC for wallet verification |
+| `PATTERN_DB_PATH` | No | SQLite pattern learning DB path (default: ~/.etherscan-auditor/patterns.db) |
+| `EVOLUTION_INTERVAL_HOURS` | No | Hours between self-evolution cycles (default: 24) |
+| `MIN_PATTERNS_FOR_EVOLUTION` | No | Minimum patterns before evolution runs (default: 5) |
+| `MAX_CHAINS_TO_SEARCH` | No | Max chains to search during fork hunting (default: 20) |
+| `MIN_FORK_SIMILARITY` | No | Minimum similarity score for fork matching (default: 0.7) |
 
 ## Key Commands
 
@@ -391,6 +399,80 @@ Use `npx tsx src/cli.ts chains` to see current TVL rankings. Non-EVM chains (Sol
 - **DeFiLlama:** No authentication, be respectful (cache 5 min)
 - **Telegram Bot:** 1 msg/sec per chat, 30 msg/sec global
 - **Anthropic API:** Follows your plan's rate limits
+
+## Intelligence Layer (Pattern Propagation & Self-Learning)
+
+### Core Insight
+
+When a vulnerability is found in one contract, there are likely **dozens of forks** across all chains with the same vulnerability. One finding should cascade into finding ALL vulnerable forks.
+
+### Architecture
+
+```
+Verified Finding
+    │
+    ▼
+Pattern Learning (patternCache.ts)
+    │
+    ├── Extract code signatures (exact, regex, function layout)
+    ├── Generate contract fingerprint (code hash, structure hash)
+    └── Store in SQLite (~/.etherscan-auditor/patterns.db)
+    │
+    ▼
+Fork Hunting (forkHunter.ts) ──► Search 20+ chains
+    │
+    ├── Fingerprint cache lookup (exact, normalized, structure match)
+    ├── Protocol name similarity search via DeFiLlama
+    ├── Pattern code signature matching
+    └── Verify exploitable value on each match
+    │
+    ▼
+Self-Evolution (selfEvolution.ts) ──► Periodic improvement
+    │
+    ├── Analyze false positive patterns
+    ├── Refine low-accuracy patterns
+    ├── Discover new patterns from audit history
+    └── Track accuracy improvement over time
+```
+
+### Key Components
+
+- **`src/services/patternCache.ts`** — SQLite-backed learning brain. Stores vulnerability patterns with code signatures, contract fingerprints, similarity indexes, and learning events.
+- **`src/services/forkHunter.ts`** — Systematic fork detection. Searches all 20+ chains for matching contracts when a vulnerability is verified. One audit → many findings.
+- **`src/services/selfEvolution.ts`** — Self-improvement engine. Analyzes FP history, refines patterns, discovers new ones, tracks accuracy.
+
+### Pattern Matching Methods
+
+| Method | Similarity | Confidence | Use Case |
+|---|---|---|---|
+| Exact code hash | 100% | Highest | Exact same source code |
+| Normalized hash | ~95% | High | Same code, different comments/pragma |
+| Structure hash | ~80% | Medium | Same function layout, different implementation |
+| Interface hash | ~60% | Lower | Same external API, different internals |
+| Regex patterns | Variable | Medium | Vulnerability-specific code patterns |
+
+### CLI Commands
+
+```bash
+# Show learned patterns
+npx tsx src/cli.ts patterns [--top N] [--type reentrancy]
+
+# Show learning statistics
+npx tsx src/cli.ts knowledge
+
+# Run self-evolution cycle
+npx tsx src/cli.ts evolve
+```
+
+### Learning Database
+
+Stored at `~/.etherscan-auditor/patterns.db` (SQLite with WAL mode):
+- `patterns` — Learned vulnerability signatures with code patterns and FP signatures
+- `pattern_instances` — Confirmed instances of each pattern across chains
+- `fingerprints` — Contract code/structure/interface hashes for fork detection
+- `similarity_index` — Pre-computed fork relationships
+- `learning_events` — True positives, false positives, pattern refinements
+- `audit_history` — Every audit result for learning analysis
 
 ## Wallet Infrastructure (4-Stage Verification)
 

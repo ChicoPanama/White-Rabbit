@@ -311,3 +311,118 @@ export interface WalletStatusInfo {
   lowBalanceChains: string[];
   isUnlocked: boolean;
 }
+
+// ── Intelligence Layer: Pattern Cache & Fork Hunting ──
+
+export interface CodeSignatures {
+  exactMatch: string[];
+  regexPatterns: string[];
+  functionSignatures: string[];   // Function selectors found in vulnerable code
+  eventSignatures: string[];      // Event signatures near vulnerable code
+}
+
+export interface VulnerabilityPattern {
+  id: string;
+  patternHash: string;
+  patternType: string;            // e.g., 'reentrancy', 'access-control', 'oracle'
+  codeSignatures: CodeSignatures;
+  firstSeenContract: string;
+  firstSeenChain: number;
+  firstSeenDate: string;
+  falsePositiveSignatures: string[];
+  truePositiveRate: number;
+  totalValueAtRisk: number;
+  exploitTemplate: ExploitTemplate | null;
+  evolutionHistory: PatternEvolutionEntry[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ExploitTemplate {
+  soliditySnippet: string;        // Key exploit logic
+  detectorName: string;           // Which detector found it
+  attackVector: string;           // e.g., 'reentrancy', 'flash-loan'
+  requiredSetup: string[];        // e.g., ['flash-loan-provider', 'token-approval']
+}
+
+export interface PatternEvolutionEntry {
+  date: string;
+  change: string;
+  reason: string;
+}
+
+export interface PatternInstance {
+  patternId: string;
+  contractAddress: string;
+  chainId: number;
+  exploitableValue: number;
+  verified: boolean;
+  verifiedDate: string | null;
+  verificationMethod: string | null;
+}
+
+export interface ContractFingerprint {
+  contractAddress: string;
+  chainId: number;
+  contractName: string;
+  codeHash: string;
+  normalizedHash: string;
+  structureHash: string;
+  interfaceHash: string;
+  functionSignatures: string[];
+  eventSignatures: string[];
+  bytecodeHash: string | null;
+  createdAt: string;
+}
+
+export interface ForkMatch {
+  address: string;
+  chainId: number;
+  chainName: string;
+  contractName: string;
+  matchMethod: 'exact_code' | 'normalized_code' | 'structure' | 'interface' | 'name_search';
+  confidence: number;            // 0.0 - 1.0
+  protocolName?: string;
+  protocolTvl?: number;
+}
+
+export interface VerifiedFork {
+  isVulnerable: boolean;
+  address?: string;
+  chainId?: number;
+  chainName?: string;
+  contractName?: string;
+  exploitableValue?: number;
+  reason?: string;               // Why it was/wasn't vulnerable
+  patchDetails?: string;         // What patch was applied
+}
+
+export interface ForkHuntResult {
+  originalAddress: string;
+  originalChain: number;
+  patternId: string;
+  forksSearched: number;
+  verifiedVulnerable: VerifiedFork[];
+  totalValueAtRisk: number;
+  chainsAffected: number;
+  duration: number;              // ms
+}
+
+export interface LearningStats {
+  totalPatterns: number;
+  totalInstances: number;
+  totalFingerprints: number;
+  totalValueTracked: number;
+  averageTruePositiveRate: number;
+  patternsByType: Array<{ patternType: string; count: number; value: number }>;
+  recentLearningEvents: Array<{ eventType: string; count: number }>;
+}
+
+export interface EvolutionReport {
+  patternsRefined: number;
+  newPatternsLearned: number;
+  falsePositivesIdentified: number;
+  accuracyImprovement: number;
+  insights: string[];
+  summary: string;
+}

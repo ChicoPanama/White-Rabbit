@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import type { Finding, Severity, TelegramSendResult, VerifiedFinding, VerificationStatus, ExploitEstimate } from '../types/index.js';
+import type { Finding, Severity, TelegramSendResult, VerifiedFinding, VerificationStatus, ExploitEstimate, ForkHuntResult, EvolutionReport, LearningStats } from '../types/index.js';
 import { SEVERITY_ORDER, EXPLOIT_VALUE_THRESHOLDS } from '../types/index.js';
 import { formatExploitValue, exploitValueIcon, estimateBounty } from '../services/exploitEstimator.js';
 
@@ -679,6 +679,101 @@ export class TelegramAlertService {
     const result = await this.sendMessage(lines.join('\n'), { parse_mode: 'HTML', disable_notification: false });
     if (result) this.sentHashes.add(messageHash);
     return result;
+  }
+
+  /**
+   * Send fork hunt results — vulnerable forks found across chains.
+   */
+  async sendForkHuntResult(
+    result: ForkHuntResult,
+    originalAddress: string,
+    originalChainName: string,
+    contractName: string,
+  ): Promise<boolean> {
+    const vulnForks = result.verifiedVulnerable.filter(f => f.isVulnerable);
+    if (vulnForks.length === 0) return false;
+
+    const lines = [
+      `\u{1F3AF} <b>Fork Hunt Complete</b>`,
+      '',
+      `Original: ${this.escapeHtml(contractName)} on ${this.escapeHtml(originalChainName)}`,
+      `<code>${this.escapeHtml(originalAddress)}</code>`,
+      '',
+      `\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}`,
+      `\u{1F4B0} <b>TOTAL VALUE AT RISK: ${formatTvlDisplay(result.totalValueAtRisk)}</b>`,
+      `\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}\u{2501}`,
+      '',
+      `Forks searched: ${result.forksSearched}`,
+      `Chains affected: ${result.chainsAffected}`,
+      `Vulnerable forks: ${vulnForks.length}`,
+      '',
+      '<b>Vulnerable Forks:</b>',
+    ];
+
+    for (const fork of vulnForks.slice(0, 8)) {
+      const value = formatTvlDisplay(fork.exploitableValue ?? 0);
+      const reason = fork.reason === 'poc_verified' ? '\u{2705} PoC verified' : '\u{1F50D} Code match';
+      lines.push(
+        `  \u{1F534} ${this.escapeHtml(fork.chainName ?? '')} | ${this.escapeHtml(fork.contractName ?? '')} \u{2014} ${value}`,
+        `     ${reason}`,
+      );
+    }
+
+    if (vulnForks.length > 8) {
+      lines.push(`  ...and ${vulnForks.length - 8} more`);
+    }
+
+    // Patched forks
+    const patched = result.verifiedVulnerable.filter(f => !f.isVulnerable && f.reason === 'patched');
+    if (patched.length > 0) {
+      lines.push('', `<b>Patched Forks (${patched.length}):</b>`);
+      for (const p of patched.slice(0, 3)) {
+        lines.push(`  \u{2705} ${this.escapeHtml(p.chainName ?? '')} | ${this.escapeHtml(p.contractName ?? '')} \u{2014} ${this.escapeHtml(p.patchDetails ?? '')}`);
+      }
+    }
+
+    lines.push('', `Pattern ID: <code>${this.escapeHtml(result.patternId.slice(0, 12))}...</code>`);
+    lines.push(`\u{1F9E0} Pattern learned and cached for future scans`);
+
+    return this.sendMessage(lines.join('\n'), { parse_mode: 'HTML', disable_notification: false });
+  }
+
+  /**
+   * Send evolution/learning report.
+   */
+  async sendEvolutionReport(report: EvolutionReport, stats: LearningStats): Promise<boolean> {
+    const lines = [
+      `\u{1F9E0} <b>Learning Report</b>`,
+      '',
+      `\u{1F4CA} <b>Knowledge Growth:</b>`,
+      `  New patterns learned: ${report.newPatternsLearned}`,
+      `  Patterns refined: ${report.patternsRefined}`,
+      `  False positives identified: ${report.falsePositivesIdentified}`,
+      '',
+      `\u{1F3AF} Accuracy: ${(stats.averageTruePositiveRate * 100).toFixed(1)}% (${report.accuracyImprovement > 0 ? '+' : ''}${report.accuracyImprovement.toFixed(1)}%)`,
+      '',
+      `\u{1F4D6} <b>Knowledge Base:</b>`,
+      `  Patterns: ${stats.totalPatterns}`,
+      `  Instances: ${stats.totalInstances}`,
+      `  Fingerprints: ${stats.totalFingerprints}`,
+      `  Value tracked: ${formatTvlDisplay(stats.totalValueTracked)}`,
+    ];
+
+    if (stats.patternsByType.length > 0) {
+      lines.push('', `\u{1F4CA} <b>Top Pattern Types:</b>`);
+      for (const pt of stats.patternsByType.slice(0, 5)) {
+        lines.push(`  ${this.escapeHtml(pt.patternType)}: ${pt.count} patterns (${formatTvlDisplay(pt.value)})`);
+      }
+    }
+
+    if (report.insights.length > 0) {
+      lines.push('', `\u{1F4A1} <b>Insights:</b>`);
+      for (const insight of report.insights.slice(0, 3)) {
+        lines.push(`  \u{2022} ${this.escapeHtml(this.truncate(insight, 120))}`);
+      }
+    }
+
+    return this.sendMessage(lines.join('\n'), { parse_mode: 'HTML' });
   }
 
   /**
