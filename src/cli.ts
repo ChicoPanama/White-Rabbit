@@ -4,6 +4,8 @@ import { CHAINS } from './types/index.js';
 import { ChainDiscoveryService } from './services/chains.js';
 import { sleep } from './utils/helpers.js';
 import { StateManager } from './services/state.js';
+import { WalletManager, CHAIN_NAMES, NATIVE_SYMBOLS, MIN_BALANCES } from './services/walletManager.js';
+import { ethers } from 'ethers';
 
 const HELP = `
 White-Rabbit: Autonomous Smart Contract Vulnerability Scanner
@@ -27,6 +29,9 @@ Commands:
   auto        Start autonomous scanning loop
   stats       Show scanner status and statistics
   findings    Show recent verified/likely-real findings
+  wallet:init      Initialize verification wallet (generates mnemonic)
+  wallet:balances  Check wallet balances across all chains
+  wallet:fund      Show deposit address for gas funding
 
 Options:
   --chain <name>       Chain name (default: ethereum)
@@ -59,6 +64,18 @@ async function main() {
   }
   if (command === 'chains') {
     await runChains(args.slice(1));
+    return;
+  }
+  if (command === 'wallet:init') {
+    await runWalletInit(args.slice(1));
+    return;
+  }
+  if (command === 'wallet:balances') {
+    await runWalletBalances(args.slice(1));
+    return;
+  }
+  if (command === 'wallet:fund') {
+    await runWalletFund();
     return;
   }
 
@@ -445,6 +462,132 @@ function runFindings(args: string[]) {
     console.log(`  Found: ${f.timestamp}`);
     console.log();
   }
+}
+
+// ── Wallet Commands ──
+
+async function runWalletInit(args: string[]) {
+  if (WalletManager.walletExists()) {
+    console.error('Wallet already exists at:', WalletManager.getWalletPath());
+    console.error('Delete it first if you want to re-initialize.');
+    process.exit(1);
+  }
+
+  const password = getFlag(args, '--password') ?? process.env.WALLET_ENCRYPTION_PASSWORD;
+  if (!password) {
+    console.error('Error: password required');
+    console.error('Usage: wallet:init --password <password>');
+    console.error('Or set WALLET_ENCRYPTION_PASSWORD env var');
+    process.exit(1);
+  }
+
+  const { mnemonic, address } = await WalletManager.initializeNew(password);
+
+  console.log('\nWallet initialized!\n');
+  console.log(`Address (same on all chains): ${address}`);
+  console.log('\nBACKUP YOUR MNEMONIC SECURELY:');
+  console.log('-'.repeat(50));
+  console.log(mnemonic);
+  console.log('-'.repeat(50));
+  console.log('\nThis will only be shown once!\n');
+  console.log('Next steps:');
+  console.log('1. Fund the wallet with small amounts on each chain for gas');
+  console.log('2. Run "wallet:balances" to check balances');
+  console.log('3. Recommended amounts per chain:');
+
+  for (const [chainIdStr, amount] of Object.entries(MIN_BALANCES)) {
+    const chainId = parseInt(chainIdStr, 10);
+    const name = CHAIN_NAMES[chainId] ?? `Chain ${chainId}`;
+    const symbol = NATIVE_SYMBOLS[chainId] ?? 'ETH';
+    console.log(`   ${name}: ${ethers.formatEther(amount)} ${symbol}`);
+  }
+}
+
+async function runWalletBalances(args: string[]) {
+  if (!WalletManager.walletExists()) {
+    console.error('No wallet found. Run "wallet:init" first.');
+    process.exit(1);
+  }
+
+  const password = getFlag(args, '--password') ?? process.env.WALLET_ENCRYPTION_PASSWORD;
+  if (!password) {
+    console.error('Error: password required');
+    console.error('Usage: wallet:balances --password <password>');
+    console.error('Or set WALLET_ENCRYPTION_PASSWORD env var');
+    process.exit(1);
+  }
+
+  const wm = new WalletManager();
+  await wm.unlock(password);
+
+  console.log(`\nChecking balances across all chains...\n`);
+  console.log(`Wallet Address: ${wm.getAddress()}\n`);
+
+  const balances = await wm.checkAllBalances();
+  if (balances.length === 0) {
+    console.log('No chains configured. Set RPC URL env vars (ETH_RPC_URL, etc.).');
+    wm.destroy();
+    return;
+  }
+
+  let totalUsd = 0;
+  console.log(`${'Chain'.padEnd(20)} ${'Balance'.padEnd(18)} ${'USD Value'.padEnd(12)} Status`);
+  console.log('-'.repeat(65));
+
+  for (const b of balances) {
+    const balStr = b.nativeFormatted.slice(0, 12).padEnd(18);
+    const usdStr = `$${b.usd.toFixed(2)}`.padEnd(12);
+    const status = b.status === 'ok' ? 'OK' : b.status === 'low' ? 'LOW' : 'EMPTY';
+    console.log(`${b.chainName.padEnd(20)} ${balStr} ${usdStr} ${status}`);
+    totalUsd += b.usd;
+  }
+
+  console.log('-'.repeat(65));
+  console.log(`Total Value: $${totalUsd.toFixed(2)}`);
+
+  const needsFunding = wm.getRefundingNeeded();
+  if (needsFunding.length > 0) {
+    console.log('\nChains needing gas funding:');
+    for (const { chainName, symbol, needed } of needsFunding) {
+      console.log(`  ${chainName}: needs ${ethers.formatEther(needed)} ${symbol} more`);
+    }
+  }
+
+  wm.destroy();
+}
+
+async function runWalletFund() {
+  if (!WalletManager.walletExists()) {
+    console.error('No wallet found. Run "wallet:init" first.');
+    process.exit(1);
+  }
+
+  const password = process.env.WALLET_ENCRYPTION_PASSWORD;
+  if (!password) {
+    console.error('Error: set WALLET_ENCRYPTION_PASSWORD env var');
+    process.exit(1);
+  }
+
+  const wm = new WalletManager();
+  await wm.unlock(password);
+  const address = wm.getAddress();
+
+  console.log('\nFund Your Verification Wallet\n');
+  console.log(`Address (same on all EVM chains): ${address}\n`);
+  console.log('Recommended amounts for gas:');
+  console.log('-'.repeat(50));
+
+  for (const [chainIdStr, amount] of Object.entries(MIN_BALANCES)) {
+    const chainId = parseInt(chainIdStr, 10);
+    const name = (CHAIN_NAMES[chainId] ?? `Chain ${chainId}`).padEnd(15);
+    const symbol = NATIVE_SYMBOLS[chainId] ?? 'ETH';
+    console.log(`${name} ${ethers.formatEther(amount)} ${symbol}`);
+  }
+
+  console.log('\nThese are small amounts just for gas to run simulations.');
+  console.log('The wallet never executes actual exploits on mainnet.');
+
+  wm.destroy();
 }
 
 // ── Helpers ──

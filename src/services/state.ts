@@ -12,6 +12,16 @@ export interface ChainRankingEntry {
   scannable: boolean;
 }
 
+export interface WalletState {
+  initialized: boolean;
+  address: string | null;
+  chainCount: number;
+  totalValueUsd: number;
+  lowBalanceChains: string[];
+  lastCheckedAt: string | null;
+  isUnlocked: boolean;
+}
+
 export interface ScannerState {
   autonomous: {
     enabled: boolean;
@@ -36,6 +46,7 @@ export interface ScannerState {
     totalExploitableValue: number;       // Lifetime USD exploitable value found
     exploitableValueByChain: Record<string, number>; // Per-chain USD
   };
+  wallet: WalletState;
   chainRankings: {
     chains: ChainRankingEntry[];
     updatedAt: string | null;
@@ -81,6 +92,15 @@ const DEFAULT_STATE: ScannerState = {
     lastScanPerNetwork: {},
     totalExploitableValue: 0,
     exploitableValueByChain: {},
+  },
+  wallet: {
+    initialized: false,
+    address: null,
+    chainCount: 0,
+    totalValueUsd: 0,
+    lowBalanceChains: [],
+    lastCheckedAt: null,
+    isUnlocked: false,
   },
   chainRankings: {
     chains: [],
@@ -178,6 +198,29 @@ export class StateManager {
     return this.state.stats.exploitableValueByChain;
   }
 
+  // ── Wallet State ──
+
+  updateWalletStatus(status: Partial<WalletState>): void {
+    Object.assign(this.state.wallet, status);
+    this.state.wallet.lastCheckedAt = new Date().toISOString();
+    this.save();
+  }
+
+  getWalletState(): WalletState {
+    return this.state.wallet;
+  }
+
+  setWalletInitialized(address: string): void {
+    this.state.wallet.initialized = true;
+    this.state.wallet.address = address;
+    this.save();
+  }
+
+  setWalletUnlocked(unlocked: boolean): void {
+    this.state.wallet.isUnlocked = unlocked;
+    this.save();
+  }
+
   // ── Chain Rankings ──
 
   updateChainRankings(chains: ChainRankingEntry[]): void {
@@ -262,6 +305,18 @@ export class StateManager {
       }
     }
 
+    // Wallet status
+    if (s.wallet.initialized) {
+      lines.push('', 'Verification wallet:');
+      lines.push(`  Address: ${s.wallet.address?.slice(0, 10)}...`);
+      lines.push(`  Status: ${s.wallet.isUnlocked ? 'unlocked' : 'locked'}`);
+      lines.push(`  Chains: ${s.wallet.chainCount}`);
+      lines.push(`  Balance: ~$${s.wallet.totalValueUsd.toFixed(2)}`);
+      if (s.wallet.lowBalanceChains.length > 0) {
+        lines.push(`  Low balance: ${s.wallet.lowBalanceChains.join(', ')}`);
+      }
+    }
+
     if (s.autonomous.enabled) {
       lines.push(``, `Next scan in ~${s.config.intervalMinutes} min`);
     }
@@ -307,6 +362,17 @@ export class StateManager {
         for (const [chain, value] of topChains) {
           lines.push(`  ${chain}: $${value.toLocaleString()}`);
         }
+      }
+    }
+
+    // Wallet status
+    if (s.wallet.initialized) {
+      lines.push('');
+      const walletIcon = s.wallet.isUnlocked ? '\u{1F513}' : '\u{1F510}';
+      lines.push(`${walletIcon} <b>Wallet:</b> <code>${s.wallet.address?.slice(0, 10) ?? '???'}...</code>`);
+      lines.push(`  ${s.wallet.chainCount} chains | ~$${s.wallet.totalValueUsd.toFixed(2)}`);
+      if (s.wallet.lowBalanceChains.length > 0) {
+        lines.push(`  \u{26A0}\u{FE0F} Low: ${s.wallet.lowBalanceChains.join(', ')}`);
       }
     }
 

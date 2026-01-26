@@ -33,6 +33,9 @@ TVL ≠ Exploitable Value. A protocol might have $10M TVL but only $267K sits in
 | "add chain [name]" / "also scan [chain]" | Add chain to scan list | Update config |
 | "remove chain [name]" / "skip [chain]" | Remove chain from scan list | Update config |
 | "protocols on base" / "high tvl on [chain]" | List high-TVL protocols on a chain | `npx tsx src/cli.ts protocols <network>` |
+| "wallet status" / "wallet balances" | Show verification wallet balances | `npx tsx src/cli.ts wallet:balances` |
+| "fund ethereum" / "fund [chain]" | Show deposit address for a chain | `npx tsx src/cli.ts wallet:fund <chain>` |
+| "init wallet" / "setup wallet" | Initialize verification wallet | `npx tsx src/cli.ts wallet:init` |
 
 ### Verification Pipeline
 
@@ -143,9 +146,34 @@ clawdbot cron add \
 >   Base: $340,000
 > Findings: 2 verified, 3 likely real, 156 FPs filtered
 
+### Wallet-Based Verification (4-Stage)
+
+When a verification wallet is configured, findings go through enhanced 4-stage verification:
+
+1. **Fork simulation** — Foundry/Anvil (fast, free, always runs)
+2. **Wallet simulation** — `eth_call` with real wallet state
+3. **Trace analysis** — `debug_traceCall` for exact value flows
+4. **Testnet execution** — Definitive proof ($100K+ findings only)
+
+Confidence levels:
+- **Definitive** — Testnet execution succeeded
+- **High** — 2+ stages verified
+- **Medium** — Fork-only verification
+- **Low** — Fork failed or inconclusive
+
+**Wallet commands:**
+> User: "wallet status"
+> Bot: Shows balance across all configured chains, low-balance warnings
+
+> User: "fund ethereum"
+> Bot: Shows deposit address and minimum balance needed
+
 ### Security Notes
 
 - Never test vulnerabilities on mainnet — PoC verification uses forked state only
+- Wallet mnemonics are AES-256-GCM encrypted at rest with scrypt key derivation
+- Mainnet execution is blocked at the code level — simulation only
+- Wallet auto-locks after 30 minutes of inactivity
 - Check Immunefi for existing bug bounty programs before contacting teams
 - Follow responsible disclosure timelines (14-45 days for DeFi)
 - Document all findings with timestamps and evidence hashes

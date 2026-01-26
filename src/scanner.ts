@@ -7,6 +7,9 @@ import { FindingDeduplicator } from './analyzers/deduplicator.js';
 import { ContextService } from './services/context.js';
 import { PoCVerifier } from './services/verifier.js';
 import { ExploitEstimator, formatExploitValue, exploitValueIcon, estimateBounty } from './services/exploitEstimator.js';
+import { EnhancedExploitVerifier } from './services/exploitVerifier.js';
+import type { EnhancedVerificationResult } from './services/exploitVerifier.js';
+import { WalletManager } from './services/walletManager.js';
 import { ChainDiscoveryService } from './services/chains.js';
 import type { DynamicChainConfig } from './services/chains.js';
 import { TelegramAlertService } from './alerts/telegram.js';
@@ -35,12 +38,14 @@ export class Scanner {
   private readonly context: ContextService;
   private readonly verifier: PoCVerifier;
   private readonly exploitEstimator: ExploitEstimator;
+  private readonly enhancedVerifier: EnhancedExploitVerifier;
+  private readonly walletManager: WalletManager | null;
   readonly chainDiscovery: ChainDiscoveryService;
   private readonly telegram: TelegramAlertService;
   private readonly db: Database;
   private readonly config: Config;
 
-  constructor(config: Config) {
+  constructor(config: Config, walletManager?: WalletManager | null) {
     this.config = config;
     this.etherscan = new EtherscanClient(config.etherscanApiKey, config.etherscanRequestIntervalMs);
     this.defillama = new DeFiLlamaClient(config.defiLlamaCacheTtlMs);
@@ -50,6 +55,8 @@ export class Scanner {
     this.context = new ContextService();
     this.verifier = new PoCVerifier();
     this.exploitEstimator = new ExploitEstimator();
+    this.walletManager = walletManager ?? null;
+    this.enhancedVerifier = new EnhancedExploitVerifier(this.walletManager);
     this.chainDiscovery = new ChainDiscoveryService();
     this.telegram = new TelegramAlertService(config.telegramBotToken, config.telegramChatId);
     this.db = new Database(config.databaseUrl);
@@ -61,6 +68,7 @@ export class Scanner {
   async runFullScan(): Promise<ScanSummary> {
     console.log('=== Starting full scan cycle ===');
     console.log(`  PoC verification: ${this.verifier.isAvailable ? 'enabled' : 'disabled (no Foundry or RPC URLs)'}`);
+    console.log(`  Wallet verification: ${this.walletManager?.isUnlocked() ? 'enabled (4-stage)' : 'disabled (no wallet)'}`);
     console.log(`  AI analysis: ${this.ai.isAvailable ? 'enabled' : 'disabled'}\n`);
 
     const summary: ScanSummary = {
@@ -185,17 +193,28 @@ export class Scanner {
       const deduplicated = this.deduplicator.deduplicate(afterAiFilter);
       console.log(`[Stage 3] ${deduplicated.length} findings after deduplication`);
 
-      // ── Stage 4: VERIFICATION (PoC on fork) ──
-      console.log(`[Stage 4] Verification & PoC testing`);
+      // ── Stage 4: VERIFICATION (PoC on fork + optional wallet stages) ──
+      const useEnhancedVerification = this.walletManager?.isUnlocked() === true;
+      console.log(`[Stage 4] Verification & PoC testing${useEnhancedVerification ? ' (4-stage wallet pipeline)' : ''}`);
       const verifiedFindings: VerifiedFinding[] = [];
+      const enhancedResults = new Map<string, EnhancedVerificationResult>();
 
       for (const finding of deduplicated) {
         // Attempt PoC for critical/high findings
         let pocResult = null;
         if (SEVERITY_ORDER[finding.severity] >= SEVERITY_ORDER['high']) {
-          pocResult = await this.verifier.verify(finding, address, chainId);
-          if (pocResult?.attempted) {
-            console.log(`[Stage 4] PoC for ${finding.detectorName}: ${pocResult.succeeded ? 'SUCCEEDED' : 'failed'}`);
+          if (useEnhancedVerification) {
+            // 4-stage wallet-based verification
+            const enhanced = await this.enhancedVerifier.verify(finding, address, chainId, source.sourceCode);
+            pocResult = enhanced.pocResult;
+            enhancedResults.set(finding.id, enhanced);
+            const stageLabel = enhanced.stage.replace(/_/g, ' ');
+            console.log(`[Stage 4] Enhanced verification for ${finding.detectorName}: ${enhanced.verified ? 'VERIFIED' : 'failed'} (${stageLabel}, ${enhanced.confidence} confidence)`);
+          } else {
+            pocResult = await this.verifier.verify(finding, address, chainId);
+            if (pocResult?.attempted) {
+              console.log(`[Stage 4] PoC for ${finding.detectorName}: ${pocResult.succeeded ? 'SUCCEEDED' : 'failed'}`);
+            }
           }
         }
 
@@ -203,16 +222,22 @@ export class Scanner {
         const isFPPattern = this.context.checkFalsePositive(finding, source.sourceCode) !== null;
         const toolsAgreeing = [finding.tool]; // Extend when more analysis tools added
 
+        // If enhanced verification failed at wallet_sim stage, reduce confidence
+        const enhancedResult = enhancedResults.get(finding.id);
+        const pocSucceeded = enhancedResult
+          ? enhancedResult.verified
+          : (pocResult?.succeeded ?? null);
+
         const confidenceScore = this.context.computeConfidenceScore(
           finding,
           contextInfo,
           toolsAgreeing,
-          pocResult?.succeeded ?? null,
+          pocSucceeded,
         );
 
         const verificationStatus = this.context.determineVerificationStatus(
           confidenceScore,
-          pocResult?.succeeded ?? null,
+          pocSucceeded,
           isFPPattern,
           toolsAgreeing.length,
         );
@@ -318,11 +343,23 @@ export class Scanner {
 
       if (alertable.length > 0) {
         // Send detailed alerts for critical-value and verified findings
-        for (const finding of criticalValue) {
-          await this.telegram.sendExploitValueAlert(finding, address, chainName, source.name);
-        }
-        for (const finding of standardValue) {
-          await this.telegram.sendExploitValueAlert(finding, address, chainName, source.name);
+        for (const finding of [...criticalValue, ...standardValue]) {
+          const enhanced = enhancedResults.get(finding.id);
+          if (enhanced && enhanced.verified) {
+            // 4-stage wallet-verified alert
+            await this.telegram.sendEnhancedVerificationAlert(
+              finding,
+              address,
+              chainName,
+              source.name,
+              enhanced.verificationChain,
+              enhanced.exploitableValue.confirmed,
+              enhanced.confidence,
+              this.walletManager?.getAddress(),
+            );
+          } else {
+            await this.telegram.sendExploitValueAlert(finding, address, chainName, source.name);
+          }
         }
         // Batch summary
         await this.telegram.sendVerifiedBatchSummary(verifiedFindings, address, chainName, source.name);
@@ -475,6 +512,7 @@ export class Scanner {
   }
 
   async shutdown(): Promise<void> {
+    this.walletManager?.destroy();
     await this.db.close();
   }
 }
