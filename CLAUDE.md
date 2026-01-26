@@ -68,9 +68,10 @@ White-Rabbit/
 ├── .env.example               # Environment variable template
 ├── .gitignore
 ├── scripts/
-│   ├── scan.sh                # Scan a network (bash wrapper)
+│   ├── scan.sh                # Scan a network or top N chains (bash wrapper)
 │   ├── audit.sh               # Audit a contract (bash wrapper)
 │   ├── hunt.sh                # Start autonomous scanning (bash wrapper)
+│   ├── chains.sh              # Show top chains by TVL (bash wrapper)
 │   ├── status.sh              # Show status/findings (bash wrapper)
 │   ├── install-clawd.sh       # Clawd bot installation script
 │   └── clawdbot.json          # Clawd bot heartbeat config
@@ -82,7 +83,7 @@ White-Rabbit/
 └── src/
     ├── index.ts               # Main entry point (one-shot)
     ├── worker.ts              # BullMQ worker entry point
-    ├── cli.ts                 # CLI interface (audit, scan, protocols, auto, stats, findings)
+    ├── cli.ts                 # CLI interface (audit, scan, scan-top, chains, protocols, auto, stats, findings)
     ├── config.ts              # Environment & configuration
     ├── scanner.ts             # Orchestrator - 6-stage verification pipeline
     ├── database.ts            # PostgreSQL client
@@ -96,6 +97,7 @@ White-Rabbit/
     │   ├── ai-analyzer.ts     # Claude-based analysis
     │   └── deduplicator.ts    # Cross-tool finding dedup
     ├── services/
+    │   ├── chains.ts          # Dynamic chain discovery from DeFiLlama (top N by TVL)
     │   ├── context.ts         # Audit history, FP pattern detection, confidence scoring
     │   ├── verifier.ts        # PoC generation & Foundry fork testing
     │   └── state.ts           # File-based state persistence for Clawd integration
@@ -138,16 +140,31 @@ npm install
 # Build TypeScript
 npm run build
 
+# Show top chains by TVL
+npx tsx src/cli.ts chains --top 10
+
+# Scan top 10 chains by TVL
+npx tsx src/cli.ts scan top10
+
+# Scan top N chains
+npx tsx src/cli.ts scan-top 5 --min-tvl 1000000
+
+# Scan a specific network
+npm run scan -- base
+
 # Audit a single contract
 npm run audit -- 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
 
-# Scan a network
-npm run scan -- base
+# Audit on a specific chain (supports 20+ chains)
+npx tsx src/cli.ts audit 0xADDRESS --chain bsc
 
 # List high-TVL protocols
 npm run protocols -- ethereum --min-tvl 10000000
 
-# Start autonomous scanning
+# Start autonomous scanning (top 10 chains)
+npm run dev -- auto --top-chains 10 --interval 30
+
+# Start autonomous scanning (specific networks)
 npm run dev -- auto --networks ethereum,base --interval 30
 
 # Show scanner status
@@ -204,21 +221,25 @@ Users can control the scanner through Telegram via Clawd:
 
 | Command | Action |
 |---------|--------|
-| "start hunting" | Start autonomous scanning loop |
+| "start hunting" / "hunt top 10" | Start autonomous scanning on top 10 chains |
 | "stop hunting" | Stop the scanner |
+| "scan top10" / "scan top chains" | Scan top 10 chains by TVL |
 | "scan ethereum" | Scan a specific network |
+| "show top chains" / "chain rankings" | Show current TVL rankings |
 | "audit 0x..." | Audit a single contract |
-| "status" | Show scanner status |
+| "audit 0x... on bsc" | Audit on a specific chain |
+| "status" | Show scanner status with per-chain breakdown |
 | "what did you find" | Show recent findings |
+| "add chain fantom" | Add chain to scan list |
+| "skip bsc" | Remove chain from scan list |
 | "protocols on base" | List high-TVL protocols |
 
 ### Cron Jobs
 
-| Schedule | Network | Description |
-|----------|---------|-------------|
-| Every 4 hours | Ethereum | Mainnet scan |
-| Every 6 hours | Base, Arbitrum, Optimism | L2 networks |
-| Daily 9 AM | All | Summary digest |
+| Schedule | Scope | Description |
+|----------|-------|-------------|
+| Every 4 hours | Top 10 chains | Full TVL-ranked sweep |
+| Daily 9 AM | All | Rankings refresh + daily summary |
 
 ### State Persistence
 
@@ -226,6 +247,8 @@ Scanner state persists to `~/.etherscan-auditor/state.json`:
 - Autonomous mode status (active/inactive, PID)
 - Configuration (networks, TVL threshold, interval)
 - Cumulative stats (scans, contracts, findings, FPs filtered)
+- Chain TVL rankings cache (1 hour TTL)
+- Per-chain last scan timestamps
 - Recent findings (last 100, verified/likely-real)
 
 ## 6-Stage Verification Pipeline
@@ -270,13 +293,32 @@ Only alerts on findings that are:
 
 ## Supported Chains
 
-| Chain | Chain ID | Notes |
-|---|---|---|
-| Ethereum | 1 | Primary target |
-| Base | 8453 | Growing DeFi ecosystem |
-| Arbitrum | 42161 | Major L2 |
-| Polygon | 137 | High volume |
-| Optimism | 10 | OP Stack L2 |
+Chains are dynamically ranked by TVL from DeFiLlama. The scanner supports 20+ EVM chains:
+
+| Chain | Chain ID | Explorer API | Tier |
+|---|---|---|---|
+| Ethereum | 1 | etherscan.io | Tier 1 |
+| BNB Chain | 56 | bscscan.com | Tier 1 |
+| Arbitrum | 42161 | arbiscan.io | Tier 1 |
+| Base | 8453 | basescan.org | Tier 1 |
+| Polygon | 137 | polygonscan.com | Tier 1 |
+| Optimism | 10 | etherscan.io | Tier 2 |
+| Avalanche | 43114 | snowtrace.io | Tier 2 |
+| Blast | 81457 | blastscan.io | Tier 2 |
+| Linea | 59144 | lineascan.build | Tier 2 |
+| Scroll | 534352 | scrollscan.com | Tier 2 |
+| Fantom | 250 | ftmscan.com | Tier 3 |
+| Cronos | 25 | cronoscan.com | Tier 3 |
+| Gnosis | 100 | gnosisscan.io | Tier 3 |
+| zkSync Era | 324 | zksync.network | Tier 3 |
+| Mantle | 5000 | mantlescan.xyz | Tier 3 |
+| Manta Pacific | 169 | mantascan.io | Tier 3 |
+| Mode | 34443 | modescan.io | Tier 3 |
+| Celo | 42220 | celoscan.io | Tier 3 |
+| Moonbeam | 1284 | moonscan.io | Tier 3 |
+| Moonriver | 1285 | moonscan.io | Tier 3 |
+
+Use `npx tsx src/cli.ts chains` to see current TVL rankings. Non-EVM chains (Solana, Bitcoin, etc.) are identified but not scannable.
 
 ## Rate Limits
 

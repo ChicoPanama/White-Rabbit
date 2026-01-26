@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# scan.sh — Run a vulnerability scan on a specific network
-# Usage: ./scripts/scan.sh <network>
+# scan.sh — Run a vulnerability scan on a specific network or top N chains
+# Usage: ./scripts/scan.sh <network|top5|top10> [--min-tvl <usd>]
 # Example: ./scripts/scan.sh ethereum
+# Example: ./scripts/scan.sh top10
+# Example: ./scripts/scan.sh top5 --min-tvl 1000000
 
 set -euo pipefail
 
@@ -15,14 +17,17 @@ if [ -f "$PROJECT_DIR/.env" ]; then
   set +a
 fi
 
-NETWORK="${1:-}"
+TARGET="${1:-}"
 
-if [ -z "$NETWORK" ]; then
-  echo "Usage: scan.sh <network>"
-  echo "Available networks: ethereum, base, arbitrum, polygon, optimism"
+if [ -z "$TARGET" ]; then
+  echo "Usage: scan.sh <network|top5|top10> [--min-tvl <usd>]"
+  echo ""
+  echo "Networks: ethereum, bsc, arbitrum, base, polygon, optimism, avalanche, ..."
+  echo "Shortcuts: top5, top10 (scans top N chains by TVL)"
   exit 1
 fi
 
-echo "[White-Rabbit] Scanning $NETWORK..."
+shift
+echo "[White-Rabbit] Scanning $TARGET..."
 cd "$PROJECT_DIR"
-exec npx tsx src/cli.ts scan "$NETWORK"
+exec npx tsx src/cli.ts scan "$TARGET" "$@"

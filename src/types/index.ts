@@ -204,10 +204,17 @@ export interface FalsePositivePattern {
 
 export const CHAIN_RPC_ENV: Record<string, string> = {
   ethereum: 'ETH_RPC_URL',
-  base: 'BASE_RPC_URL',
+  bsc: 'BSC_RPC_URL',
   arbitrum: 'ARBITRUM_RPC_URL',
+  base: 'BASE_RPC_URL',
   polygon: 'POLYGON_RPC_URL',
   optimism: 'OPTIMISM_RPC_URL',
+  avalanche: 'AVALANCHE_RPC_URL',
+  fantom: 'FANTOM_RPC_URL',
+  linea: 'LINEA_RPC_URL',
+  scroll: 'SCROLL_RPC_URL',
+  blast: 'BLAST_RPC_URL',
+  gnosis: 'GNOSIS_RPC_URL',
 };
 
 // ── Queue Jobs ──

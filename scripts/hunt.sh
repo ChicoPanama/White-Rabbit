@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # hunt.sh — Start autonomous scanning loop
-# Usage: ./scripts/hunt.sh [--networks <list>] [--interval <min>] [--min-tvl <usd>]
+# Usage: ./scripts/hunt.sh [--top-chains <n>] [--networks <list>] [--interval <min>] [--min-tvl <usd>]
+# Example: ./scripts/hunt.sh --top-chains 10
 # Example: ./scripts/hunt.sh --networks ethereum,base --interval 30
+# Example: ./scripts/hunt.sh --top-chains 5 --min-tvl 1000000
 
 set -euo pipefail
 

@@ -5,6 +5,13 @@ import * as os from 'os';
 const STATE_DIR = path.join(os.homedir(), '.etherscan-auditor');
 const STATE_FILE = path.join(STATE_DIR, 'state.json');
 
+export interface ChainRankingEntry {
+  slug: string;
+  name: string;
+  tvl: number;
+  scannable: boolean;
+}
+
 export interface ScannerState {
   autonomous: {
     enabled: boolean;
@@ -26,6 +33,10 @@ export interface ScannerState {
     alertsSent: number;
     lastScanAt: string | null;
     lastScanPerNetwork: Record<string, string>;
+  };
+  chainRankings: {
+    chains: ChainRankingEntry[];
+    updatedAt: string | null;
   };
   recentFindings: RecentFinding[];
 }
@@ -64,6 +75,10 @@ const DEFAULT_STATE: ScannerState = {
     alertsSent: 0,
     lastScanAt: null,
     lastScanPerNetwork: {},
+  },
+  chainRankings: {
+    chains: [],
+    updatedAt: null,
   },
   recentFindings: [],
 };
@@ -142,6 +157,25 @@ export class StateManager {
     return this.state.stats;
   }
 
+  // ── Chain Rankings ──
+
+  updateChainRankings(chains: ChainRankingEntry[]): void {
+    this.state.chainRankings = {
+      chains,
+      updatedAt: new Date().toISOString(),
+    };
+    this.save();
+  }
+
+  getChainRankings(): { chains: ChainRankingEntry[]; updatedAt: string | null } {
+    return this.state.chainRankings;
+  }
+
+  isChainRankingsStale(maxAgeMs = 60 * 60 * 1000): boolean {
+    if (!this.state.chainRankings.updatedAt) return true;
+    return Date.now() - new Date(this.state.chainRankings.updatedAt).getTime() > maxAgeMs;
+  }
+
   // ── Recent Findings ──
 
   addFinding(finding: RecentFinding): void {
@@ -179,7 +213,7 @@ export class StateManager {
       `Networks: ${s.config.networks.join(', ')}`,
       `Min TVL: $${(s.config.minTvlUsd / 1000).toFixed(0)}K`,
       ``,
-      `Last 24 hours:`,
+      `Stats:`,
       `  Scans run: ${s.stats.totalScans}`,
       `  Contracts scanned: ${s.stats.contractsScanned}`,
       `  Verified vulns: ${s.stats.verifiedVulns}`,
@@ -187,6 +221,15 @@ export class StateManager {
       `  FPs filtered: ${s.stats.falsePositivesFiltered}`,
       `  Alerts sent: ${s.stats.alertsSent}`,
     ];
+
+    // Per-chain last scan
+    const perNetwork = Object.entries(s.stats.lastScanPerNetwork);
+    if (perNetwork.length > 0) {
+      lines.push('', 'Per-chain last scan:');
+      for (const [network, ts] of perNetwork) {
+        lines.push(`  ${network}: ${timeSince(new Date(ts))}`);
+      }
+    }
 
     if (s.autonomous.enabled) {
       lines.push(``, `Next scan in ~${s.config.intervalMinutes} min`);
@@ -202,20 +245,27 @@ export class StateManager {
       ? timeSince(new Date(s.stats.lastScanAt))
       : 'never';
 
+    const modeLabel = s.config.networks.length > 5 ? `top ${s.config.networks.length} chains` : s.config.networks.join(', ');
+
     const lines = [
-      `\u{1F99E} <b>Scanner Status</b>`,
+      `\u{1F99E} <b>Hunt Status</b>`,
       ``,
-      `${autoIcon} Autonomous mode: <b>${s.autonomous.enabled ? 'ACTIVE' : 'INACTIVE'}</b>`,
+      `${autoIcon} Mode: <b>${s.autonomous.enabled ? 'ACTIVE' : 'INACTIVE'}</b> (${modeLabel})`,
       `\u{23F1} Last scan: ${lastScan}`,
-      `\u{1F517} Networks: ${s.config.networks.join(', ')}`,
       `\u{1F4B0} Min TVL: $${(s.config.minTvlUsd / 1000).toFixed(0)}K`,
-      ``,
-      `\u{1F4CA} <b>Stats:</b>`,
-      `  Contracts scanned: ${s.stats.contractsScanned}`,
-      `  Verified vulns: ${s.stats.verifiedVulns}`,
-      `  Likely real: ${s.stats.likelyRealVulns}`,
-      `  FPs filtered: ${s.stats.falsePositivesFiltered}`,
     ];
+
+    // Per-chain scan status
+    const perNetwork = Object.entries(s.stats.lastScanPerNetwork);
+    if (perNetwork.length > 0) {
+      lines.push('', `\u{1F4CA} <b>Chains Scanned:</b>`);
+      for (const [network, ts] of perNetwork) {
+        lines.push(`  \u2705 ${network} - ${timeSince(new Date(ts))}`);
+      }
+    }
+
+    lines.push('');
+    lines.push(`Findings: ${s.stats.verifiedVulns} verified, ${s.stats.likelyRealVulns} likely real, ${s.stats.falsePositivesFiltered} FPs filtered`);
 
     if (s.autonomous.enabled) {
       lines.push(``, `Next scan in ~${s.config.intervalMinutes} min.`);

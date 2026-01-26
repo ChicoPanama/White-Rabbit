@@ -94,6 +94,7 @@ export class TelegramAlertService {
     contractAddress: string,
     chainName: string,
     protocolName?: string,
+    chainTvl?: number,
   ): Promise<boolean> {
     const messageHash = this.computeVerifiedHash(finding);
     if (this.sentHashes.has(messageHash)) {
@@ -107,11 +108,16 @@ export class TelegramAlertService {
       ? `${this.escapeHtml(protocolName)} (<code>${this.escapeHtml(contractAddress.slice(0, 10))}...</code>)`
       : `<code>${this.escapeHtml(contractAddress)}</code>`;
 
+    // Chain label with TVL context
+    const chainLabel = chainTvl
+      ? `${this.escapeHtml(chainName)} (${formatTvlDisplay(chainTvl)})`
+      : this.escapeHtml(chainName);
+
     const lines = [
       `${sevEmoji} <b>${finding.severity.toUpperCase()}: ${this.escapeHtml(finding.detectorName)}</b>`,
       `${badge}`,
       '',
-      `\u{1F517} ${this.escapeHtml(chainName)} | ${contractLabel}`,
+      `\u{1F517} ${chainLabel} | ${contractLabel}`,
       `\u{1F4CA} Confidence: ${bar}`,
     ];
 
@@ -303,6 +309,69 @@ export class TelegramAlertService {
   }
 
   /**
+   * Send top chains scan start notification.
+   */
+  async sendTopChainsScanStart(chains: Array<{ name: string; tvl: number }>, minTvl: number): Promise<boolean> {
+    const chainList = chains
+      .map(c => `${this.escapeHtml(c.name)} (${formatTvlDisplay(c.tvl)})`)
+      .join(' \u{2192} ');
+
+    const lines = [
+      `\u{1F99E} <b>Scanning Top ${chains.length} EVM Chains by TVL</b>`,
+      '',
+      `\u{1F3AF} ${chainList}`,
+      '',
+      `\u{1F4B0} Min TVL: $${formatTvlDisplay(minTvl)}`,
+      `\u{1F50E} Mode: Full sweep`,
+      '',
+      `Starting now... I'll alert you on verified findings only.`,
+    ];
+
+    return this.sendMessage(lines.join('\n'), { parse_mode: 'HTML' });
+  }
+
+  /**
+   * Send chain rankings message.
+   */
+  async sendChainRankings(rankings: string): Promise<boolean> {
+    return this.sendMessage(rankings, { parse_mode: 'HTML' });
+  }
+
+  /**
+   * Send per-chain scan status breakdown.
+   */
+  async sendChainStatusBreakdown(chainStats: Array<{
+    name: string;
+    contracts: number;
+    verified: number;
+    likelyReal: number;
+    status: 'done' | 'scanning' | 'queued';
+  }>): Promise<boolean> {
+    const lines = [
+      `\u{1F4CA} <b>Per-Chain Scan Status</b>`,
+      '',
+    ];
+
+    for (const cs of chainStats) {
+      let icon: string;
+      if (cs.status === 'done') icon = '\u2705';
+      else if (cs.status === 'scanning') icon = '\u{1F504}';
+      else icon = '\u23F3';
+
+      let detail = `${cs.contracts} contracts`;
+      if (cs.verified > 0) detail += `, ${cs.verified} VERIFIED \u{1F534}`;
+      else if (cs.likelyReal > 0) detail += `, ${cs.likelyReal} likely real`;
+      else detail += ', 0 verified';
+
+      const statusText = cs.status === 'scanning' ? 'scanning now...' :
+                         cs.status === 'queued' ? 'queued' : detail;
+      lines.push(`${icon} ${this.escapeHtml(cs.name)} - ${statusText}`);
+    }
+
+    return this.sendMessage(lines.join('\n'), { parse_mode: 'HTML' });
+  }
+
+  /**
    * Send autonomous mode status update.
    */
   async sendStatusUpdate(status: string): Promise<boolean> {
@@ -386,4 +455,11 @@ export class TelegramAlertService {
   clearDedupCache(): void {
     this.sentHashes.clear();
   }
+}
+
+function formatTvlDisplay(tvl: number): string {
+  if (tvl >= 1e9) return `$${(tvl / 1e9).toFixed(1)}B`;
+  if (tvl >= 1e6) return `$${(tvl / 1e6).toFixed(0)}M`;
+  if (tvl >= 1e3) return `$${(tvl / 1e3).toFixed(0)}K`;
+  return `$${tvl.toFixed(0)}`;
 }

@@ -6,6 +6,8 @@ import { AIAnalyzer } from './analyzers/ai-analyzer.js';
 import { FindingDeduplicator } from './analyzers/deduplicator.js';
 import { ContextService } from './services/context.js';
 import { PoCVerifier } from './services/verifier.js';
+import { ChainDiscoveryService } from './services/chains.js';
+import type { DynamicChainConfig } from './services/chains.js';
 import { TelegramAlertService } from './alerts/telegram.js';
 import { Database } from './database.js';
 import { CHAINS, SEVERITY_ORDER } from './types/index.js';
@@ -30,6 +32,7 @@ export class Scanner {
   private readonly deduplicator: FindingDeduplicator;
   private readonly context: ContextService;
   private readonly verifier: PoCVerifier;
+  readonly chainDiscovery: ChainDiscoveryService;
   private readonly telegram: TelegramAlertService;
   private readonly db: Database;
   private readonly config: Config;
@@ -43,6 +46,7 @@ export class Scanner {
     this.deduplicator = new FindingDeduplicator();
     this.context = new ContextService();
     this.verifier = new PoCVerifier();
+    this.chainDiscovery = new ChainDiscoveryService();
     this.telegram = new TelegramAlertService(config.telegramBotToken, config.telegramChatId);
     this.db = new Database(config.databaseUrl);
   }
@@ -279,9 +283,95 @@ export class Scanner {
     }));
   }
 
+  /**
+   * Scan top N chains by TVL using dynamic chain discovery.
+   */
+  async scanTopChains(topN: number, minTvl?: number): Promise<ScanSummary> {
+    console.log(`=== Scanning top ${topN} chains by TVL ===`);
+
+    const chains = await this.chainDiscovery.getTopChainsByTvl(topN);
+    console.log(`  Discovered ${chains.length} scannable chains\n`);
+
+    const tvlThreshold = minTvl ?? this.config.minTvlThreshold;
+
+    const summary: ScanSummary = {
+      chainsScanned: 0,
+      protocolsDiscovered: 0,
+      contractsAnalyzed: 0,
+      totalFindings: 0,
+      verifiedFindings: 0,
+      likelyRealFindings: 0,
+      falsePositivesFiltered: 0,
+      alertsSent: 0,
+      errors: [],
+    };
+
+    for (const chain of chains) {
+      try {
+        console.log(`\n[Scanner] Scanning ${chain.name} (TVL: ${formatTvlShort(chain.tvl)}, chain ID: ${chain.chainId})`);
+        const chainResult = await this.scanChainDynamic(chain, tvlThreshold);
+        summary.chainsScanned++;
+        summary.protocolsDiscovered += chainResult.protocols;
+        summary.contractsAnalyzed += chainResult.contracts;
+        summary.totalFindings += chainResult.findings;
+        summary.verifiedFindings += chainResult.verified;
+        summary.likelyRealFindings += chainResult.likelyReal;
+        summary.falsePositivesFiltered += chainResult.falsePositives;
+        summary.alertsSent += chainResult.alerts;
+      } catch (err) {
+        const msg = `Chain ${chain.name}: ${err instanceof Error ? err.message : String(err)}`;
+        console.error(`[Scanner] Error scanning chain: ${msg}`);
+        summary.errors.push(msg);
+      }
+    }
+
+    console.log('\n=== Top chain scan complete ===');
+    console.log(`  Chains: ${summary.chainsScanned}/${chains.length}`);
+    console.log(`  Protocols: ${summary.protocolsDiscovered}, Contracts: ${summary.contractsAnalyzed}`);
+    console.log(`  Verified: ${summary.verifiedFindings}, Likely real: ${summary.likelyRealFindings}`);
+    console.log(`  FPs filtered: ${summary.falsePositivesFiltered}, Alerts: ${summary.alertsSent}`);
+
+    return summary;
+  }
+
+  /**
+   * Scan a dynamic chain config (from chain discovery).
+   */
+  private async scanChainDynamic(chain: DynamicChainConfig, minTvl: number): Promise<ChainScanResult> {
+    const protocols = await this.defillama.getTopProtocols(
+      chain.slug,
+      minTvl,
+      50,
+    );
+
+    console.log(`[Scanner] Found ${protocols.length} protocols on ${chain.name} (min TVL: $${(minTvl / 1e6).toFixed(1)}M)`);
+
+    const result: ChainScanResult = {
+      protocols: protocols.length,
+      contracts: 0,
+      findings: 0,
+      verified: 0,
+      likelyReal: 0,
+      falsePositives: 0,
+      alerts: 0,
+    };
+
+    for (const protocol of protocols.slice(0, 10)) {
+      const tvl = protocol.chainTvls?.[capitalize(chain.slug)] ?? protocol.tvl ?? 0;
+      console.log(`  - ${protocol.name}: $${(tvl / 1e6).toFixed(1)}M TVL`);
+    }
+
+    return result;
+  }
+
   private async scanChain(chainName: string): Promise<ChainScanResult> {
     const chainConfig = CHAINS[chainName.toLowerCase()];
     if (!chainConfig) {
+      // Try dynamic chain discovery
+      const dynChain = this.chainDiscovery.getChainConfig(chainName);
+      if (dynChain) {
+        return this.scanChainDynamic(dynChain, this.config.minTvlThreshold);
+      }
       throw new Error(`Unknown chain: ${chainName}`);
     }
 
@@ -348,4 +438,11 @@ function statusIcon(status: VerificationStatus): string {
     case 'likely_false': return '\u274C';
     case 'false_positive': return '\u26AA';
   }
+}
+
+function formatTvlShort(tvl: number): string {
+  if (tvl >= 1e9) return `$${(tvl / 1e9).toFixed(1)}B`;
+  if (tvl >= 1e6) return `$${(tvl / 1e6).toFixed(0)}M`;
+  if (tvl >= 1e3) return `$${(tvl / 1e3).toFixed(0)}K`;
+  return `$${tvl.toFixed(0)}`;
 }

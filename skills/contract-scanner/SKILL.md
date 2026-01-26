@@ -1,26 +1,33 @@
 ---
 name: contract-scanner
-description: Autonomous smart contract vulnerability scanner with 6-stage verification pipeline
-metadata: {"clawdbot":{"requires":{"bins":["slither","node"],"env":["ETHERSCAN_API_KEY","TELEGRAM_BOT_TOKEN","TELEGRAM_CHAT_ID"]},"primaryEnv":"ETHERSCAN_API_KEY","emoji":"🦞","installers":{"slither":"pip install slither-analyzer solc-select && solc-select install 0.8.20 && solc-select use 0.8.20","foundry":"curl -L https://foundry.paradigm.xyz | bash && foundryup"},"heartbeat":{"interval_minutes":30,"active_hours":{"start":6,"end":24}},"crons":[{"name":"ETH Mainnet scan","cron":"0 */4 * * *","message":"Run vulnerability scan on ethereum","deliver":true,"channel":"telegram"},{"name":"L2 scan","cron":"0 */6 * * *","message":"Run vulnerability scan on base,arbitrum,optimism","deliver":true,"channel":"telegram"},{"name":"Daily summary","cron":"0 9 * * *","message":"Send daily vulnerability summary","deliver":true,"channel":"telegram"}]}}
+description: Autonomous smart contract vulnerability scanner with dynamic top-10 chain discovery
+metadata: {"clawdbot":{"requires":{"bins":["slither","node"],"env":["ETHERSCAN_API_KEY","TELEGRAM_BOT_TOKEN","TELEGRAM_CHAT_ID"]},"primaryEnv":"ETHERSCAN_API_KEY","emoji":"🦞","installers":{"slither":"pip install slither-analyzer solc-select && solc-select install 0.8.20 && solc-select use 0.8.20","foundry":"curl -L https://foundry.paradigm.xyz | bash && foundryup"},"heartbeat":{"interval_minutes":30,"active_hours":{"start":6,"end":24}},"crons":[{"name":"Top Chain Sweep","cron":"0 */4 * * *","message":"Scan top 10 chains by TVL for vulnerabilities, min TVL 1M, alert me only on verified findings","deliver":true,"channel":"telegram"},{"name":"Daily Summary","cron":"0 9 * * *","message":"Refresh chain TVL rankings, show me the current top 10, and summarize vulnerabilities found in the last 24 hours","deliver":true,"channel":"telegram"}]}}
 ---
 
 ## Instructions
 
-Scan smart contracts for vulnerabilities using a 6-stage verification pipeline that minimizes false positives. Only alert on verified or high-confidence findings. Never cry wolf.
+Scan smart contracts for vulnerabilities across the top EVM chains by TVL using a 6-stage verification pipeline. Dynamically discovers chains from DeFiLlama. Only alerts on verified or high-confidence findings. Never cry wolf.
 
 ### Natural Language Commands
 
 | User Says | Action | Script |
 |-----------|--------|--------|
-| "start hunting" / "go hunting" / "start scanning" | Start autonomous scanning loop | `./scripts/hunt.sh` |
-| "stop hunting" / "stop scanning" / "stand down" | Stop the autonomous scanner | Send SIGTERM to scanner PID |
+| "start hunting" / "hunt top 10" / "start scanning" | Start autonomous scan on top 10 chains | `./scripts/hunt.sh --top-chains 10` |
+| "hunt top 5" / "scan top 5" | Scan only top 5 chains by TVL | `./scripts/scan.sh top5` |
+| "stop hunting" / "stand down" | Stop the autonomous scanner | Send SIGTERM to scanner PID |
+| "scan top 10" / "scan top chains" / "scan everything" | Scan top 10 chains by TVL | `./scripts/scan.sh top10` |
 | "scan ethereum" / "scan [network]" | Scan a specific network | `./scripts/scan.sh <network>` |
+| "scan base and arbitrum" / "scan [chain1], [chain2]" | Scan specific chains | Run scan for each chain |
 | "audit 0x..." / "check 0x..." / "analyze 0x..." | Audit a single contract | `./scripts/audit.sh <address>` |
+| "audit 0x... on base" | Audit contract on specific chain | `./scripts/audit.sh <address> --chain base` |
+| "show top chains" / "chain rankings" / "which chains" | Show current TVL rankings | `./scripts/chains.sh` |
 | "what did you find" / "findings" / "any vulns?" | Show recent verified findings | `./scripts/status.sh findings` |
-| "status" / "how's it going" / "sitrep" | Show scanner status and stats | `./scripts/status.sh` |
-| "set min tvl to 5M" / "change threshold to..." | Update TVL threshold | Update config via CLI |
-| "focus on ethereum,base" / "only scan..." | Change target networks | Update config via CLI |
-| "protocols on base" / "top protocols..." | List high-TVL protocols | `npx tsx src/cli.ts protocols <network>` |
+| "status" / "how's the hunt going" / "sitrep" | Show scanner status with per-chain breakdown | `./scripts/status.sh` |
+| "add chain [name]" / "also scan [chain]" | Add chain to scan list | Update config |
+| "remove chain [name]" / "skip [chain]" | Remove chain from scan list | Update config |
+| "set min tvl to 5M" | Update TVL threshold | Update config via CLI |
+| "focus on ethereum,base" | Change target networks | Update config via CLI |
+| "protocols on base" / "high tvl on [chain]" | List high-TVL protocols on a chain | `npx tsx src/cli.ts protocols <network>` |
 
 ### Verification Pipeline
 
@@ -31,61 +38,75 @@ Scan smart contracts for vulnerabilities using a 6-stage verification pipeline t
 5. **Risk Scoring** — Weighted confidence score (0-100) from tool consensus, context, and PoC results
 6. **Smart Alerting** — Only alert on verified or likely-real findings. No cry wolf.
 
-### Verification Statuses
+### Dynamic Chain Discovery
 
-- **Verified** — PoC exploit succeeded on fork (always alert)
-- **Likely Real** — 2+ tools agree, high confidence (always alert)
-- **Needs Review** — Single tool, medium confidence (logged only)
-- **Likely False** — PoC failed or low confidence (suppressed)
-- **False Positive** — Matches known FP pattern (suppressed)
+Chains are ranked by TVL from DeFiLlama API. The scanner supports 20+ EVM chains with block explorer APIs:
+
+**Tier 1 (typically top 5):** Ethereum, BSC, Arbitrum, Base, Polygon
+**Tier 2:** Optimism, Avalanche, Blast, Linea, Scroll
+**Tier 3:** Fantom, Cronos, Gnosis, zkSync Era, Mantle, Manta, Mode, Celo, Moonbeam, Moonriver
+
+Rankings refresh every hour. Non-EVM chains (Solana, Bitcoin, etc.) are shown but skipped.
 
 ### Trigger
 
 ```bash
-# Ethereum mainnet every 4 hours
+# Every 4 hours: scan top 10 chains
 clawdbot cron add \
-  --name "ETH scan" \
+  --name "Top Chain Sweep" \
   --cron "0 */4 * * *" \
   --session isolated \
-  --message "Run vulnerability scan on ethereum" \
+  --message "Scan top 10 chains by TVL for vulnerabilities, min TVL 1M, alert me only on verified findings" \
   --deliver --channel telegram
 
-# L2 networks every 6 hours
+# Daily: refresh rankings and summarize
 clawdbot cron add \
-  --name "L2 scan" \
-  --cron "0 */6 * * *" \
-  --session isolated \
-  --message "Run vulnerability scan on base,arbitrum,optimism" \
-  --deliver --channel telegram
-
-# Daily summary at 9 AM
-clawdbot cron add \
-  --name "Daily summary" \
+  --name "Daily Summary" \
   --cron "0 9 * * *" \
   --session isolated \
-  --message "Send daily vulnerability summary" \
+  --message "Refresh chain TVL rankings, show me the current top 10, and summarize vulnerabilities found in the last 24 hours" \
   --deliver --channel telegram
 ```
 
-### Supported Chains
-
-Ethereum (1), Base (8453), Arbitrum (42161), Polygon (137), Optimism (10)
-
 ### Example Conversations
 
-**Starting a hunt:**
-> User: "Start hunting for vulnerabilities"
-> Bot: Starting autonomous scanning on ethereum, base, arbitrum. Min TVL: $10M. Interval: 30min. I'll alert you on verified findings only.
+**Asking about chains:**
+> User: "What chains can you scan?"
+> Bot: 📊 Top 10 Chains by TVL (DeFiLlama)
+> 1. 🥇 Ethereum - $52.3B ✅
+> 2. 🥈 BSC - $4.8B ✅
+> 3. 🥉 Arbitrum - $3.2B ✅
+> 4. Solana - $2.9B ❌ (not EVM)
+> 5. Base - $2.1B ✅
+> ...
+> I can scan all 8 EVM chains. Want me to start hunting?
 
-**Checking in:**
+**Starting a full hunt:**
+> User: "Hunt top 10 chains, 1M min tvl"
+> Bot: 🦞 Starting the hunt across TOP 10 CHAINS!
+> Targets: Ethereum ($52.3B) → BSC ($4.8B) → Arbitrum ($3.2B) → Base ($2.1B) → ...
+> Min TVL: $1,000,000 | Mode: Autonomous (every 30 min)
+> Let the hunt begin! 🎯
+
+**Finding across chains:**
+> Bot: 🔴 CRITICAL: reentrancy-eth | ✅ VERIFIED
+> 🔵 Base ($2.1B) | SomeProtocol Vault (0x1234...5678)
+> 📊 Confidence: ████████░░ 94%
+> 💥 PoC exploit SUCCEEDED
+
+**Status with chain breakdown:**
 > User: "Status"
-> Bot: 🟢 Autonomous mode: ACTIVE | Last scan: 12 min ago | Scanned 47 contracts | 2 verified vulns, 1 likely real | 23 FPs filtered
-
-**After finding something:**
-> Bot: 🔴 CRITICAL: reentrancy-eth | ✅ VERIFIED | Contract: 0x7a25...88D (Ethereum) | Confidence: ████████░░ 85% | PoC exploit SUCCEEDED
+> Bot: 🦞 Hunt Status
+> 🟢 Mode: ACTIVE (top 10 chains)
+> ✅ Ethereum - 12 contracts, 0 verified
+> ✅ BSC - 8 contracts, 1 likely real
+> ✅ Base - 18 contracts, 1 VERIFIED 🔴
+> 🔄 Polygon - scanning now...
+> ⏳ Optimism - queued
+> Findings: 1 verified, 2 likely real, 156 FPs filtered
 
 **Clean sweep:**
-> Bot: 📋 Daily Summary | ✅ 0 actionable findings across 156 contracts | 🎉 Clean sweep. No vulnerabilities found today.
+> Bot: 📋 Daily Summary | ✅ 0 actionable findings across 156 contracts | 🎉 Clean sweep.
 
 ### Security Notes
 
