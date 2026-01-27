@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { CHAINS, type ChainConfig, type Severity } from './types/index.js';
 
 export interface Config {

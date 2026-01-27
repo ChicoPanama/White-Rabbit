@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { loadConfig } from './config.js';
 import { Scanner } from './scanner.js';
 import { CHAINS } from './types/index.js';
