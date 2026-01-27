@@ -24,7 +24,7 @@ import type {
 } from '../types/index.js';
 
 const DEFAULT_DB_DIR = join(homedir(), '.etherscan-auditor');
-const DEFAULT_DB_PATH = join(DEFAULT_DB_DIR, 'patterns.db');
+const DEFAULT_DB_PATH = process.env.PATTERN_DB_PATH || join(DEFAULT_DB_DIR, 'patterns.db');
 
 function generateId(): string {
   return createHash('sha256')
@@ -537,10 +537,14 @@ export class PatternCache {
     const results: Array<ContractFingerprint & { matchType: string; similarityScore: number }> = [];
 
     // Exact code match
-    const exactRows = this.db.prepare(
-      `SELECT * FROM fingerprints WHERE code_hash = ? AND NOT (contract_address = ? AND chain_id = ?)
-       ${excludeChainId != null ? `AND chain_id != ${excludeChainId}` : ''}`,
-    ).all(reference.codeHash, reference.contractAddress, reference.chainId) as Record<string, unknown>[];
+    const exactRows = (excludeChainId != null
+      ? this.db.prepare(
+          `SELECT * FROM fingerprints WHERE code_hash = ? AND NOT (contract_address = ? AND chain_id = ?) AND chain_id != ?`,
+        ).all(reference.codeHash, reference.contractAddress, reference.chainId, excludeChainId)
+      : this.db.prepare(
+          `SELECT * FROM fingerprints WHERE code_hash = ? AND NOT (contract_address = ? AND chain_id = ?)`,
+        ).all(reference.codeHash, reference.contractAddress, reference.chainId)
+    ) as Record<string, unknown>[];
     for (const row of exactRows) {
       results.push({ ...this.rowToFingerprint(row), matchType: 'exact_code', similarityScore: 1.0 });
     }
@@ -846,6 +850,11 @@ export class PatternCache {
   }
 
   close(): void {
+    try {
+      this.db.pragma('wal_checkpoint(TRUNCATE)');
+    } catch {
+      // Best effort — checkpoint may fail if DB is already closed
+    }
     this.db.close();
   }
 }

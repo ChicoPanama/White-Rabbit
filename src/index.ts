@@ -13,6 +13,14 @@ async function main() {
 
   const scanner = new Scanner(config);
 
+  const handleSignal = async (signal: string) => {
+    console.log(`\n${signal} received, shutting down...`);
+    await scanner.shutdown();
+    process.exit(0);
+  };
+  process.on('SIGINT', () => { handleSignal('SIGINT'); });
+  process.on('SIGTERM', () => { handleSignal('SIGTERM'); });
+
   // Check if a specific contract address was provided via CLI
   const targetAddress = process.argv[2];
   const targetChainId = process.argv[3] ? Number(process.argv[3]) : 1;

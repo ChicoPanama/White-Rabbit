@@ -182,11 +182,13 @@ export function createWorkers(config: Config) {
   };
 }
 
-function parseRedisUrl(url: string): { host: string; port: number } {
+function parseRedisUrl(url: string): { host: string; port: number; password?: string; username?: string } {
   const parsed = new URL(url);
   return {
     host: parsed.hostname,
     port: Number(parsed.port) || 6379,
+    ...(parsed.password ? { password: decodeURIComponent(parsed.password) } : {}),
+    ...(parsed.username ? { username: decodeURIComponent(parsed.username) } : {}),
   };
 }
 

@@ -27,7 +27,7 @@ function scryptAsync(
   });
 }
 
-const SCRYPT_N = 2 ** 14; // CPU/memory cost
+const SCRYPT_N = 2 ** 17; // CPU/memory cost (OWASP recommended for high-value secrets)
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
 const KEY_LENGTH = 32; // AES-256
@@ -91,11 +91,14 @@ export async function decryptMnemonic(encryptedData: string, password: string): 
 }
 
 /**
- * Securely wipe a string from memory by overwriting its buffer.
- * Note: V8 strings are immutable, so this creates a replacement reference.
- * The original may persist in heap until GC. For true security, use Buffer.
+ * Securely wipe a Buffer by zeroing its contents.
+ * For string values, converts to Buffer, zeros, and returns empty string.
+ * V8 strings are immutable so the original string reference may persist
+ * in heap until GC, but the Buffer copy is wiped immediately.
  */
 export function secureWipe(value: string): string {
-  // Best effort: return empty string so caller drops reference
+  // Allocate a buffer with the string content and immediately zero it
+  const buf = Buffer.from(value, 'utf8');
+  buf.fill(0);
   return '';
 }

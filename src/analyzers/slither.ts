@@ -1,5 +1,6 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import type { SlitherOutput, SlitherDetectorResult, Finding, Severity, Confidence } from '../types/index.js';
@@ -49,8 +50,17 @@ export class SlitherAnalyzer {
       const trimmed = sourceCode.startsWith('{{') ? sourceCode.slice(1, -1) : sourceCode;
       const parsed = JSON.parse(trimmed);
       if (parsed.sources && typeof parsed.sources === 'object') {
+        const resolvedContractDir = path.resolve(contractDir) + path.sep;
         for (const [filePath, fileData] of Object.entries(parsed.sources)) {
-          const fullPath = path.join(contractDir, filePath);
+          const fullPath = path.resolve(contractDir, filePath);
+          if (!fullPath.startsWith(resolvedContractDir)) {
+            console.warn(`Skipping path traversal attempt in source: ${filePath}`);
+            continue;
+          }
+          if (typeof (fileData as { content: unknown })?.content !== 'string') {
+            console.warn(`Skipping invalid source entry: ${filePath}`);
+            continue;
+          }
           fs.mkdirSync(path.dirname(fullPath), { recursive: true });
           fs.writeFileSync(fullPath, (fileData as { content: string }).content, 'utf8');
         }
@@ -69,7 +79,7 @@ export class SlitherAnalyzer {
 
   private runSlither(contractPath: string): Promise<SlitherOutput> {
     return new Promise((resolve) => {
-      const outputFile = `/tmp/slither-${Date.now()}-${Math.random().toString(36).slice(2)}.json`;
+      const outputFile = path.join(os.tmpdir(), `slither-${crypto.randomBytes(16).toString('hex')}.json`);
 
       const proc = spawn('slither', [
         contractPath,

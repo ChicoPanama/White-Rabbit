@@ -28,15 +28,21 @@ function confidenceBar(score: number): string {
 }
 
 export class TelegramAlertService {
-  private readonly baseUrl: string;
+  private readonly botToken: string;
   private readonly chatId: string;
   private lastSendTime = 0;
   private readonly minIntervalMs = 1100; // > 1 msg/sec limit
-  private sentHashes = new Set<string>();
+  private sentHashes = new Map<string, number>(); // hash -> timestamp
+  private static readonly DEDUP_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+  private static readonly MAX_CACHE_SIZE = 10_000;
 
   constructor(botToken: string, chatId: string) {
-    this.baseUrl = `https://api.telegram.org/bot${botToken}`;
+    this.botToken = botToken;
     this.chatId = chatId;
+  }
+
+  private getApiUrl(): string {
+    return `https://api.telegram.org/bot${this.botToken}`;
   }
 
   /**
@@ -45,7 +51,7 @@ export class TelegramAlertService {
    */
   async sendFindingAlert(finding: Finding, contractAddress: string, chainName: string): Promise<boolean> {
     const messageHash = this.computeHash(finding);
-    if (this.sentHashes.has(messageHash)) {
+    if (this.isDuplicate(messageHash)) {
       return false;
     }
 
@@ -81,7 +87,7 @@ export class TelegramAlertService {
     });
 
     if (result) {
-      this.sentHashes.add(messageHash);
+      this.sentHashes.set(messageHash, Date.now());
     }
     return result;
   }
@@ -98,7 +104,7 @@ export class TelegramAlertService {
     chainTvl?: number,
   ): Promise<boolean> {
     const messageHash = this.computeVerifiedHash(finding);
-    if (this.sentHashes.has(messageHash)) {
+    if (this.isDuplicate(messageHash)) {
       return false;
     }
 
@@ -162,7 +168,7 @@ export class TelegramAlertService {
     });
 
     if (result) {
-      this.sentHashes.add(messageHash);
+      this.sentHashes.set(messageHash, Date.now());
     }
     return result;
   }
@@ -178,7 +184,7 @@ export class TelegramAlertService {
     protocolName?: string,
   ): Promise<boolean> {
     const messageHash = this.computeVerifiedHash(finding);
-    if (this.sentHashes.has(messageHash)) {
+    if (this.isDuplicate(messageHash)) {
       return false;
     }
 
@@ -292,7 +298,7 @@ export class TelegramAlertService {
     });
 
     if (result) {
-      this.sentHashes.add(messageHash);
+      this.sentHashes.set(messageHash, Date.now());
     }
     return result;
   }
@@ -625,7 +631,7 @@ export class TelegramAlertService {
     walletAddress?: string,
   ): Promise<boolean> {
     const messageHash = this.computeVerifiedHash(finding);
-    if (this.sentHashes.has(messageHash)) return false;
+    if (this.isDuplicate(messageHash)) return false;
 
     const confLabel = confidence === 'definitive' ? 'DEFINITIVE (4-stage verified)' :
                       confidence === 'high' ? 'HIGH (multi-stage verified)' :
@@ -677,7 +683,7 @@ export class TelegramAlertService {
     }
 
     const result = await this.sendMessage(lines.join('\n'), { parse_mode: 'HTML', disable_notification: false });
-    if (result) this.sentHashes.add(messageHash);
+    if (result) this.sentHashes.set(messageHash, Date.now());
     return result;
   }
 
@@ -798,7 +804,7 @@ export class TelegramAlertService {
     await this.rateLimit();
 
     try {
-      const response = await fetch(`${this.baseUrl}/sendMessage`, {
+      const response = await fetch(`${this.getApiUrl()}/sendMessage`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -854,8 +860,26 @@ export class TelegramAlertService {
   }
 
   /**
-   * Clear the 24-hour dedup window.
-   * Call periodically to prevent unbounded memory growth.
+   * Check if a message hash was already sent within the dedup TTL window.
+   * Also prunes expired entries to bound memory growth.
+   */
+  private isDuplicate(hash: string): boolean {
+    const ts = this.sentHashes.get(hash);
+    if (ts !== undefined && Date.now() - ts < TelegramAlertService.DEDUP_TTL_MS) {
+      return true;
+    }
+    // Prune on every check (cheap for small maps)
+    if (this.sentHashes.size > TelegramAlertService.MAX_CACHE_SIZE) {
+      const cutoff = Date.now() - TelegramAlertService.DEDUP_TTL_MS;
+      for (const [k, v] of this.sentHashes) {
+        if (v < cutoff) this.sentHashes.delete(k);
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Clear the dedup cache.
    */
   clearDedupCache(): void {
     this.sentHashes.clear();

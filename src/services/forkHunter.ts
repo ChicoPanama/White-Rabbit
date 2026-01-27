@@ -23,8 +23,10 @@ import type {
 } from '../types/index.js';
 import { SEVERITY_ORDER } from '../types/index.js';
 
-const MAX_PROTOCOLS_PER_CHAIN = 30;
-const MIN_SIMILARITY_SCORE = 0.6;
+const MAX_PROTOCOLS_PER_CHAIN = Number(process.env.MAX_CHAINS_TO_SEARCH) || 30;
+const MIN_SIMILARITY_SCORE = Number(process.env.MIN_FORK_SIMILARITY) || 0.6;
+const FORK_VERIFY_CONCURRENCY = 5;
+const MAX_SOURCE_LENGTH_FOR_REGEX = 500_000;
 
 /**
  * Security pattern strings that indicate a vulnerability was patched.
@@ -121,29 +123,39 @@ export class ForkHunter {
 
     console.log(`[ForkHunter] Found ${allMatches.length} total potential forks. Verifying...`);
 
-    // Step 5: Verify each match
+    // Step 5: Verify each match (batched concurrency)
     const verifiedForks: VerifiedFork[] = [];
-    for (const match of allMatches) {
-      try {
-        const verification = await this.verifyFork(match, pattern, finding);
-        verifiedForks.push(verification);
+    for (let i = 0; i < allMatches.length; i += FORK_VERIFY_CONCURRENCY) {
+      const batch = allMatches.slice(i, i + FORK_VERIFY_CONCURRENCY);
+      const batchResults = await Promise.allSettled(
+        batch.map(match => this.verifyFork(match, pattern, finding)),
+      );
 
-        if (verification.isVulnerable) {
-          console.log(`[ForkHunter]   VULNERABLE: ${match.contractName} on ${match.chainName} — $${(verification.exploitableValue ?? 0).toLocaleString()}`);
+      for (let j = 0; j < batchResults.length; j++) {
+        const match = batch[j];
+        const result = batchResults[j];
+
+        if (result.status === 'fulfilled') {
+          const verification = result.value;
+          verifiedForks.push(verification);
+          if (verification.isVulnerable) {
+            console.log(`[ForkHunter]   VULNERABLE: ${match.contractName} on ${match.chainName} — $${(verification.exploitableValue ?? 0).toLocaleString()}`);
+          } else {
+            const reason = verification.reason ?? 'unknown';
+            console.log(`[ForkHunter]   Safe: ${match.contractName} on ${match.chainName} (${reason})`);
+          }
         } else {
-          const reason = verification.reason ?? 'unknown';
-          console.log(`[ForkHunter]   Safe: ${match.contractName} on ${match.chainName} (${reason})`);
+          const err = result.reason;
+          console.warn(`[ForkHunter]   Failed to verify ${match.address} on ${match.chainName}: ${err instanceof Error ? err.message : String(err)}`);
+          verifiedForks.push({
+            isVulnerable: false,
+            address: match.address,
+            chainId: match.chainId,
+            chainName: match.chainName,
+            contractName: match.contractName,
+            reason: `verification error: ${err instanceof Error ? err.message : String(err)}`,
+          });
         }
-      } catch (err) {
-        console.warn(`[ForkHunter]   Failed to verify ${match.address} on ${match.chainName}: ${err instanceof Error ? err.message : String(err)}`);
-        verifiedForks.push({
-          isVulnerable: false,
-          address: match.address,
-          chainId: match.chainId,
-          chainName: match.chainName,
-          contractName: match.contractName,
-          reason: `verification error: ${err instanceof Error ? err.message : String(err)}`,
-        });
       }
     }
 
@@ -418,14 +430,17 @@ export class ForkHunter {
       }
     }
 
-    // Check regex patterns
+    // Check regex patterns (limit input size to mitigate ReDoS)
+    const truncatedSource = sourceCode.length > MAX_SOURCE_LENGTH_FOR_REGEX
+      ? sourceCode.slice(0, MAX_SOURCE_LENGTH_FOR_REGEX)
+      : sourceCode;
     for (const regex of sigs.regexPatterns) {
       try {
-        if (new RegExp(regex, 's').test(sourceCode)) {
+        if (new RegExp(regex, 's').test(truncatedSource)) {
           return { matches: true };
         }
       } catch {
-        // Invalid regex
+        // Invalid regex — skip
       }
     }
 

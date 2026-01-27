@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import type { Finding, Severity, SEVERITY_ORDER } from '../types/index.js';
+import type { Finding, Severity } from '../types/index.js';
 import { SEVERITY_ORDER as SevOrder } from '../types/index.js';
 
 interface DeduplicatedGroup {

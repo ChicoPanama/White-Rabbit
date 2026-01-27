@@ -5,6 +5,7 @@ import { ChainDiscoveryService } from './services/chains.js';
 import { PatternCache } from './services/patternCache.js';
 import { SelfEvolutionEngine } from './services/selfEvolution.js';
 import { sleep } from './utils/helpers.js';
+import { isValidEthAddress } from './utils/validation.js';
 import { StateManager } from './services/state.js';
 import { WalletManager, CHAIN_NAMES, NATIVE_SYMBOLS, MIN_BALANCES } from './services/walletManager.js';
 import { ethers } from 'ethers';
@@ -99,6 +100,15 @@ async function main() {
   const config = loadConfig();
   const scanner = new Scanner(config);
 
+  // Graceful shutdown for scanner-using commands
+  const handleSignal = async (signal: string) => {
+    console.log(`\n${signal} received, shutting down scanner...`);
+    await scanner.shutdown();
+    process.exit(0);
+  };
+  process.on('SIGINT', () => { handleSignal('SIGINT'); });
+  process.on('SIGTERM', () => { handleSignal('SIGTERM'); });
+
   try {
     switch (command) {
       case 'audit':
@@ -148,6 +158,10 @@ async function runAudit(scanner: Scanner, args: string[]) {
   if (!address) {
     console.error('Error: contract address required');
     console.error('Usage: audit <address> [--chain <name>]');
+    process.exit(1);
+  }
+  if (!isValidEthAddress(address)) {
+    console.error('Error: invalid Ethereum address (expected 0x + 40 hex characters)');
     process.exit(1);
   }
 
@@ -490,11 +504,11 @@ async function runWalletInit(args: string[]) {
     process.exit(1);
   }
 
-  const password = getFlag(args, '--password') ?? process.env.WALLET_ENCRYPTION_PASSWORD;
+  const password = getWalletPassword(args);
   if (!password) {
     console.error('Error: password required');
     console.error('Usage: wallet:init --password <password>');
-    console.error('Or set WALLET_ENCRYPTION_PASSWORD env var');
+    console.error('Or set WALLET_ENCRYPTION_PASSWORD or WALLET_PASSWORD_FILE env var');
     process.exit(1);
   }
 
@@ -526,11 +540,11 @@ async function runWalletBalances(args: string[]) {
     process.exit(1);
   }
 
-  const password = getFlag(args, '--password') ?? process.env.WALLET_ENCRYPTION_PASSWORD;
+  const password = getWalletPassword(args);
   if (!password) {
     console.error('Error: password required');
     console.error('Usage: wallet:balances --password <password>');
-    console.error('Or set WALLET_ENCRYPTION_PASSWORD env var');
+    console.error('Or set WALLET_ENCRYPTION_PASSWORD or WALLET_PASSWORD_FILE env var');
     process.exit(1);
   }
 
@@ -579,9 +593,9 @@ async function runWalletFund() {
     process.exit(1);
   }
 
-  const password = process.env.WALLET_ENCRYPTION_PASSWORD;
+  const password = getWalletPassword([]);
   if (!password) {
-    console.error('Error: set WALLET_ENCRYPTION_PASSWORD env var');
+    console.error('Error: set WALLET_ENCRYPTION_PASSWORD or WALLET_PASSWORD_FILE env var');
     process.exit(1);
   }
 
@@ -722,6 +736,21 @@ function getFlag(args: string[], flag: string): string | undefined {
   const idx = args.indexOf(flag);
   if (idx === -1 || idx + 1 >= args.length) return undefined;
   return args[idx + 1];
+}
+
+function getWalletPassword(args: string[]): string | undefined {
+  const fromFlag = getFlag(args, '--password');
+  if (fromFlag) return fromFlag;
+  if (process.env.WALLET_ENCRYPTION_PASSWORD) return process.env.WALLET_ENCRYPTION_PASSWORD;
+  if (process.env.WALLET_PASSWORD_FILE) {
+    try {
+      const fs = require('fs');
+      return fs.readFileSync(process.env.WALLET_PASSWORD_FILE, 'utf8').trim();
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
 }
 
 function formatTvlCompact(tvl: number): string {
