@@ -1,5 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Finding, AIAnalysisResult, Severity } from '../types/index.js';
+import type { AIConfig } from '../config.js';
+import { CostTracker } from '../services/cost-tracker.js';
+
+export type AnalysisTier = 'none' | 'haiku' | 'sonnet';
 
 const SYSTEM_PROMPT = `You are a senior smart contract security auditor specializing in DeFi protocols.
 You review static analysis findings and assess whether they represent real vulnerabilities or false positives.
@@ -14,15 +18,78 @@ For each finding you MUST respond with valid JSON matching this schema:
   "adjustedSeverity": "critical | high | medium | low | informational | null"
 }`;
 
+export interface TierDecision {
+  tier: AnalysisTier;
+  reason: string;
+}
+
+/**
+ * Determine the appropriate AI analysis tier for a finding based on
+ * severity, contract TVL, and audit status.
+ */
+export function getAnalysisTier(
+  severity: Severity,
+  contractTvl: number | null,
+  isAudited: boolean,
+  aiConfig: AIConfig,
+): TierDecision {
+  if (aiConfig.disableAiAnalysis) {
+    return { tier: 'none', reason: 'AI analysis disabled' };
+  }
+
+  // Audited, well-known protocols with low/medium findings: skip AI
+  if (isAudited && (severity === 'low' || severity === 'informational')) {
+    return { tier: 'none', reason: 'Low severity on audited protocol' };
+  }
+
+  // Critical findings always get Sonnet
+  if (severity === 'critical') {
+    return { tier: 'sonnet', reason: 'Critical severity' };
+  }
+
+  // High findings: Sonnet if high TVL, otherwise Haiku
+  if (severity === 'high') {
+    if (contractTvl !== null && contractTvl >= aiConfig.minTvlForSonnet) {
+      return { tier: 'sonnet', reason: `High severity + high TVL ($${(contractTvl / 1e6).toFixed(1)}M)` };
+    }
+    return { tier: 'haiku', reason: 'High severity' };
+  }
+
+  // Medium findings: Haiku if TVL threshold met, otherwise skip
+  if (severity === 'medium') {
+    if (contractTvl !== null && contractTvl >= aiConfig.minTvlForAi) {
+      return { tier: 'haiku', reason: 'Medium severity with sufficient TVL' };
+    }
+    if (isAudited) {
+      return { tier: 'none', reason: 'Medium severity on audited protocol (below TVL threshold)' };
+    }
+    return { tier: 'haiku', reason: 'Medium severity on unaudited protocol' };
+  }
+
+  // Low/informational on unaudited: skip
+  return { tier: 'none', reason: 'Low severity' };
+}
+
 export class AIAnalyzer {
   private client: Anthropic | null;
+  private costTracker: CostTracker;
+  private aiConfig: AIConfig;
 
-  constructor(apiKey: string | null) {
+  constructor(apiKey: string | null, aiConfig: AIConfig, costTracker?: CostTracker) {
     this.client = apiKey ? new Anthropic({ apiKey }) : null;
+    this.aiConfig = aiConfig;
+    this.costTracker = costTracker ?? new CostTracker(
+      aiConfig.maxCallsPerHour,
+      aiConfig.maxSpendPerDay,
+    );
   }
 
   get isAvailable(): boolean {
-    return this.client !== null;
+    return this.client !== null && !this.aiConfig.disableAiAnalysis;
+  }
+
+  getCostTracker(): CostTracker {
+    return this.costTracker;
   }
 
   /**
@@ -33,10 +100,13 @@ export class AIAnalyzer {
     findings: Finding[],
     contractSource: string,
     protocolType: string | null,
+    tier?: AnalysisTier,
   ): Promise<AIAnalysisResult[]> {
     if (!this.client || findings.length === 0) {
       return [];
     }
+
+    const model = this.resolveModel(tier ?? 'sonnet');
 
     const results: AIAnalysisResult[] = [];
 
@@ -44,19 +114,38 @@ export class AIAnalyzer {
     const batchSize = 5;
     for (let i = 0; i < findings.length; i += batchSize) {
       const batch = findings.slice(i, i + batchSize);
-      const batchResults = await this.analyzeBatch(batch, contractSource, protocolType);
+      const batchResults = await this.analyzeBatch(batch, contractSource, protocolType, model);
       results.push(...batchResults);
     }
 
     return results;
   }
 
+  private resolveModel(tier: AnalysisTier): string {
+    switch (tier) {
+      case 'haiku':
+        return this.aiConfig.modelHaiku;
+      case 'sonnet':
+        return this.aiConfig.modelSonnet;
+      default:
+        return this.aiConfig.modelSonnet;
+    }
+  }
+
   private async analyzeBatch(
     findings: Finding[],
     contractSource: string,
     protocolType: string | null,
+    model: string,
   ): Promise<AIAnalysisResult[]> {
     if (!this.client) return [];
+
+    // Check cost budget before making the call
+    const budget = this.costTracker.canMakeAiCall();
+    if (!budget.allowed) {
+      console.warn(`[AIAnalyzer] Skipping AI call: ${budget.reason}`);
+      return [];
+    }
 
     const findingsSummary = findings.map((f, idx) => (
       `[Finding ${idx + 1}] ${f.detectorName} (${f.severity}/${f.confidence})
@@ -96,11 +185,18 @@ Respond with a JSON array of assessments, one per finding, in the same order.`;
 
     try {
       const response = await this.client.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model,
         max_tokens: 4096,
         system: SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userPrompt }],
       });
+
+      // Record usage for cost tracking
+      this.costTracker.recordCall(
+        model,
+        response.usage?.input_tokens ?? 0,
+        response.usage?.output_tokens ?? 0,
+      );
 
       const text = response.content
         .filter((block): block is Anthropic.TextBlock => block.type === 'text')

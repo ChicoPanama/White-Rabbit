@@ -1,6 +1,16 @@
 import 'dotenv/config';
 import { CHAINS, type ChainConfig, type Severity } from './types/index.js';
 
+export interface AIConfig {
+  modelHaiku: string;
+  modelSonnet: string;
+  maxCallsPerHour: number;
+  maxSpendPerDay: number;
+  minTvlForAi: number;
+  minTvlForSonnet: number;
+  disableAiAnalysis: boolean;
+}
+
 export interface Config {
   etherscanApiKey: string;
   telegramBotToken: string;
@@ -13,6 +23,7 @@ export interface Config {
   alertMinSeverity: Severity;
   etherscanRequestIntervalMs: number;
   defiLlamaCacheTtlMs: number;
+  ai: AIConfig;
 }
 
 export function loadConfig(): Config {
@@ -49,6 +60,16 @@ export function loadConfig(): Config {
     throw new Error(`Invalid ALERT_MIN_SEVERITY: ${rawSeverity}`);
   }
 
+  const ai: AIConfig = {
+    modelHaiku: process.env.AI_MODEL_HAIKU || 'claude-haiku-4-20250414',
+    modelSonnet: process.env.AI_MODEL_SONNET || 'claude-sonnet-4-20250514',
+    maxCallsPerHour: Number(process.env.MAX_AI_CALLS_PER_HOUR) || 20,
+    maxSpendPerDay: Number(process.env.MAX_AI_SPEND_PER_DAY) || 1.0,
+    minTvlForAi: Number(process.env.MIN_TVL_FOR_AI) || 1_000_000,
+    minTvlForSonnet: Number(process.env.MIN_TVL_FOR_SONNET) || 50_000_000,
+    disableAiAnalysis: process.env.DISABLE_AI_ANALYSIS === 'true',
+  };
+
   return {
     etherscanApiKey: process.env.ETHERSCAN_API_KEY!,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN!,
@@ -61,5 +82,6 @@ export function loadConfig(): Config {
     alertMinSeverity,
     etherscanRequestIntervalMs: 200,
     defiLlamaCacheTtlMs: 5 * 60 * 1000,
+    ai,
   };
 }

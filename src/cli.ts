@@ -9,6 +9,7 @@ import { sleep } from './utils/helpers.js';
 import { isValidEthAddress } from './utils/validation.js';
 import { StateManager } from './services/state.js';
 import { WalletManager, CHAIN_NAMES, NATIVE_SYMBOLS, MIN_BALANCES } from './services/walletManager.js';
+import { ForkHunterV2 } from './services/fork-hunter-v2.js';
 import { ethers } from 'ethers';
 
 const HELP = `
@@ -21,6 +22,8 @@ Usage:
   npx tsx src/cli.ts chains [--top <n>]
   npx tsx src/cli.ts protocols <network> [--min-tvl <usd>]
   npx tsx src/cli.ts auto [--networks <list>] [--top-chains <n>] [--min-tvl <usd>] [--interval <min>]
+  npx tsx src/cli.ts hunt [--chains <list>] [--min-tvl <usd>] [--max-spend <usd>] [--interval <min>]
+  npx tsx src/cli.ts hunt-forks [--hack <id|all>] [--min-tvl <usd>] [--chains <list>]
   npx tsx src/cli.ts stats
   npx tsx src/cli.ts findings [--limit <n>]
 
@@ -31,6 +34,8 @@ Commands:
   chains      Show top chains ranked by TVL from DeFiLlama
   protocols   List high-TVL protocols on a network
   auto        Start autonomous scanning loop
+  hunt        Continuous cost-optimized scanning (tiered AI, budget controls)
+  hunt-forks  Hunt for unpatched forks of known hacked protocols
   stats       Show scanner status and statistics
   findings    Show recent verified/likely-real findings
   wallet:init      Initialize verification wallet (generates mnemonic)
@@ -42,9 +47,12 @@ Commands:
 
 Options:
   --chain <name>       Chain name (default: ethereum)
+  --chains <list>      Comma-separated chains for hunt mode (default: top 10 by TVL)
   --top <n>            Number of top chains to show/scan (default: 10)
   --top-chains <n>     Scan top N chains in auto mode (overrides --networks)
   --min-tvl <usd>      Minimum TVL threshold (default: 10000000)
+  --hack <id>          Specific hack ID to hunt (default: all). Use 'list' to see IDs
+  --max-spend <usd>    Max daily AI spend in USD for hunt mode (default: 1.00)
   --networks <list>    Comma-separated networks (default: ethereum,base,arbitrum)
   --interval <min>     Minutes between scan cycles in auto mode (default: 30)
   --limit <n>          Number of findings to show (default: 10)
@@ -126,6 +134,12 @@ async function main() {
         break;
       case 'auto':
         await runAuto(scanner, args.slice(1), config);
+        break;
+      case 'hunt':
+        await runHunt(scanner, args.slice(1), config);
+        break;
+      case 'hunt-forks':
+        await runHuntForks(scanner, args.slice(1), config);
         break;
       default:
         console.error(`Unknown command: ${command}`);
@@ -463,6 +477,195 @@ async function runAuto(scanner: Scanner, args: string[], config: ReturnType<type
 
     console.log(`\nNext scan in ${intervalMin} minutes...`);
     await sleep(intervalMs);
+  }
+}
+
+// ── hunt (cost-optimized continuous scanning) ──
+
+async function runHunt(scanner: Scanner, args: string[], config: ReturnType<typeof loadConfig>) {
+  const intervalMin = Number(getFlag(args, '--interval') ?? 30);
+  const intervalMs = intervalMin * 60 * 1000;
+  const minTvl = Number(getFlag(args, '--min-tvl') ?? config.minTvlThreshold);
+  const maxSpend = getFlag(args, '--max-spend');
+  const chainsArg = getFlag(args, '--chains');
+
+  // Override AI spend limit if --max-spend is provided
+  if (maxSpend) {
+    config.ai.maxSpendPerDay = Number(maxSpend);
+  }
+
+  const state = new StateManager();
+  state.setAutonomous(true);
+
+  // Determine target chains
+  let targetChains: string[];
+  if (chainsArg) {
+    targetChains = chainsArg.split(',').map(c => c.trim().toLowerCase());
+  } else {
+    const topChains = await scanner.chainDiscovery.getTopChainsByTvl(10);
+    targetChains = topChains.map(c => c.slug);
+  }
+
+  state.updateConfig({
+    networks: targetChains,
+    minTvlUsd: minTvl,
+    intervalMinutes: intervalMin,
+    alertThreshold: config.alertMinSeverity,
+  });
+
+  const costTracker = scanner.getCostTracker();
+
+  console.log('Starting cost-optimized continuous scanning (hunt mode)');
+  console.log(`  Chains: ${targetChains.join(', ')}`);
+  console.log(`  Min TVL: $${formatTvlCompact(minTvl)}`);
+  console.log(`  Scan interval: ${intervalMin} minutes`);
+  console.log(`  AI budget: ${config.ai.maxCallsPerHour} calls/hr, $${config.ai.maxSpendPerDay.toFixed(2)}/day`);
+  console.log(`  AI models: haiku=${config.ai.modelHaiku}, sonnet=${config.ai.modelSonnet}`);
+  console.log(`  Local FP filter: enabled`);
+  console.log();
+
+  let cycle = 0;
+
+  const shutdown = () => {
+    console.log('\nShutting down hunt mode...');
+    if (costTracker) {
+      const summary = costTracker.getSummary();
+      console.log(`  AI usage: ${summary.totalCalls} calls, $${summary.totalSpend.toFixed(4)} total`);
+    }
+    state.setAutonomous(false);
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+
+  while (true) {
+    cycle++;
+    console.log(`\n${'='.repeat(60)}`);
+    console.log(`Hunt cycle #${cycle} at ${new Date().toISOString()}`);
+    if (costTracker) {
+      const summary = costTracker.getSummary();
+      console.log(`  AI budget: ${summary.hourCalls}/${config.ai.maxCallsPerHour} calls/hr, $${summary.daySpend.toFixed(4)}/$${config.ai.maxSpendPerDay.toFixed(2)} today`);
+    }
+    console.log('='.repeat(60));
+
+    try {
+      const summary = await scanner.scanTopChains(targetChains.length, minTvl);
+
+      for (const network of targetChains) {
+        state.recordScan(
+          network,
+          Math.ceil(summary.contractsAnalyzed / targetChains.length),
+          summary.verifiedFindings,
+          summary.likelyRealFindings,
+          summary.falsePositivesFiltered,
+          summary.alertsSent,
+        );
+      }
+    } catch (err) {
+      console.error(`Hunt cycle #${cycle} failed:`, err);
+    }
+
+    console.log(`\nNext hunt cycle in ${intervalMin} minutes...`);
+    await sleep(intervalMs);
+  }
+}
+
+// ── hunt-forks (target unpatched forks of known hacks) ──
+
+async function runHuntForks(scanner: Scanner, args: string[], config: ReturnType<typeof loadConfig>) {
+  const hackId = getFlag(args, '--hack') ?? 'all';
+  const minTvl = Number(getFlag(args, '--min-tvl') ?? 10_000);
+  const chainsArg = getFlag(args, '--chains');
+
+  // Handle 'list' to show available hack IDs
+  if (hackId === 'list') {
+    const hacks = ForkHunterV2.getHacksSummary();
+    console.log(`Known Hacks Database (${hacks.length} entries)\n`);
+    console.log(`${'ID'.padEnd(35)} ${'Type'.padEnd(22)} ${'Lost'.padStart(12)} ${'Fork Score'.padStart(10)}`);
+    console.log(`${'-'.repeat(35)} ${'-'.repeat(22)} ${'-'.repeat(12)} ${'-'.repeat(10)}`);
+    for (const h of hacks) {
+      const lost = h.amountLost >= 1e6
+        ? `$${(h.amountLost / 1e6).toFixed(0)}M`
+        : `$${(h.amountLost / 1e3).toFixed(0)}K`;
+      console.log(`${h.id.padEnd(35)} ${h.type.padEnd(22)} ${lost.padStart(12)} ${String(h.forkScore).padStart(10)}`);
+    }
+    console.log(`\nUse --hack <id> to hunt for a specific hack pattern.`);
+    return;
+  }
+
+  // Determine target chains
+  let chainSlugs: string[];
+  if (chainsArg) {
+    chainSlugs = chainsArg.split(',').map(c => c.trim().toLowerCase());
+  } else {
+    const topChains = await scanner.chainDiscovery.getTopChainsByTvl(10);
+    chainSlugs = topChains.map(c => c.slug);
+  }
+
+  // Build ForkHunterV2 using scanner's internal services
+  const hunter = scanner.createForkHunterV2();
+
+  const hackLabel = hackId === 'all' ? 'all known hacks' : hackId;
+  console.log(`Hunting unpatched forks of ${hackLabel} across ${chainSlugs.length} chains\n`);
+  console.log(`  Chains: ${chainSlugs.join(', ')}`);
+  console.log(`  Min TVL: $${formatTvlCompact(minTvl)}`);
+  console.log(`  Mode: Code pattern matching + Slither verification`);
+  console.log(`  AI cost: $0 (no AI needed for fork hunting)\n`);
+
+  const summary = await hunter.huntAll(chainSlugs, minTvl, hackId);
+
+  // Results
+  console.log(`\n${'='.repeat(60)}`);
+  console.log('Fork Hunt Results');
+  console.log('='.repeat(60));
+  console.log(`  Hacks scanned: ${summary.hacksScanned}`);
+  console.log(`  Chains searched: ${summary.chainsSearched}`);
+  console.log(`  Contracts examined: ${summary.contractsExamined}`);
+  console.log(`  Patched forks found: ${summary.patchedForksFound}`);
+  console.log(`  Duration: ${(summary.duration / 1000).toFixed(1)}s`);
+
+  if (summary.vulnerableForksFound.length > 0) {
+    console.log(`\n  VULNERABLE FORKS: ${summary.vulnerableForksFound.length}`);
+    console.log(`  TOTAL VALUE AT RISK: $${summary.totalValueAtRisk.toLocaleString()}\n`);
+
+    for (const fork of summary.vulnerableForksFound) {
+      const tvlStr = fork.tvl >= 1e6
+        ? `$${(fork.tvl / 1e6).toFixed(1)}M`
+        : fork.tvl >= 1e3
+        ? `$${(fork.tvl / 1e3).toFixed(0)}K`
+        : `$${fork.tvl.toFixed(0)}`;
+      const confStr = `${(fork.confidence * 100).toFixed(0)}%`;
+      const bountyStr = fork.immunefiBounty ? ' [Immunefi bounty available]' : '';
+      const methodStr = fork.verificationMethod === 'code_and_slither'
+        ? 'Code + Slither'
+        : 'Code pattern';
+
+      console.log(`  ${fork.chain}: ${fork.name} (${fork.address})`);
+      console.log(`    Original hack: ${fork.hack.name}`);
+      console.log(`    TVL: ${tvlStr}, Confidence: ${confStr}, Verified: ${methodStr}${bountyStr}`);
+      console.log();
+    }
+  } else {
+    console.log('\n  No vulnerable forks found. All clear.');
+  }
+
+  // Record findings in state
+  const state = new StateManager();
+  for (const fork of summary.vulnerableForksFound) {
+    state.addFinding({
+      id: `fork-${fork.hack.id}-${fork.chain}-${fork.address.slice(0, 10)}`,
+      timestamp: new Date().toISOString(),
+      contractAddress: fork.address,
+      contractName: fork.name,
+      chain: fork.chain,
+      detector: fork.hack.vulnerability.detectors[0] ?? fork.hack.vulnerability.type,
+      severity: 'high',
+      confidenceScore: Math.round(fork.confidence * 100),
+      verificationStatus: fork.verificationMethod === 'code_and_slither' ? 'verified' : 'likely_real',
+      description: `Unpatched fork of ${fork.hack.name} ($${(fork.hack.amountLost / 1e6).toFixed(0)}M hack)`,
+      exploitableValue: fork.tvl,
+      pocExtractedValue: null,
+    });
   }
 }
 

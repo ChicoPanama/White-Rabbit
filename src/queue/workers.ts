@@ -16,7 +16,7 @@ export function createWorkers(config: Config) {
   const etherscan = new EtherscanClient(config.etherscanApiKey, config.etherscanRequestIntervalMs);
   const defillama = new DeFiLlamaClient(config.defiLlamaCacheTtlMs);
   const slither = new SlitherAnalyzer();
-  const ai = new AIAnalyzer(config.anthropicApiKey);
+  const ai = new AIAnalyzer(config.anthropicApiKey, config.ai);
   const deduplicator = new FindingDeduplicator();
   const telegram = new TelegramAlertService(config.telegramBotToken, config.telegramChatId);
 

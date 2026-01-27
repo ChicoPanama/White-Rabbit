@@ -2,8 +2,11 @@ import type { Config } from './config.js';
 import { EtherscanClient } from './clients/etherscan.js';
 import { DeFiLlamaClient } from './clients/defillama.js';
 import { SlitherAnalyzer } from './analyzers/slither.js';
-import { AIAnalyzer } from './analyzers/ai-analyzer.js';
+import { AIAnalyzer, getAnalysisTier } from './analyzers/ai-analyzer.js';
+import type { AnalysisTier } from './analyzers/ai-analyzer.js';
 import { FindingDeduplicator } from './analyzers/deduplicator.js';
+import { localFpFilter } from './analyzers/local-fp-filter.js';
+import { CostTracker } from './services/cost-tracker.js';
 import { ContextService } from './services/context.js';
 import { PoCVerifier } from './services/verifier.js';
 import { ExploitEstimator, formatExploitValue, exploitValueIcon, estimateBounty } from './services/exploitEstimator.js';
@@ -20,6 +23,7 @@ import { Database } from './database.js';
 import { CHAINS, SEVERITY_ORDER } from './types/index.js';
 import type { Contract, Finding, VerifiedFinding, VerificationStatus, ExploitEstimate, ForkHuntResult } from './types/index.js';
 import { EXPLOIT_VALUE_THRESHOLDS } from './types/index.js';
+import { ForkHunterV2 } from './services/fork-hunter-v2.js';
 import { capitalize } from './utils/helpers.js';
 
 /**
@@ -37,6 +41,7 @@ export class Scanner {
   private readonly defillama: DeFiLlamaClient;
   private readonly slither: SlitherAnalyzer;
   private readonly ai: AIAnalyzer;
+  private readonly costTracker: CostTracker;
   private readonly deduplicator: FindingDeduplicator;
   private readonly context: ContextService;
   private readonly verifier: PoCVerifier;
@@ -56,7 +61,8 @@ export class Scanner {
     this.etherscan = new EtherscanClient(config.etherscanApiKey, config.etherscanRequestIntervalMs);
     this.defillama = new DeFiLlamaClient(config.defiLlamaCacheTtlMs);
     this.slither = new SlitherAnalyzer();
-    this.ai = new AIAnalyzer(config.anthropicApiKey);
+    this.costTracker = new CostTracker(config.ai.maxCallsPerHour, config.ai.maxSpendPerDay);
+    this.ai = new AIAnalyzer(config.anthropicApiKey, config.ai, this.costTracker);
     this.deduplicator = new FindingDeduplicator();
     this.context = new ContextService();
     this.verifier = new PoCVerifier();
@@ -84,7 +90,11 @@ export class Scanner {
     console.log('=== Starting full scan cycle ===');
     console.log(`  PoC verification: ${this.verifier.isAvailable ? 'enabled' : 'disabled (no Foundry or RPC URLs)'}`);
     console.log(`  Wallet verification: ${this.walletManager?.isUnlocked() ? 'enabled (4-stage)' : 'disabled (no wallet)'}`);
-    console.log(`  AI analysis: ${this.ai.isAvailable ? 'enabled' : 'disabled'}\n`);
+    console.log(`  AI analysis: ${this.ai.isAvailable ? 'enabled (tiered: haiku/sonnet)' : 'disabled'}`);
+    if (this.ai.isAvailable) {
+      console.log(`  AI budget: ${this.config.ai.maxCallsPerHour} calls/hr, $${this.config.ai.maxSpendPerDay.toFixed(2)}/day`);
+    }
+    console.log();
 
     const summary: ScanSummary = {
       chainsScanned: 0,
@@ -171,33 +181,67 @@ export class Scanner {
       const findings = await this.slither.analyze(address, chainId, source.sourceCode, source.compilerVersion);
       console.log(`[Stage 2] Slither found ${findings.length} raw findings`);
 
-      // AI enrichment for high/critical
-      if (this.ai.isAvailable) {
-        const significant = findings.filter(f => SEVERITY_ORDER[f.severity] >= SEVERITY_ORDER['high']);
-        if (significant.length > 0) {
-          console.log(`[Stage 2] Running AI analysis on ${significant.length} significant findings`);
-          const assessments = await this.ai.analyzeFindingsBatch(significant, source.sourceCode, null);
-          for (const assessment of assessments) {
-            const finding = significant.find(f => f.id === assessment.findingId);
-            if (finding) {
-              finding.aiAssessment = assessment.assessment;
-              finding.aiIsFalsePositive = assessment.isFalsePositive;
-            }
-          }
+      // ── Stage 3: FALSE POSITIVE FILTERING ──
+      // 3a: Local rule-based filter (free, runs before AI)
+      console.log(`[Stage 3] Running local FP filter`);
+      const localResult = localFpFilter(findings, source.sourceCode);
+      if (localResult.filteredCount > 0) {
+        console.log(`[Stage 3] Local filter removed ${localResult.filteredCount} false positives:`);
+        for (const fp of localResult.filtered) {
+          console.log(`  - ${fp.finding.detectorName}: ${fp.rule}`);
         }
       }
 
-      // ── Stage 3: FALSE POSITIVE FILTERING ──
+      // 3b: Context-based FP filtering
       console.log(`[Stage 3] Filtering known false positive patterns`);
-      const { real, falsePositives } = this.context.filterFalsePositives(findings, source.sourceCode);
+      const { real, falsePositives } = this.context.filterFalsePositives(localResult.passed, source.sourceCode);
       if (falsePositives.length > 0) {
-        console.log(`[Stage 3] Filtered ${falsePositives.length} false positives:`);
+        console.log(`[Stage 3] Context filter removed ${falsePositives.length} false positives:`);
         for (const fp of falsePositives) {
           console.log(`  - ${fp.finding.detectorName}: ${fp.reason}`);
         }
       }
 
-      // Also filter out AI-identified false positives
+      // 3c: Tiered AI enrichment (cost-controlled)
+      if (this.ai.isAvailable) {
+        // Group findings by tier to minimize API calls
+        const tierGroups: Record<string, Finding[]> = { sonnet: [], haiku: [] };
+        for (const f of real) {
+          const tierDecision = getAnalysisTier(f.severity, null, contextInfo.isAudited, this.config.ai);
+          if (tierDecision.tier !== 'none') {
+            tierGroups[tierDecision.tier].push(f);
+          }
+        }
+
+        const sonnetCount = tierGroups.sonnet.length;
+        const haikuCount = tierGroups.haiku.length;
+        const skippedCount = real.length - sonnetCount - haikuCount;
+
+        if (sonnetCount > 0 || haikuCount > 0) {
+          console.log(`[Stage 3] AI tiers: ${sonnetCount} sonnet, ${haikuCount} haiku, ${skippedCount} skipped`);
+        }
+
+        for (const [tier, group] of Object.entries(tierGroups)) {
+          if (group.length > 0) {
+            const assessments = await this.ai.analyzeFindingsBatch(group, source.sourceCode, null, tier as AnalysisTier);
+            for (const assessment of assessments) {
+              const finding = group.find(f => f.id === assessment.findingId);
+              if (finding) {
+                finding.aiAssessment = assessment.assessment;
+                finding.aiIsFalsePositive = assessment.isFalsePositive;
+              }
+            }
+          }
+        }
+
+        // Log cost summary
+        const costSummary = this.costTracker.getSummary();
+        if (costSummary.dayCalls > 0) {
+          console.log(`[Stage 3] AI cost: ${costSummary.dayCalls} calls today, $${costSummary.daySpend.toFixed(4)} spent`);
+        }
+      }
+
+      // Filter AI-identified false positives
       const afterAiFilter = real.filter(f => f.aiIsFalsePositive !== true);
       const aiFiltered = real.length - afterAiFilter.length;
       if (aiFiltered > 0) {
@@ -206,7 +250,8 @@ export class Scanner {
 
       // Deduplicate
       const deduplicated = this.deduplicator.deduplicate(afterAiFilter);
-      console.log(`[Stage 3] ${deduplicated.length} findings after deduplication`);
+      const totalFiltered = localResult.filteredCount + falsePositives.length + aiFiltered;
+      console.log(`[Stage 3] ${deduplicated.length} findings after dedup (${totalFiltered} total FPs filtered)`);
 
       // ── Stage 4: VERIFICATION (PoC on fork + optional wallet stages) ──
       const useEnhancedVerification = this.walletManager?.isUnlocked() === true;
@@ -583,6 +628,19 @@ export class Scanner {
     }
 
     return result;
+  }
+
+  getCostTracker(): CostTracker {
+    return this.costTracker;
+  }
+
+  createForkHunterV2(): ForkHunterV2 {
+    return new ForkHunterV2(
+      this.etherscan,
+      this.defillama,
+      this.slither,
+      this.chainDiscovery,
+    );
   }
 
   async shutdown(): Promise<void> {
