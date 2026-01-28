@@ -66,6 +66,10 @@ services:
       # AI model configuration
       - AI_MODEL_HAIKU=${AI_MODEL_HAIKU:-claude-haiku-4-5-20251001}
       - AI_MODEL_SONNET=${AI_MODEL_SONNET:-claude-sonnet-4-20250514}
+      # Fallback provider (e.g., DeepSeek) - used when Anthropic fails
+      - WR_AI_FALLBACK_API_KEY=${WR_AI_FALLBACK_API_KEY:-}
+      - WR_AI_FALLBACK_BASE_URL=${WR_AI_FALLBACK_BASE_URL:-https://api.deepseek.com/v1}
+      - WR_AI_FALLBACK_MODEL=${WR_AI_FALLBACK_MODEL:-deepseek-chat}
     depends_on:
       redis:
         condition: service_healthy
