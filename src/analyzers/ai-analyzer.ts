@@ -1,7 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Finding, AIAnalysisResult, Severity } from '../types/index.js';
-import type { AIConfig } from '../config.js';
+import type { AIConfig, AIRateLimitConfig } from '../config.js';
 import { CostTracker } from '../services/cost-tracker.js';
+import { AIQueueManager, type AIJobFinding } from '../queue/ai-queue.js';
 
 export type AnalysisTier = 'none' | 'haiku' | 'sonnet';
 
@@ -74,22 +75,97 @@ export class AIAnalyzer {
   private client: Anthropic | null;
   private costTracker: CostTracker;
   private aiConfig: AIConfig;
+  private queueManager: AIQueueManager | null = null;
+  private useQueue: boolean = false;
 
-  constructor(apiKey: string | null, aiConfig: AIConfig, costTracker?: CostTracker) {
+  constructor(
+    apiKey: string | null,
+    aiConfig: AIConfig,
+    costTracker?: CostTracker,
+    options?: {
+      useQueue?: boolean;
+      redisUrl?: string;
+      rateLimitConfig?: AIRateLimitConfig;
+    }
+  ) {
     this.client = apiKey ? new Anthropic({ apiKey }) : null;
     this.aiConfig = aiConfig;
     this.costTracker = costTracker ?? new CostTracker(
       aiConfig.maxCallsPerHour,
       aiConfig.maxSpendPerDay,
     );
+
+    // Initialize queue manager if queue mode is enabled
+    if (options?.useQueue && options?.redisUrl) {
+      this.useQueue = true;
+      this.queueManager = new AIQueueManager(options.redisUrl, options.rateLimitConfig);
+      console.log('[AIAnalyzer] Queue mode enabled - AI jobs will be enqueued to Redis');
+    }
   }
 
   get isAvailable(): boolean {
-    return this.client !== null && !this.aiConfig.disableAiAnalysis;
+    return (this.client !== null || this.useQueue) && !this.aiConfig.disableAiAnalysis;
+  }
+
+  get isQueueMode(): boolean {
+    return this.useQueue;
   }
 
   getCostTracker(): CostTracker {
     return this.costTracker;
+  }
+
+  getQueueManager(): AIQueueManager | null {
+    return this.queueManager;
+  }
+
+  /**
+   * Enqueue AI analysis job to Redis queue (for async processing by AI worker).
+   * Returns the job ID for tracking.
+   */
+  async enqueueAnalysis(
+    findings: Finding[],
+    contractSource: string,
+    address: string,
+    chain: string,
+    chainId: number,
+    tier: AnalysisTier,
+    protocolName?: string,
+    symbol?: string,
+  ): Promise<string | null> {
+    if (!this.queueManager || findings.length === 0) {
+      return null;
+    }
+
+    // Convert findings to queue format
+    const queueFindings: AIJobFinding[] = findings.map(f => ({
+      id: f.id,
+      detectorName: f.detectorName,
+      severity: f.severity,
+      confidence: f.confidence,
+      description: f.description,
+      filePath: f.filePath,
+      lineStart: f.lineStart,
+      lineEnd: f.lineEnd,
+      codeSnippet: f.codeSnippet,
+      tool: f.tool,
+    }));
+
+    const jobId = await this.queueManager.enqueue({
+      chain,
+      chainId,
+      address,
+      symbol,
+      name: protocolName,
+      sourceCode: contractSource,
+      findings: queueFindings,
+      tier: tier === 'none' ? 'haiku' : tier, // Default to haiku if none
+      priority: tier === 'sonnet' ? 0 : 1,
+      protocolName,
+    });
+
+    console.log(`[AIAnalyzer] Enqueued ${findings.length} findings for ${address} (job: ${jobId}, tier: ${tier})`);
+    return jobId;
   }
 
   /**
@@ -253,6 +329,15 @@ Respond with a JSON array of assessments, one per finding, in the same order.`;
     } catch (err) {
       console.error('Failed to parse AI response:', err);
       return [];
+    }
+  }
+
+  /**
+   * Close the queue manager connection (cleanup)
+   */
+  async close(): Promise<void> {
+    if (this.queueManager) {
+      await this.queueManager.close();
     }
   }
 }

@@ -11,6 +11,16 @@ export interface AIConfig {
   disableAiAnalysis: boolean;
 }
 
+export interface AIRateLimitConfig {
+  rpm: number;                    // Requests per minute (global across workers)
+  minDelayMs: number;             // Minimum delay between API calls
+  maxAttempts: number;            // Max retry attempts per job
+  cooldownMs: number;             // Cooldown after consecutive 429s
+  consecutive429Threshold: number; // Number of 429s before entering cooldown
+}
+
+export type WorkerMode = 'scanner' | 'ai_worker' | 'worker';
+
 export interface Config {
   etherscanApiKey: string;
   telegramBotToken: string;
@@ -24,6 +34,9 @@ export interface Config {
   etherscanRequestIntervalMs: number;
   defiLlamaCacheTtlMs: number;
   ai: AIConfig;
+  aiRateLimit: AIRateLimitConfig;
+  workerMode: WorkerMode;
+  useAiQueue: boolean; // If true, enqueue AI jobs instead of direct calls
 }
 
 export function loadConfig(): Config {
@@ -70,6 +83,21 @@ export function loadConfig(): Config {
     disableAiAnalysis: process.env.DISABLE_AI_ANALYSIS === 'true',
   };
 
+  // Global AI rate limiting (Redis-backed, shared across all workers)
+  const aiRateLimit: AIRateLimitConfig = {
+    rpm: Number(process.env.WR_AI_RPM) || 2,
+    minDelayMs: Number(process.env.WR_AI_MIN_DELAY_MS) || 12000,
+    maxAttempts: Number(process.env.WR_AI_MAX_ATTEMPTS) || 5,
+    cooldownMs: Number(process.env.WR_AI_COOLDOWN_MS) || 120000,
+    consecutive429Threshold: Number(process.env.WR_AI_429_THRESHOLD) || 3,
+  };
+
+  // Worker mode: scanner (discovery + enqueue), ai_worker (process AI queue), worker (legacy BullMQ)
+  const workerMode = (process.env.WR_MODE || 'scanner') as WorkerMode;
+
+  // Use AI queue by default when running multiple replicas or explicit opt-in
+  const useAiQueue = process.env.WR_USE_AI_QUEUE !== 'false';
+
   return {
     etherscanApiKey: process.env.ETHERSCAN_API_KEY!,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN!,
@@ -83,5 +111,8 @@ export function loadConfig(): Config {
     etherscanRequestIntervalMs: 200,
     defiLlamaCacheTtlMs: 5 * 60 * 1000,
     ai,
+    aiRateLimit,
+    workerMode,
+    useAiQueue,
   };
 }

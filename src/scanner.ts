@@ -63,7 +63,11 @@ export class Scanner {
     this.defillama = new DeFiLlamaClient(config.defiLlamaCacheTtlMs);
     this.slither = new SlitherAnalyzer();
     this.costTracker = new CostTracker(config.ai.maxCallsPerHour, config.ai.maxSpendPerDay);
-    this.ai = new AIAnalyzer(config.anthropicApiKey, config.ai, this.costTracker);
+    this.ai = new AIAnalyzer(config.anthropicApiKey, config.ai, this.costTracker, {
+      useQueue: config.useAiQueue,
+      redisUrl: config.redisUrl,
+      rateLimitConfig: config.aiRateLimit,
+    });
     this.deduplicator = new FindingDeduplicator();
     this.context = new ContextService();
     this.verifier = new PoCVerifier();
@@ -222,23 +226,48 @@ export class Scanner {
           console.log(`[Stage 3] AI tiers: ${sonnetCount} sonnet, ${haikuCount} haiku, ${skippedCount} skipped`);
         }
 
-        for (const [tier, group] of Object.entries(tierGroups)) {
-          if (group.length > 0) {
-            const assessments = await this.ai.analyzeFindingsBatch(group, source.sourceCode, null, tier as AnalysisTier);
-            for (const assessment of assessments) {
-              const finding = group.find(f => f.id === assessment.findingId);
-              if (finding) {
-                finding.aiAssessment = assessment.assessment;
-                finding.aiIsFalsePositive = assessment.isFalsePositive;
+        // Queue mode: enqueue jobs for async processing by AI worker
+        if (this.ai.isQueueMode) {
+          const chainName = Object.values(CHAINS).find(c => c.chainId === chainId)?.name ?? 'unknown';
+          for (const [tier, group] of Object.entries(tierGroups)) {
+            if (group.length > 0) {
+              const jobId = await this.ai.enqueueAnalysis(
+                group,
+                source.sourceCode,
+                address,
+                chainName,
+                chainId,
+                tier as AnalysisTier,
+                contextInfo.knownProtocol ?? undefined,
+              );
+              if (jobId) {
+                console.log(`[Stage 3] Enqueued ${group.length} findings for AI analysis (job: ${jobId}, tier: ${tier})`);
               }
             }
           }
-        }
+          // In queue mode, AI results will be processed asynchronously
+          // Findings will be updated later by the AI worker
+          console.log(`[Stage 3] AI analysis enqueued for async processing`);
+        } else {
+          // Direct mode: make API calls immediately (legacy behavior)
+          for (const [tier, group] of Object.entries(tierGroups)) {
+            if (group.length > 0) {
+              const assessments = await this.ai.analyzeFindingsBatch(group, source.sourceCode, null, tier as AnalysisTier);
+              for (const assessment of assessments) {
+                const finding = group.find(f => f.id === assessment.findingId);
+                if (finding) {
+                  finding.aiAssessment = assessment.assessment;
+                  finding.aiIsFalsePositive = assessment.isFalsePositive;
+                }
+              }
+            }
+          }
 
-        // Log cost summary
-        const costSummary = this.costTracker.getSummary();
-        if (costSummary.dayCalls > 0) {
-          console.log(`[Stage 3] AI cost: ${costSummary.dayCalls} calls today, $${costSummary.daySpend.toFixed(4)} spent`);
+          // Log cost summary (only in direct mode)
+          const costSummary = this.costTracker.getSummary();
+          if (costSummary.dayCalls > 0) {
+            console.log(`[Stage 3] AI cost: ${costSummary.dayCalls} calls today, $${costSummary.daySpend.toFixed(4)} spent`);
+          }
         }
       }
 
@@ -722,6 +751,7 @@ export class Scanner {
   async shutdown(): Promise<void> {
     this.walletManager?.destroy();
     this.patternCache.close();
+    await this.ai.close();
     await this.db.close();
   }
 }
