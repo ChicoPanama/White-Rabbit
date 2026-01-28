@@ -138,6 +138,40 @@ npx tsx src/cli.ts stats
 npx tsx src/cli.ts findings --limit 20
 ```
 
+## Project Structure
+
+```
+White-Rabbit/
+├── src/                   # Core scanner source code
+├── docs/                  # Documentation & guides
+│   ├── ARMY_COMMAND.md        # Army coordination commands
+│   ├── ARMY_DEPLOYMENT.md     # Deployment guide
+│   ├── EXPLOIT_PATTERNS.md    # Known exploit patterns
+│   ├── RPC_CONFIGURATION.md   # RPC setup guide
+│   └── army-command-center.md # Command center docs
+├── research/              # Research notes & analysis
+│   ├── exploit-research.md    # Exploit research notes
+│   ├── exploiter-study.md     # Exploiter behavior analysis
+│   ├── mev-exploiter-analysis.md
+│   ├── hunt-plan.md           # Hunting strategy
+│   ├── hunt-targets.md        # Target protocols
+│   └── hunting-log.json       # Scan results log
+├── tools/                 # Standalone utilities
+│   ├── forensics-engine.js    # Transaction forensics
+│   └── mev-detector.js        # MEV detection tool
+├── clawdbot/              # Clawdbot integration
+│   ├── skills/                # Bot skills (white-rabbit, etc.)
+│   ├── templates/             # Agent templates
+│   └── clawdbot.example.json  # Config template
+├── cache/                 # SQLite caching system
+├── analysis/              # Analysis scripts
+├── exploits/              # PoC exploit templates
+├── contracts/             # Test contracts
+├── migrations/            # Database migrations
+├── scripts/               # Bash wrapper scripts
+└── skills/                # Legacy skill definitions
+```
+
 ## Architecture
 
 ```
