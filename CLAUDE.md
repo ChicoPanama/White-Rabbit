@@ -84,25 +84,36 @@ White-Rabbit/
 └── src/
     ├── index.ts               # Main entry point (one-shot)
     ├── worker.ts              # BullMQ worker entry point
-    ├── cli.ts                 # CLI interface (audit, scan, scan-top, chains, protocols, auto, stats, findings)
-    ├── config.ts              # Environment & configuration
-    ├── scanner.ts             # Orchestrator - 6-stage verification pipeline
+    ├── cli.ts                 # CLI interface (audit, scan, scan-top, chains, protocols, auto, hunt, hunt-forks, stats, findings)
+    ├── config.ts              # Environment & configuration (incl. AIConfig for tiered analysis)
+    ├── scanner.ts             # Orchestrator - 6-stage verification pipeline (with cost-optimized tiered AI)
     ├── database.ts            # PostgreSQL client
     ├── types/
     │   └── index.ts           # Shared type definitions
     ├── clients/
     │   ├── etherscan.ts       # Etherscan V2 API client
     │   └── defillama.ts       # DeFiLlama API client
+    ├── data/
+    │   ├── known-hacks.ts     # 430+ known DeFi exploits database (manual + auto-generated)
+    │   ├── raw-hacks.json     # Raw hack data scraped from DeFiLlama + rekt.news
+    │   └── enriched-hacks.json # AI-enriched hack data with code patterns
+    ├── scripts/
+    │   ├── build-hack-db.ts   # Scrape DeFiLlama hacks API + rekt.news top 50
+    │   ├── extract-patterns.ts # AI pattern extraction from hack post-mortems
+    │   └── generate-known-hacks.ts # Generate known-hacks.ts from enriched data
     ├── analyzers/
     │   ├── slither.ts         # Slither subprocess runner
-    │   ├── ai-analyzer.ts     # Claude-based analysis
+    │   ├── ai-analyzer.ts     # Claude-based analysis (tiered: none/haiku/sonnet)
+    │   ├── local-fp-filter.ts # Rule-based FP filter (runs before AI, zero cost)
     │   └── deduplicator.ts    # Cross-tool finding dedup
     ├── services/
     │   ├── chains.ts          # Dynamic chain discovery from DeFiLlama (top N by TVL)
     │   ├── context.ts         # Audit history, FP pattern detection, confidence scoring
+    │   ├── cost-tracker.ts    # AI API cost tracking (hourly/daily budgets, per-model rates)
     │   ├── crypto.ts          # AES-256-GCM encrypted mnemonic storage (scrypt KDF)
     │   ├── exploitEstimator.ts # Exploitable value estimation (TVL ≠ exploitable)
     │   ├── exploitVerifier.ts # 4-stage wallet-based verification pipeline
+    │   ├── fork-hunter-v2.ts  # Hunt unpatched forks of known hacked protocols
     │   ├── forkHunter.ts      # Systematic fork detection across 20+ chains
     │   ├── patternCache.ts    # SQLite vulnerability pattern learning brain
     │   ├── selfEvolution.ts   # Self-improvement: refine patterns, analyze FPs
@@ -152,6 +163,13 @@ White-Rabbit/
 | `MIN_PATTERNS_FOR_EVOLUTION` | No | Minimum patterns before evolution runs (default: 5) |
 | `MAX_CHAINS_TO_SEARCH` | No | Max chains to search during fork hunting (default: 20) |
 | `MIN_FORK_SIMILARITY` | No | Minimum similarity score for fork matching (default: 0.7) |
+| `AI_MODEL_HAIKU` | No | Haiku model name for low-cost AI tier (default: claude-haiku-4-20250414) |
+| `AI_MODEL_SONNET` | No | Sonnet model name for high-quality AI tier (default: claude-sonnet-4-20250514) |
+| `MAX_AI_CALLS_PER_HOUR` | No | Max AI API calls per hour (default: 60) |
+| `MAX_AI_SPEND_PER_DAY` | No | Max daily AI spend in USD (default: 5.00) |
+| `MIN_TVL_FOR_AI` | No | Min TVL to use any AI analysis (default: 100000) |
+| `MIN_TVL_FOR_SONNET` | No | Min TVL to use Sonnet tier (default: 10000000) |
+| `DISABLE_AI_ANALYSIS` | No | Set to "true" to disable all AI calls (default: false) |
 
 ## Key Commands
 
@@ -194,6 +212,26 @@ npx tsx src/cli.ts stats
 
 # Show recent findings
 npx tsx src/cli.ts findings --limit 20
+
+# Cost-optimized continuous scanning (tiered AI, budget controls)
+npx tsx src/cli.ts hunt --chains ethereum,base --min-tvl 1000000 --max-spend 2.00
+
+# Hunt for unpatched forks of known hacked protocols
+npx tsx src/cli.ts hunt-forks --hack all --chains ethereum,bsc,arbitrum
+
+# List all known hacks in the database
+npx tsx src/cli.ts hunt-forks --hack list
+
+# Hunt for forks of a specific hack
+npx tsx src/cli.ts hunt-forks --hack euler-donation-2023
+
+# Build/update the hack database (scrape + AI enrich + generate TS)
+npm run build:hacks
+
+# Individual pipeline steps
+npm run build:hacks:scrape     # Fetch from DeFiLlama + rekt.news
+npm run build:hacks:extract    # AI pattern extraction (needs ANTHROPIC_API_KEY)
+npm run build:hacks:generate   # Generate known-hacks.ts from enriched data
 
 # Initialize verification wallet
 npx tsx src/cli.ts wallet:init
@@ -301,11 +339,10 @@ Before analysis, gather context about the contract:
 - **AI Analysis:** Claude contextualizes high/critical findings for business logic issues
 
 ### Stage 3: False Positive Filtering
-Known FP patterns automatically filtered:
-- `reentrancy-eth` + ReentrancyGuard present = FP
-- `arbitrary-send-eth` + onlyOwner present = FP
-- `oracle-manipulation` + TWAP present = FP
-- Plus AI-identified false positives removed
+Three-layer FP filtering:
+1. **Local FP Filter** (zero cost) — 10 rule-based regex patterns catch obvious FPs before any AI calls
+2. **Context FP Patterns** — Known patterns: `reentrancy-eth` + ReentrancyGuard, `arbitrary-send-eth` + onlyOwner, `oracle-manipulation` + TWAP
+3. **AI FP Removal** — Tiered AI analysis (Haiku/Sonnet) identifies remaining false positives based on code context
 
 ### Stage 4: PoC Verification
 For critical/high findings, generate exploit contracts and test on forked mainnet:
@@ -519,6 +556,112 @@ Stage 4: Testnet Execution ──► Definitive proof, real tx
 | **High** | 2+ stages verified successfully |
 | **Medium** | Fork-only verification (Stage 1) |
 | **Low** | Fork failed or inconclusive |
+
+## Cost-Optimized AI Analysis
+
+### Tiered Analysis
+
+The scanner uses tiered AI analysis to minimize costs while maintaining quality:
+
+| Tier | Model | When Used | Cost |
+|---|---|---|---|
+| **None** | — | Low severity, audited protocols, budget exhausted | $0 |
+| **Haiku** | claude-haiku-4-20250414 | Medium severity, high findings on low-TVL | ~$0.80/1M input |
+| **Sonnet** | claude-sonnet-4-20250514 | Critical findings, high severity on high-TVL | ~$3/1M input |
+
+### Tier Routing Logic (`getAnalysisTier()`)
+
+- Critical severity → always Sonnet
+- High + TVL >= $10M → Sonnet; otherwise Haiku
+- Medium + TVL >= $100K → Haiku; medium + audited + low TVL → None
+- Low/Informational + audited → None
+- `DISABLE_AI_ANALYSIS=true` → always None
+
+### Cost Tracking (`CostTracker`)
+
+- Tracks per-model call counts and estimated spend
+- Enforces hourly call limit (`MAX_AI_CALLS_PER_HOUR`)
+- Enforces daily spend cap (`MAX_AI_SPEND_PER_DAY`)
+- Auto-prunes records older than 24 hours
+- Summary available via `scanner.getCostTracker().getSummary()`
+
+### Local FP Filter (`localFpFilter`)
+
+10 rule-based regex patterns that run BEFORE any AI calls:
+1. Reentrancy on view/pure functions
+2. Reentrancy with ReentrancyGuard/nonReentrant
+3. Arbitrary-send with onlyOwner/AccessControl
+4. Uninitialized state with initializer pattern
+5. Timestamp for non-critical bookkeeping
+6. Safe assembly patterns (mload/mstore/calldataload)
+7. Low-level calls with checked return values
+8. Controlled delegatecall in proxy patterns
+9. Oracle with TWAP protection
+10. Missing zero-check in constructor only
+
+## Fork Hunter V2 (Known Hacks Database)
+
+### Strategy
+
+For each known hack, search across all EVM chains for contracts that match the vulnerable code pattern but NOT the patch pattern. Higher hit rate than general scanning because:
+1. Vulnerability is already confirmed exploitable
+2. Many forks are lazy copies with zero security review
+3. Pattern matching is deterministic (no AI needed)
+4. Low false positive rate
+
+### Hack Database
+
+430+ entries sourced from DeFiLlama hacks API and rekt.news leaderboard:
+- **27 manual entries** — Hand-tuned regex patterns for highest-impact exploits
+- **403 auto-generated entries** — Heuristic detectors, enrichable via AI
+
+Each entry includes:
+- Vulnerability type, Slither detectors, code patterns (RegExp)
+- Patch detection patterns, name keywords for fork discovery
+- Fork likelihood score (1-10 by vulnerability type)
+
+### Build Pipeline
+
+```bash
+# Full pipeline: scrape → extract → generate
+npm run build:hacks
+
+# Step 1: Scrape DeFiLlama + rekt.news → raw-hacks.json (403+ entries)
+npm run build:hacks:scrape
+
+# Step 2: AI pattern extraction → enriched-hacks.json (needs ANTHROPIC_API_KEY)
+npm run build:hacks:extract
+
+# Step 3: Generate TypeScript → known-hacks.ts (preserves manual entries)
+npm run build:hacks:generate
+```
+
+### Key Files
+
+- **`src/data/known-hacks.ts`** — TypeScript database (MANUAL_HACKS + GENERATED_HACKS)
+- **`src/data/raw-hacks.json`** — Raw scraped data from DeFiLlama/rekt.news
+- **`src/data/enriched-hacks.json`** — AI-enriched data with code patterns
+- **`src/services/fork-hunter-v2.ts`** — ForkHunterV2 class (search + verify)
+- **`src/scripts/build-hack-db.ts`** — DeFiLlama scraper + rekt.news top 50
+- **`src/scripts/extract-patterns.ts`** — Claude AI pattern extractor
+- **`src/scripts/generate-known-hacks.ts`** — TypeScript code generator
+
+### Vulnerability Type Fork Scores
+
+| Type | Score | Rationale |
+|---|---|---|
+| reentrancy | 10 | Most commonly forked without fix |
+| access-control | 9 | Easy to miss in lazy forks |
+| oracle-manipulation | 8 | Common in DeFi forks |
+| flash-loan | 7 | Protocol-specific but widespread |
+| price-manipulation | 7 | AMM forks especially |
+| donation-attack | 6 | Vault/lending forks |
+| upgrade-vulnerability | 6 | Proxy pattern forks |
+| unchecked-return | 5 | General pattern |
+| logic-error | 5 | Protocol-specific |
+| rounding-error | 4 | Precision-specific |
+| signature-replay | 4 | Less common in forks |
+| compiler-bug | 3 | Version-specific, less forkable |
 
 ## Security & Ethics
 
