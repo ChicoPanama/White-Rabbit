@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { CHAINS, type ChainConfig, type Severity } from './types/index.js';
+import { CHAINS, type ChainConfig, type Severity, getChainConfig, getHighValueChains } from './types/index.js';
 
 export interface AIConfig {
   modelHaiku: string;
@@ -61,7 +61,7 @@ export function loadConfig(): Config {
   }
 
   const ai: AIConfig = {
-    modelHaiku: process.env.AI_MODEL_HAIKU || 'claude-haiku-4-20250414',
+    modelHaiku: process.env.AI_MODEL_HAIKU || 'claude-haiku-4-5-20251001',
     modelSonnet: process.env.AI_MODEL_SONNET || 'claude-sonnet-4-20250514',
     maxCallsPerHour: Number(process.env.MAX_AI_CALLS_PER_HOUR) || 20,
     maxSpendPerDay: Number(process.env.MAX_AI_SPEND_PER_DAY) || 1.0,

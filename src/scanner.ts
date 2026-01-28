@@ -24,6 +24,7 @@ import { CHAINS, SEVERITY_ORDER } from './types/index.js';
 import type { Contract, Finding, VerifiedFinding, VerificationStatus, ExploitEstimate, ForkHuntResult } from './types/index.js';
 import { EXPLOIT_VALUE_THRESHOLDS } from './types/index.js';
 import { ForkHunterV2 } from './services/fork-hunter-v2.js';
+import { getProtocolContracts, getChainContracts, hasKnownContracts } from './data/protocol-contracts.js';
 import { capitalize } from './utils/helpers.js';
 
 /**
@@ -622,9 +623,84 @@ export class Scanner {
       alerts: 0,
     };
 
+    // Display top protocols by TVL
     for (const protocol of protocols.slice(0, 10)) {
       const tvl = protocol.chainTvls?.[capitalize(chainName)] ?? protocol.tvl ?? 0;
       console.log(`  - ${protocol.name}: $${(tvl / 1e6).toFixed(1)}M TVL`);
+    }
+
+    // Collect contracts to analyze from known protocols
+    const contractsToScan: Array<{ address: string; protocolName: string; tvl: number }> = [];
+    
+    for (const protocol of protocols) {
+      const protocolContracts = getProtocolContracts(protocol.slug, chainConfig.chainId);
+      const tvl = protocol.chainTvls?.[capitalize(chainName)] ?? protocol.tvl ?? 0;
+      
+      if (protocolContracts.length > 0) {
+        console.log(`[Scanner] Found ${protocolContracts.length} known contracts for ${protocol.name}`);
+        for (const contract of protocolContracts) {
+          contractsToScan.push({
+            address: contract.address,
+            protocolName: protocol.name,
+            tvl,
+          });
+        }
+      }
+    }
+
+    console.log(`[Scanner] Queuing ${contractsToScan.length} contracts for analysis on ${chainName}`);
+
+    // Analyze each contract using the 6-stage pipeline
+    for (const contract of contractsToScan.slice(0, 5)) { // Limit to 5 contracts per chain for now
+      try {
+        console.log(`[Scanner] Analyzing ${contract.address} (${contract.protocolName})`);
+        const findings = await this.scanContract(contract.address, chainConfig.chainId);
+        
+        result.contracts++;
+        result.findings += findings.length;
+        
+        // Count by verification status
+        for (const finding of findings) {
+          switch (finding.verificationStatus) {
+            case 'verified':
+              result.verified++;
+              break;
+            case 'likely_real':
+              result.likelyReal++;
+              break;
+            case 'likely_false':
+            case 'false_positive':
+              result.falsePositives++;
+              break;
+          }
+        }
+
+        // Check if any findings qualify for alerts
+        const alertableFindings = findings.filter(f => 
+          f.verificationStatus === 'verified' || 
+          (f.verificationStatus === 'likely_real' && f.exploitEstimate && f.exploitEstimate.estimatedExploitable >= EXPLOIT_VALUE_THRESHOLDS.critical.minExploitable)
+        );
+
+        if (alertableFindings.length > 0) {
+          console.log(`[Scanner] 🚨 ${alertableFindings.length} findings qualify for alerting from ${contract.address}`);
+          result.alerts += alertableFindings.length;
+          
+          // Send alerts via Telegram
+          for (const finding of alertableFindings) {
+            try {
+              await this.telegram.sendFindingAlert(finding, contract.address, chainName);
+            } catch (alertErr) {
+              console.error(`[Scanner] Alert failed: ${alertErr instanceof Error ? alertErr.message : String(alertErr)}`);
+            }
+          }
+        }
+
+        // Rate limit between contracts
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (err) {
+        console.error(`[Scanner] Error scanning ${contract.address}: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
 
     return result;

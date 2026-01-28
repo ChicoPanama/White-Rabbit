@@ -1,17 +1,9 @@
 // ── Chain Configuration ──
+// Import comprehensive chain configuration
+import { CHAIN_CONFIGS, ChainConfig, getChainConfig, getHighValueChains } from '../config/chains.js';
 
-export interface ChainConfig {
-  chainId: number;
-  name: string;
-}
-
-export const CHAINS: Record<string, ChainConfig> = {
-  ethereum: { chainId: 1, name: 'Ethereum' },
-  base: { chainId: 8453, name: 'Base' },
-  arbitrum: { chainId: 42161, name: 'Arbitrum' },
-  polygon: { chainId: 137, name: 'Polygon' },
-  optimism: { chainId: 10, name: 'Optimism' },
-};
+export { ChainConfig, getChainConfig, getHighValueChains };
+export const CHAINS = CHAIN_CONFIGS;
 
 // ── Severity & Confidence ──
 

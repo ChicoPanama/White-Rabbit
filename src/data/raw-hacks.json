@@ -6932,5 +6932,685 @@
     "defillamaId": null,
     "vulnType": "reentrancy",
     "source": "rekt"
+  },
+  {
+    "id": "mars-perps-2025-12-14",
+    "name": "Mars Perps",
+    "date": "2025-12-14",
+    "amountLost": 960000,
+    "returnedFunds": 0,
+    "chains": [],
+    "classification": "Protocol Logic",
+    "technique": "Thin-Market Skew Exploit",
+    "targetType": "DeFi Protocol",
+    "language": "Rust",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/mars_protocol/status/2000283619361800307",
+    "defillamaId": 5498,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "venus-core-pool-2025-03-29",
+    "name": "Venus Core Pool",
+    "date": "2025-03-29",
+    "amountLost": 902000,
+    "returnedFunds": 0,
+    "chains": [
+      "zksync era"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Donation Attack",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/yonikesel/status/1905993100738134408",
+    "defillamaId": 212,
+    "vulnType": "donation-attack",
+    "source": "defillama"
+  },
+  {
+    "id": "fegex-2024-12-29",
+    "name": "Fegex",
+    "date": "2024-12-29",
+    "amountLost": 900000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum",
+      "bsc",
+      "base"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Missing Access Control",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/Phalcon_xyz/status/1873634026444968034",
+    "defillamaId": 672,
+    "vulnType": "access-control",
+    "source": "defillama"
+  },
+  {
+    "id": "palmswap-2023-07-24",
+    "name": "Palmswap",
+    "date": "2023-07-24",
+    "amountLost": 900000,
+    "returnedFunds": 0,
+    "chains": [
+      "bsc"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Inflationary Accounting Manipulation",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/peckshield/status/1683609019334950912",
+    "defillamaId": 3279,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "rocketswap-base-2023-08-15",
+    "name": "RocketSwap Base",
+    "date": "2023-08-15",
+    "amountLost": 865000,
+    "returnedFunds": 0,
+    "chains": [
+      "base"
+    ],
+    "classification": "Infrastructure",
+    "technique": "Private Key Compromised (Brute Force)",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/Cointelegraph/status/1691316548932456448",
+    "defillamaId": 3314,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "elasticswap-2022-12-13",
+    "name": "ElasticSwap",
+    "date": "2022-12-13",
+    "amountLost": 854000,
+    "returnedFunds": 520650,
+    "chains": [
+      "avalanche",
+      "ethereum"
+    ],
+    "classification": "Ecosystem",
+    "technique": "Price Oracle Attack",
+    "targetType": "DeFi Protocol",
+    "language": "",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/ElasticSwap/status/1602582495819694081",
+    "defillamaId": 1919,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "orange-finance-2025-01-08",
+    "name": "Orange Finance",
+    "date": "2025-01-08",
+    "amountLost": 840000,
+    "returnedFunds": 0,
+    "chains": [
+      "arbitrum"
+    ],
+    "classification": "Infrastructure",
+    "technique": "Private Key Compromised (Unknown Method)",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/0xorangefinance/status/1876863611458801890",
+    "defillamaId": 3422,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "gmbl-computer-2023-09-06",
+    "name": "GMBL.COMPUTER",
+    "date": "2023-09-06",
+    "amountLost": 815000,
+    "returnedFunds": 0,
+    "chains": [
+      "arbitrum"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Referral Claims Logic Exploit",
+    "targetType": "DeFi Protocol",
+    "language": "",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/ImmuneBytes/status/1699338311230214536",
+    "defillamaId": null,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "sudorare-2022-08-23",
+    "name": "SudoRare",
+    "date": "2022-08-23",
+    "amountLost": 800000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "Rugpull",
+    "technique": "Drained Contracts",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://www.theblock.co/post/164970/nft-exchange-sudorare-suffers-800000-rug-pull-six-hours-after-launch",
+    "defillamaId": null,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "balancer-v2-2023-08-27",
+    "name": "Balancer V2",
+    "date": "2023-08-27",
+    "amountLost": 800000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/mevrefund/status/1695792040531960116",
+    "defillamaId": 2611,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "hyperdrive-hl-2025-09-27",
+    "name": "Hyperdrive HL",
+    "date": "2025-09-27",
+    "amountLost": 773000,
+    "returnedFunds": 0,
+    "chains": [],
+    "classification": "Protocol Logic",
+    "technique": "Router Exploit",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/PeckShieldAlert/status/1972119238178754651",
+    "defillamaId": 6298,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "sturdy-v1-2023-06-12",
+    "name": "Sturdy V1",
+    "date": "2023-06-12",
+    "amountLost": 770000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "Ecosystem",
+    "technique": "Flashloan Reentrancy Attack",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/blocksecteam/status/1668084629654638592",
+    "defillamaId": 1577,
+    "vulnType": "reentrancy",
+    "source": "defillama"
+  },
+  {
+    "id": "autoshark-2021-05-24",
+    "name": "AutoShark",
+    "date": "2021-05-24",
+    "amountLost": 745000,
+    "returnedFunds": 0,
+    "chains": [
+      "bsc"
+    ],
+    "classification": "Ecosystem",
+    "technique": "Flashloan Incentive Rewards Exploit",
+    "targetType": "DeFi Protocol",
+    "language": "",
+    "bridgeHack": false,
+    "sourceUrl": "https://watchpug.medium.com/sharkfinance-performance-fee-minting-incident-analysis-4b2e3bd03923",
+    "defillamaId": 1074,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "superrare-2025-07-28",
+    "name": "SuperRare",
+    "date": "2025-07-28",
+    "amountLost": 730000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "updateMerkleRoot Access Control Exploit",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/CertiKAlert/status/1949772114309132363",
+    "defillamaId": 3144,
+    "vulnType": "access-control",
+    "source": "defillama"
+  },
+  {
+    "id": "1inch-2024-10-31",
+    "name": "1inch",
+    "date": "2024-10-31",
+    "amountLost": 720000,
+    "returnedFunds": 0,
+    "chains": [
+      "avalanche"
+    ],
+    "classification": "Ecosystem",
+    "technique": "Private Key Compromised (Supply Chain Attack)",
+    "targetType": "DeFi Protocol",
+    "language": "",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/1inch/status/1851832307746742686",
+    "defillamaId": 189,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "launchzone-2023-02-27",
+    "name": "LaunchZone",
+    "date": "2023-02-27",
+    "amountLost": 700000,
+    "returnedFunds": 0,
+    "chains": [
+      "bsc"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Access Control Exploit",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/immunefi/status/1630210901360951296?s=20",
+    "defillamaId": null,
+    "vulnType": "access-control",
+    "source": "defillama"
+  },
+  {
+    "id": "merlin-2021-05-26",
+    "name": "Merlin",
+    "date": "2021-05-26",
+    "amountLost": 680000,
+    "returnedFunds": 0,
+    "chains": [
+      "bsc"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Math Mistake Exploit",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://rekt.news/merlin2-rekt/",
+    "defillamaId": 370,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "midas-capital-2023-01-17",
+    "name": "Midas Capital",
+    "date": "2023-01-17",
+    "amountLost": 660000,
+    "returnedFunds": 0,
+    "chains": [
+      "polygon"
+    ],
+    "classification": "Ecosystem",
+    "technique": "Flashloan Reentrancy Attack",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://rekt.news/midas-capital-rekt/",
+    "defillamaId": 1925,
+    "vulnType": "reentrancy",
+    "source": "defillama"
+  },
+  {
+    "id": "hector-lending-2023-06-02",
+    "name": "Hector Lending",
+    "date": "2023-06-02",
+    "amountLost": 653000,
+    "returnedFunds": 0,
+    "chains": [
+      "fantom"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Unknown",
+    "targetType": "DeFi Protocol",
+    "language": "",
+    "bridgeHack": true,
+    "sourceUrl": "https://twitter.com/Hector_Network/status/1664720154595414019",
+    "defillamaId": 2761,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "ooki-2020-02-15",
+    "name": "Ooki",
+    "date": "2020-02-15",
+    "amountLost": 650000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Flashloan Slippage Attack",
+    "targetType": "DeFi Protocol",
+    "language": "",
+    "bridgeHack": false,
+    "sourceUrl": "https://www.coinbase.com/blog/around-the-block-analysis-on-the-bzx-attack-defi-vulnerabilities-the-state-of-debit-cards-in",
+    "defillamaId": 197,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "allbridge-core-2023-04-02",
+    "name": "Allbridge Core",
+    "date": "2023-04-02",
+    "amountLost": 650000,
+    "returnedFunds": 0,
+    "chains": [
+      "bsc"
+    ],
+    "classification": "Ecosystem",
+    "technique": "Flashloan Price Oracle Attack",
+    "targetType": "DeFi Protocol",
+    "language": "",
+    "bridgeHack": true,
+    "sourceUrl": "https://allbridge.medium.com/allbridge-core-updates-following-the-relaunch-9f7716eeb5da",
+    "defillamaId": 3944,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "unibot-2023-10-31",
+    "name": "Unibot",
+    "date": "2023-10-31",
+    "amountLost": 640000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Token approval exploit",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/peckshield/status/1719223437024284978",
+    "defillamaId": 3106,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "leetswap-2023-08-01",
+    "name": "LeetSwap",
+    "date": "2023-08-01",
+    "amountLost": 620000,
+    "returnedFunds": 0,
+    "chains": [
+      "base"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Liquidity Pools Compromised",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/TheBlock__/status/1686201265758326784",
+    "defillamaId": 2745,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "midas-capital-2023-06-17",
+    "name": "Midas Capital",
+    "date": "2023-06-17",
+    "amountLost": 600000,
+    "returnedFunds": 0,
+    "chains": [
+      "bsc"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Redeem Rounding Error Exploit",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/peckshield/status/1670148905810403330?s=20",
+    "defillamaId": 1925,
+    "vulnType": "rounding-error",
+    "source": "defillama"
+  },
+  {
+    "id": "blur-finance-2022-08-10",
+    "name": "Blur Finance",
+    "date": "2022-08-10",
+    "amountLost": 600000,
+    "returnedFunds": 0,
+    "chains": [
+      "bsc",
+      "polygon"
+    ],
+    "classification": "Rugpull",
+    "technique": "Drained Contracts",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://cryptoslate.com/blur-finance-allegedly-rug-pulled-investors-at-a-combined-600k-loss/",
+    "defillamaId": 1891,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "li-fi-2022-03-20",
+    "name": "Li.Fi",
+    "date": "2022-03-20",
+    "amountLost": 600000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "",
+    "technique": "Access Control",
+    "targetType": "Bridge Aggregator",
+    "language": "Solidity",
+    "bridgeHack": true,
+    "sourceUrl": "https://rekt.news/lifi-rekt/",
+    "defillamaId": null,
+    "vulnType": "access-control",
+    "source": "rekt"
+  },
+  {
+    "id": "curve-dex-2022-08-09",
+    "name": "Curve DEX",
+    "date": "2022-08-09",
+    "amountLost": 575000,
+    "returnedFunds": 575000,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "Infrastructure",
+    "technique": "DNS Spoofing",
+    "targetType": "DeFi Protocol",
+    "language": "",
+    "bridgeHack": false,
+    "sourceUrl": "https://rekt.news/curve-finance-rekt/",
+    "defillamaId": 3,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "astera-fi-2025-10-09",
+    "name": "Astera.fi",
+    "date": "2025-10-09",
+    "amountLost": 573000,
+    "returnedFunds": 0,
+    "chains": [
+      "linea"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Oracle Price Feed Manipulation",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/hklst4r/status/1976296543872233508",
+    "defillamaId": null,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "gmx-v1-perps-2022-09-18",
+    "name": "GMX V1 Perps",
+    "date": "2022-09-18",
+    "amountLost": 565000,
+    "returnedFunds": 0,
+    "chains": [
+      "arbitrum"
+    ],
+    "classification": "Ecosystem",
+    "technique": "Price Oracle Attack",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/jayantkrish/status/1571893643178569728?s=20&t=O--bs-V1Xnkmzm2JZOdZsw",
+    "defillamaId": 337,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "silo-finance-2025-06-25",
+    "name": "Silo Finance",
+    "date": "2025-06-25",
+    "amountLost": 546000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "fillQuote silo.borrow() Exploit",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/CertiKAlert/status/1937882770216452174",
+    "defillamaId": null,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "earning-farm-2023-08-09",
+    "name": "Earning.Farm",
+    "date": "2023-08-09",
+    "amountLost": 540000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Reentrancy",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://twitter.com/CyversAlerts/status/1689193286420795393",
+    "defillamaId": null,
+    "vulnType": "reentrancy",
+    "source": "defillama"
+  },
+  {
+    "id": "0g-labs-2025-12-11",
+    "name": "0G Labs",
+    "date": "2025-12-11",
+    "amountLost": 516000,
+    "returnedFunds": 0,
+    "chains": [],
+    "classification": "Protocol Logic",
+    "technique": "emergencyWithdraw Function Exploit",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/CertiKAlert/status/1999481982858715247",
+    "defillamaId": null,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "hedera-2023-03-10",
+    "name": "Hedera",
+    "date": "2023-03-10",
+    "amountLost": 515000,
+    "returnedFunds": 0,
+    "chains": [],
+    "classification": "Protocol Logic",
+    "technique": "Unknown",
+    "targetType": "DeFi Protocol",
+    "language": "",
+    "bridgeHack": false,
+    "sourceUrl": "https://rekt.news/hedera-rekt/",
+    "defillamaId": null,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "zunami-protocol-2025-05-15",
+    "name": "Zunami Protocol",
+    "date": "2025-05-15",
+    "amountLost": 500000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "withdrawStuckToken() exploit",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/ZunamiProtocol/status/1922993510925435267",
+    "defillamaId": 1201,
+    "vulnType": "logic-error",
+    "source": "defillama"
+  },
+  {
+    "id": "clober-liquidity-vault-2024-12-10",
+    "name": "Clober Liquidity Vault",
+    "date": "2024-12-10",
+    "amountLost": 500000,
+    "returnedFunds": 0,
+    "chains": [
+      "base"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Reentrancy",
+    "targetType": "DeFi Protocol",
+    "language": "",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/peckshieldalert/status/1866434326596112705",
+    "defillamaId": 5315,
+    "vulnType": "reentrancy",
+    "source": "defillama"
+  },
+  {
+    "id": "vestra-dao-2024-12-04",
+    "name": "Vestra DAO",
+    "date": "2024-12-04",
+    "amountLost": 500000,
+    "returnedFunds": 0,
+    "chains": [
+      "ethereum"
+    ],
+    "classification": "Protocol Logic",
+    "technique": "Staking Logic Exploit",
+    "targetType": "DeFi Protocol",
+    "language": "Solidity",
+    "bridgeHack": false,
+    "sourceUrl": "https://x.com/_czepluch/status/1866112404242743590",
+    "defillamaId": null,
+    "vulnType": "logic-error",
+    "source": "defillama"
   }
 ]

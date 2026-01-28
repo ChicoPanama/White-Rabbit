@@ -16,7 +16,13 @@
     "build:hacks": "tsx src/scripts/build-hack-db.ts && tsx src/scripts/extract-patterns.ts && tsx src/scripts/generate-known-hacks.ts",
     "build:hacks:scrape": "tsx src/scripts/build-hack-db.ts",
     "build:hacks:extract": "tsx src/scripts/extract-patterns.ts",
-    "build:hacks:generate": "tsx src/scripts/generate-known-hacks.ts"
+    "build:hacks:generate": "tsx src/scripts/generate-known-hacks.ts",
+    "army": "tsx src/army/initialize-army.ts",
+    "dashboard": "tsx src/army/battle-dashboard.ts",
+    "deploy-army": "npm run army && npm run dashboard",
+    "test-rpc": "tsx -e \"import { rpcTester } from './src/utils/rpc-tester'; rpcTester.testAllChains().then(results => rpcTester.generateReport(results))\"",
+    "test-rpc-quick": "tsx -e \"import { quickTest } from './src/utils/rpc-tester'; quickTest()\"",
+    "test-rpc-tier1": "tsx -e \"import { rpcTester } from './src/utils/rpc-tester'; rpcTester.testHighPriorityChains().then(results => rpcTester.generateReport(results))\""
   },
   "keywords": [
     "smart-contract",
@@ -43,5 +49,8 @@
     "@types/uuid": "^10.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
+  },
+  "optionalDependencies": {
+    "@esbuild/linux-x64": "^0.27.2"
   }
 }

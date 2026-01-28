@@ -81,6 +81,31 @@ const FALSE_POSITIVE_PATTERNS: FalsePositivePattern[] = [
     codePattern: /block\.timestamp\s*[><=]+\s*\w+\s*\+\s*\d+/i,
     reason: 'Timestamp used with reasonable tolerance window',
   },
+  {
+    detector: 'assembly',
+    codePattern: /contract\s+UnstructuredStorage|function\s+\w*Storage\w*|getStorage\w+|setStorage\w+/i,
+    reason: 'Assembly in storage utility contract (expected low-level access)',
+  },
+  {
+    detector: 'assembly', 
+    codePattern: /contract\s+DelegateProxy|function\s+delegated\w+|delegatecall\s*\(/i,
+    reason: 'Assembly in proxy contract (expected for delegation patterns)',
+  },
+  {
+    detector: 'assembly',
+    codePattern: /function\s+isContract|contract\s+IsContract|\bextcodesize\b/i,
+    reason: 'Assembly in contract detection utility (standard pattern)',
+  },
+  {
+    detector: 'constant-function-asm',
+    codePattern: /view\s+.*\{[\s\S]*assembly[\s\S]*\}/i,
+    reason: 'View function with assembly for gas optimization (common pattern)',
+  },
+  {
+    detector: 'assembly',
+    codePattern: /@openzeppelin|OpenZeppelin|import.*openzeppelin/i,
+    reason: 'Assembly in OpenZeppelin library contracts (audited and battle-tested)',
+  },
 ];
 
 export class ContextService {

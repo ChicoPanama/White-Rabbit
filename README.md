@@ -1,233 +1,336 @@
-# Etherscan Auditor v2
+# White-Rabbit
 
-An autonomous white-hat smart contract vulnerability scanner for [Clawd](https://clawd.bot) with **multi-layer verification to minimize false positives**.
+Autonomous smart contract vulnerability scanner for [Clawdbot](https://clawd.bot) with **multi-layer verification to minimize false positives**.
 
 ## What Makes This Different
 
-Most automated scanners flood you with false positives. This one doesn't.
-
-**The Verification Pipeline:**
+Most automated scanners flood you with false positives. White-Rabbit runs a 6-stage verification pipeline that filters noise and only alerts on findings worth investigating.
 
 ```
-Stage 1: CONTEXT           Stage 2: STATIC ANALYSIS
-  - Audit history             - Slither
-  - Contract age              - AI patterns
-  - Security patterns         - Business logic flaws
-         |                           |
-         v                           v
-Stage 3: FALSE POSITIVE    Stage 4: VERIFICATION
+Stage 1: CONTEXT              Stage 2: STATIC ANALYSIS
+  - Audit history                - Slither (90+ detectors)
+  - Contract age                 - AI business logic analysis
+  - Security patterns            - Pattern matching
+         |                              |
+         v                              v
+Stage 3: FALSE POSITIVE        Stage 4: VERIFICATION
   FILTERING
-  - Known FP patterns         - PoC on fork
-  - Audit check               - Tool consensus
-  - Code patterns             - Confidence scoring
-         |                           |
-         v                           v
-Stage 5: RISK SCORING      Stage 6: SMART ALERTING
-  - Weighted by                - Only verified
-    verification               or likely real
-  - Context adjusted           findings alert
+  - Known FP patterns            - PoC on forked mainnet
+  - Audit check                  - Tool consensus
+  - AI FP removal                - Confidence scoring
+         |                              |
+         v                              v
+Stage 5: RISK SCORING          Stage 6: SMART ALERTING
+  - Weighted by verification     - Only verified or
+  - Context adjusted               likely-real findings
+  - Exploitable value estimate   - Value-gated ($25K+)
 ```
 
-## Key Features
+## Features
 
 | Feature | Description |
 |---------|-------------|
-| **TVL Filtering** | Only scans protocols with significant TVL via DeFiLlama |
-| **Multi-Tool Analysis** | Slither static analysis + AI business logic detection |
-| **PoC Verification** | Generates exploits on forked mainnet using Foundry |
-| **FP Filtering** | Removes known false positive patterns automatically |
-| **Confidence Scoring** | Tool consensus + verification status = confidence % |
-| **Smart Alerts** | Only alerts on verified/likely-real findings |
-| **Multi-Chain** | Ethereum, Base, Arbitrum, Polygon, Optimism |
+| **TVL-Based Prioritization** | Discovers and ranks protocols by TVL via DeFiLlama |
+| **Multi-Tool Analysis** | Slither static analysis + Claude AI business logic detection |
+| **PoC Verification** | Generates exploit contracts on forked mainnet using Foundry |
+| **False Positive Filtering** | 10 known FP patterns + AI filtering + deduplication |
+| **Exploitable Value Estimation** | Estimates real extractable value (TVL != exploitable) |
+| **Smart Alerts** | Telegram alerts only for verified/likely-real findings above $25K |
+| **20+ EVM Chains** | Ethereum, Base, Arbitrum, Polygon, Optimism, BNB Chain, and 15+ more |
+| **Fork Detection** | Finds vulnerable forks across all chains when one exploit is discovered |
+| **Pattern Learning** | SQLite-backed pattern cache learns from scan outcomes |
+| **Self-Evolution** | Autonomous pattern refinement and FP accuracy improvement |
+| **Hack Database** | 430+ historical DeFi hacks from DeFiLlama for pattern matching |
+| **Clawdbot Integration** | Telegram-controlled autonomous operation via natural language |
 
 ## Verification Statuses
 
-| Status | What It Means | Will Alert? |
-|--------|---------------|-------------|
-| **Verified** | PoC exploit succeeded on fork | **YES** |
-| **Likely Real** | 2+ tools agree, high confidence | **YES** |
+| Status | Meaning | Will Alert? |
+|--------|---------|-------------|
+| **Verified** | PoC exploit succeeded on fork | YES |
+| **Likely Real** | 2+ tools agree, high confidence | YES |
 | **Needs Review** | Single tool, medium confidence | No (logged) |
 | **Likely False** | PoC failed or low confidence | No |
 | **False Positive** | Matches known FP pattern | No |
 
 ## Quick Start
 
-### 1. Install
+### 1. Prerequisites
+
+- Node.js 22+
+- PostgreSQL 15+
+- Redis
+- Python 3.x with pip (for Slither)
+
+### 2. Install
 
 ```bash
-git clone https://github.com/yourname/etherscan-auditor
-cd etherscan-auditor
+git clone https://github.com/ChicoPanama/White-Rabbit.git
+cd White-Rabbit
 npm install
 ```
 
-### 2. Configure
+### 3. Install Slither
+
+```bash
+pip install slither-analyzer solc-select
+solc-select install 0.8.20
+solc-select use 0.8.20
+```
+
+### 4. Install Foundry (optional, for PoC verification)
+
+```bash
+curl -L https://foundry.paradigm.xyz | bash && foundryup
+```
+
+### 5. Configure
 
 ```bash
 cp .env.example .env
 # Edit .env with your API keys
 ```
 
-Required:
-- `ETHERSCAN_API_KEY` - [Get free key](https://etherscan.io/apis)
+Required environment variables:
+- `ETHERSCAN_API_KEY` - [Etherscan V2 API key](https://etherscan.io/apis) (works across all chains)
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection string
 
 Recommended:
-- `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` - For alerts
-- `ETH_RPC_URL` etc. - For PoC verification
+- `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` - For Telegram alerts
+- `ANTHROPIC_API_KEY` - For AI-augmented analysis
+- `ETH_RPC_URL` - For PoC fork testing
 
-### 3. Run
+### 6. Set up database
+
+```bash
+npm run migrate
+```
+
+### 7. Run
 
 ```bash
 # Audit a single contract
 npm run audit -- 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
 
+# Audit on a specific chain
+npx tsx src/cli.ts audit 0xADDRESS --chain bsc
+
 # Scan a network
-npm run scan -- base
+npm run scan -- ethereum
+
+# Scan top N chains by TVL
+npx tsx src/cli.ts scan-top 5 --min-tvl 1000000
+
+# Show top chains by TVL
+npx tsx src/cli.ts chains --top 20
 
 # List high-TVL protocols
 npm run protocols -- ethereum --min-tvl 10000000
 
 # Start autonomous scanning
-npm run dev -- auto --networks ethereum,base --min-tvl 1000000
-```
+npm run dev -- auto --top-chains 10 --interval 30
 
-## With Clawd
+# Show scanner status
+npx tsx src/cli.ts stats
 
-```
-You: start autonomous vulnerability scan, focus on base and arbitrum
-     with at least 1 million TVL, alert me on telegram
-
-Clawd: Starting autonomous scanner...
-       Networks: base, arbitrum
-       Min TVL: $1,000,000
-       Verification: PoC generation + Multi-tool consensus
-
-       I'll only alert you when I find verified or high-confidence issues.
-       No false positive spam, promise!
+# Show recent findings
+npx tsx src/cli.ts findings --limit 20
 ```
 
 ## Architecture
 
 ```
 src/
-├── services/
-│   ├── context.ts      # Audit history & FP detection
-│   └── verifier.ts     # PoC generation & verification
-├── clients/
-│   ├── etherscan.ts    # Etherscan V2 API client
-│   └── defillama.ts    # DeFiLlama TVL data
+├── index.ts               # Main entry point (one-shot scan cycle)
+├── worker.ts              # BullMQ worker entry point
+├── cli.ts                 # CLI interface
+├── config.ts              # Environment configuration
+├── scanner.ts             # 6-stage pipeline orchestrator
+├── database.ts            # PostgreSQL persistence
+├── types/index.ts         # Shared type definitions
+├── data/
+│   ├── raw-hacks.json     # 430+ historical hack entries
+│   ├── enriched-hacks.json
+│   ├── known-hacks.ts     # Generated hack database module
+│   └── protocol-contracts.ts  # Known protocol contract addresses
 ├── analyzers/
-│   ├── slither.ts      # Static analysis runner
-│   ├── ai-analyzer.ts  # AI business logic analysis
-│   └── deduplicator.ts # Cross-tool finding dedup
+│   ├── slither.ts         # Slither subprocess runner
+│   ├── ai-analyzer.ts     # Claude AI analysis
+│   ├── deduplicator.ts    # Cross-tool finding dedup
+│   └── local-fp-filter.ts # Local FP pattern matching
+├── services/
+│   ├── chains.ts          # DeFiLlama chain discovery
+│   ├── context.ts         # Audit history + FP pattern detection
+│   ├── cost-tracker.ts    # AI API cost tracking
+│   ├── crypto.ts          # AES-256-GCM wallet encryption
+│   ├── exploitEstimator.ts # Exploitable value estimation
+│   ├── exploitVerifier.ts # 4-stage wallet-based verification
+│   ├── forkHunter.ts      # Cross-chain fork detection
+│   ├── fork-hunter-v2.ts  # Fork detection v2
+│   ├── patternCache.ts    # SQLite pattern learning
+│   ├── selfEvolution.ts   # Self-improvement engine
+│   ├── state.ts           # File-based state persistence
+│   ├── verifier.ts        # PoC Foundry verification
+│   └── walletManager.ts   # HD wallet manager
+├── clients/
+│   ├── etherscan.ts       # Etherscan V2 API client
+│   └── defillama.ts       # DeFiLlama API client
 ├── alerts/
-│   └── telegram.ts     # Alert service
+│   └── telegram.ts        # Telegram alerting
 ├── queue/
-│   ├── queues.ts       # BullMQ queue definitions
-│   └── workers.ts      # Worker processors
-├── utils/
-│   └── helpers.ts      # Utility functions
-├── types/
-│   └── index.ts        # Type definitions
-├── scanner.ts          # Main orchestrator (6-stage pipeline)
-├── database.ts         # PostgreSQL persistence
-├── config.ts           # Environment configuration
-├── cli.ts              # Command-line interface
-├── index.ts            # Main entry point
-└── worker.ts           # Background worker entry point
+│   ├── queues.ts          # BullMQ queue definitions
+│   └── workers.ts         # Worker processors
+└── utils/
+    ├── helpers.ts         # Utilities
+    └── validation.ts      # Input validation
 ```
 
 ## How Verification Works
 
-### 1. Context Gathering
+### Context Gathering
 
-Before analyzing, we gather context:
-- Is this contract from a known audited protocol? (Uniswap, Aave, etc.)
-- Does it use security patterns? (ReentrancyGuard, AccessControl)
+Before analyzing, the scanner gathers context:
+- Is this contract from a known audited protocol? (13 recognized: Uniswap, Aave, Compound, etc.)
+- Does it use security patterns? (ReentrancyGuard, AccessControl, Pausable)
 - Does it use oracles? TWAP?
 
-### 2. False Positive Pattern Matching
+### False Positive Filtering
 
-Known FP patterns that get filtered:
-- `reentrancy-eth` + `ReentrancyGuard` present = likely FP
-- `arbitrary-send-eth` + `onlyOwner` present = likely FP
-- `oracle-manipulation` + `TWAP` present = likely FP
+10 known FP patterns are automatically filtered:
+- `reentrancy-eth` + `ReentrancyGuard` present = FP
+- `arbitrary-send-eth` + `onlyOwner` present = FP
+- `oracle-manipulation` + `TWAP` present = FP
 - Plus 7 more patterns (see `src/services/context.ts`)
 
-### 3. PoC Generation
+### PoC Verification
 
-For critical/high findings, we try to exploit them on a forked mainnet using Foundry:
-
-```solidity
-// Example: Reentrancy PoC
-contract ReentrancyPoC is Test {
-    function testReentrancy() public {
-        deal(address(this), 1 ether);
-        target.deposit{value: 0.1 ether}();
-        target.withdraw();
-        assertTrue(address(this).balance > 0.1 ether);
-    }
-
-    receive() external payable {
-        if (attackCount < 5) {
-            attackCount++;
-            target.withdraw();
-        }
-    }
-}
-```
-
+For critical/high findings, exploit contracts are generated and tested on forked mainnet using Foundry:
 - PoC succeeds = **Verified** (+40 confidence)
-- PoC fails = **Likely false** (-30 confidence)
+- PoC fails = confidence reduced by 30%
+- Requires Foundry (`forge`) and an RPC URL for the target chain
 
-### 4. Tool Consensus & Confidence Scoring
+### Exploitable Value Estimation
+
+TVL does not equal exploitable value. The estimator calculates real value at risk using vulnerability-type-specific logic:
+
+| Vulnerability | Exploitable Estimate |
+|---|---|
+| reentrancy-eth | Full ETH balance |
+| oracle-manipulation | 5% of pool TVL |
+| access-control (mint) | 10x total balance |
+| suicidal / unprotected-upgrade | Full balance |
+
+### Confidence Scoring
 
 | Factor | Score Impact |
 |--------|-------------|
 | High tool confidence | +60 base |
-| Medium tool confidence | +40 base |
 | 3+ tools agree | +30 |
-| 2 tools agree | +20 |
 | PoC succeeded | +40 |
 | PoC failed | -30 |
 | Known audited protocol | -20 |
 | Battle-tested (>1yr) | -10 |
 | ReentrancyGuard + reentrancy detector | -30 |
 
-## Vulnerability Detection
+## Intelligence Layer
 
-### Static Analysis (Slither)
+### Pattern Learning
 
-- Reentrancy (ETH and tokens)
-- Arbitrary sends
-- Access control issues
-- Integer overflow/underflow
-- Uninitialized storage
-- Timestamp dependence
+When a vulnerability is found, the system extracts code signatures and contract fingerprints, then searches all 20+ chains for forks with the same vulnerability. One finding cascades into finding all vulnerable forks.
 
-### AI Analysis
+```bash
+# Show learned patterns
+npx tsx src/cli.ts patterns
 
-- Flash loan attack vectors
-- Oracle manipulation
-- MEV exposure (frontrunning, sandwich)
-- Cross-contract reentrancy
-- Privilege escalation
-- Economic attacks
+# Show learning statistics
+npx tsx src/cli.ts knowledge
 
-## Dependencies
+# Run self-evolution cycle
+npx tsx src/cli.ts evolve
+```
 
-### Required
-- Node.js 20+
-- Etherscan API key
+### Hack Database
 
-### Recommended
-- **Slither** - Static analysis (10.9% false positive rate)
-  ```bash
-  pip install slither-analyzer
-  ```
-- **Foundry** - PoC verification on forks
-  ```bash
-  curl -L https://foundry.paradigm.xyz | bash && foundryup
-  ```
+430+ historical DeFi hacks scraped from DeFiLlama, enriched with attack patterns:
+
+```bash
+npm run build:hacks          # Full pipeline
+npm run build:hacks:scrape   # Scrape from DeFiLlama
+npm run build:hacks:extract  # Extract patterns
+npm run build:hacks:generate # Generate known-hacks.ts
+```
+
+## Supported Chains
+
+Chains are dynamically ranked by TVL from DeFiLlama.
+
+| Tier | Chains |
+|------|--------|
+| **Tier 1** | Ethereum, BNB Chain, Arbitrum, Base, Polygon |
+| **Tier 2** | Optimism, Avalanche, Blast, Linea, Scroll |
+| **Tier 3** | Fantom, Cronos, Gnosis, zkSync Era, Mantle, Manta, Mode, Celo, Moonbeam, Moonriver |
+
+## Clawdbot Integration
+
+White-Rabbit integrates with [Clawdbot](https://clawd.bot) for Telegram-controlled autonomous operation.
+
+```bash
+# Install as Clawdbot skill
+./scripts/install-clawd.sh
+```
+
+### Natural Language Commands via Telegram
+
+| Command | Action |
+|---------|--------|
+| "start hunting" | Start autonomous scanning |
+| "scan ethereum" | Scan a specific network |
+| "audit 0x..." | Audit a single contract |
+| "audit 0x... on bsc" | Audit on a specific chain |
+| "status" | Show scanner status |
+| "what did you find" | Show recent findings |
+| "show top chains" | Show TVL rankings |
+| "wallet status" | Show verification wallet balances |
+
+### Bash Wrapper Scripts
+
+```bash
+./scripts/scan.sh ethereum          # Scan a network
+./scripts/audit.sh 0xADDRESS       # Audit a contract
+./scripts/hunt.sh                   # Start autonomous mode
+./scripts/chains.sh                 # Show chain rankings
+./scripts/status.sh                 # Show status
+```
+
+## Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `ETHERSCAN_API_KEY` | Yes | Etherscan V2 API key (all chains) |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `REDIS_URL` | Yes | Redis connection string |
+| `TELEGRAM_BOT_TOKEN` | Recommended | Telegram bot token |
+| `TELEGRAM_CHAT_ID` | Recommended | Telegram chat ID for alerts |
+| `ANTHROPIC_API_KEY` | Recommended | Claude API key for AI analysis |
+| `ETH_RPC_URL` | Optional | Ethereum RPC for PoC testing |
+| `BASE_RPC_URL` | Optional | Base RPC |
+| `ARBITRUM_RPC_URL` | Optional | Arbitrum RPC |
+| `POLYGON_RPC_URL` | Optional | Polygon RPC |
+| `OPTIMISM_RPC_URL` | Optional | Optimism RPC |
+| `MIN_TVL_THRESHOLD` | Optional | Min TVL to scan (default: $10M) |
+| `SCAN_CHAINS` | Optional | Comma-separated chains (default: ethereum,base,arbitrum) |
+| `ALERT_MIN_SEVERITY` | Optional | Min severity to alert (default: medium) |
+
+See `.env.example` for the full list including wallet, search, and additional chain RPC variables.
+
+## Docker
+
+```bash
+docker compose up -d
+```
+
+This starts the scanner, worker, PostgreSQL, and Redis. See `docker-compose.yml` for configuration.
 
 ## Responsible Disclosure
 
@@ -236,11 +339,13 @@ This tool is for **white hat security research only**.
 When you find vulnerabilities:
 
 1. Check for bug bounty programs (Immunefi, HackerOne)
-2. Contact protocol team through official channels
+2. Contact the protocol team through official channels
 3. Document findings professionally
 4. Wait for acknowledgment
 5. Follow responsible disclosure timelines (14-45 days)
 
+See `CLAUDE.md` for detailed internal documentation including infrastructure setup, Clawdbot configuration, AGI framework, and troubleshooting.
+
 ## License
 
-MIT - Use responsibly.
+MIT
