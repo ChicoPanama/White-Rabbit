@@ -12,7 +12,11 @@
     "protocols": "tsx src/cli.ts protocols",
     "dev": "tsx src/cli.ts",
     "dev:worker": "tsx src/worker.ts",
-    "migrate": "node dist/migrate.js"
+    "migrate": "node dist/migrate.js",
+    "build:hacks": "tsx src/scripts/build-hack-db.ts && tsx src/scripts/extract-patterns.ts && tsx src/scripts/generate-known-hacks.ts",
+    "build:hacks:scrape": "tsx src/scripts/build-hack-db.ts",
+    "build:hacks:extract": "tsx src/scripts/extract-patterns.ts",
+    "build:hacks:generate": "tsx src/scripts/generate-known-hacks.ts"
   },
   "keywords": [
     "smart-contract",
