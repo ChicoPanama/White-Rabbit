@@ -14,6 +14,7 @@ import { loadConfig } from './config.js';
 import { Database } from './database.js';
 import { RedisCache, CacheKeys, initRedisCache } from './services/redis-cache.js';
 import { computeConfidence } from './memory/confidence.js';
+import { estimateTokens, truncateResponse } from './utils/context-budget.js';
 import type { MemoryBundle } from './types/index.js';
 
 const MEMORY_HTTP_ENABLED = process.env.WR_MEMORY_HTTP_ENABLED === 'true';
@@ -155,11 +156,12 @@ class MemoryServer {
 
     // Parse query params
     const scans = Math.min(Number(url.searchParams.get('scans')) || 5, 50);
-    const findings = Math.min(Number(url.searchParams.get('findings')) || 25, 100);
+    const findings = Math.min(Number(url.searchParams.get('findings')) || 10, 50);
     const includeSummaries = url.searchParams.get('includeSummaries') === 'true';
     const includeSimilar = url.searchParams.get('includeSimilar') === 'true';
+    const maxResponseTokens = Math.min(Number(url.searchParams.get('maxResponseTokens')) || 5000, 20000);
 
-    console.log(`[MemoryServer] GET /memory/contract/${chain}/${address} (scans=${scans}, findings=${findings}, summaries=${includeSummaries}, similar=${includeSimilar})`);
+    console.log(`[MemoryServer] GET /memory/contract/${chain}/${address} (scans=${scans}, findings=${findings}, summaries=${includeSummaries}, similar=${includeSimilar}, maxTokens=${maxResponseTokens})`);
 
     // Check Redis cache first
     const cacheKey = CacheKeys.memoryBundle(chain, address, scans, findings, includeSummaries, includeSimilar);
@@ -173,7 +175,11 @@ class MemoryServer {
         // Always compute fresh confidence
         bundle.confidence = computeConfidence(bundle);
         console.log(`[MemoryServer] Cache HIT: ${chain}/${address}`);
-        this.sendJson(res, 200, bundle);
+        // Apply response truncation
+        const truncatedBundle = truncateResponse(bundle as unknown as Record<string, unknown>, maxResponseTokens) as unknown as MemoryBundle;
+        const tokenEstimate = estimateTokens(JSON.stringify(truncatedBundle));
+        console.log(`[MemoryServer] Response tokens: ~${tokenEstimate} (limit: ${maxResponseTokens})`);
+        this.sendJson(res, 200, truncatedBundle);
         return;
       }
     }
@@ -216,13 +222,18 @@ class MemoryServer {
     // Compute confidence score
     bundle.confidence = computeConfidence(bundle);
 
-    // Cache the result
+    // Cache the result (before truncation for completeness)
     if (this.redis.isAvailable()) {
       await this.redis.setJson(cacheKey, bundle, MEMORY_BUNDLE_CACHE_TTL);
       console.log(`[MemoryServer] Cache MISS, stored: ${chain}/${address}`);
     }
 
-    this.sendJson(res, 200, bundle);
+    // Apply response truncation
+    const truncatedBundle = truncateResponse(bundle as unknown as Record<string, unknown>, maxResponseTokens) as unknown as MemoryBundle;
+    const tokenEstimate = estimateTokens(JSON.stringify(truncatedBundle));
+    console.log(`[MemoryServer] Response tokens: ~${tokenEstimate} (limit: ${maxResponseTokens})`);
+
+    this.sendJson(res, 200, truncatedBundle);
   }
 
   private sendJson(res: http.ServerResponse, status: number, data: unknown): void {

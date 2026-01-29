@@ -14,7 +14,8 @@
       "scans": "{scans}",
       "findings": "{findings}",
       "includeSummaries": "{includeSummaries}",
-      "includeSimilar": "{includeSimilar}"
+      "includeSimilar": "{includeSimilar}",
+      "maxResponseTokens": "5000"
     },
     "timeout": 30000
   },
@@ -50,11 +51,11 @@
     },
     "findings": {
       "type": "integer",
-      "description": "Number of findings to include (max 100)",
+      "description": "Number of findings to include (max 50)",
       "required": false,
-      "default": 25,
+      "default": 10,
       "minimum": 1,
-      "maximum": 100
+      "maximum": 50
     },
     "includeSummaries": {
       "type": "boolean",

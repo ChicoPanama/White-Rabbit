@@ -28,6 +28,8 @@ Scan smart contracts for vulnerabilities across 20+ EVM chains using the White-R
 | evolve | Run self-evolution | `cd ~/White-Rabbit && npx tsx src/cli.ts evolve` |
 | wallet balances | Show wallet balances | `cd ~/White-Rabbit && npx tsx src/cli.ts wallet:balances` |
 | wallet fund [chain] | Show deposit address | `cd ~/White-Rabbit && npx tsx src/cli.ts wallet:fund <chain>` |
+| memory [address] | Get AI memory bundle | `cd ~/White-Rabbit && npx tsx src/cli.ts memory <address> --chain <chain>` |
+| memory [address] on [chain] | Get memory for specific chain | `cd ~/White-Rabbit && npx tsx src/cli.ts memory <address> --chain <chain> --scans 10 --findings 50` |
 
 ### Hack Database
 
@@ -72,6 +74,69 @@ The scanner includes a comprehensive hack database at `~/White-Rabbit/src/data/r
 | >= $25K | Alert during active hours |
 | >= $1K | Log only |
 | < $1K | Ignore |
+
+### AI Memory & Caching
+
+The scanner includes an AI memory system that caches analysis results to avoid redundant API calls:
+
+- **Memory Bundle** — Compact JSON with contract data, scan history, findings, and AI assessments
+- **Prompt-Hash Caching** — SHA-256 hash of normalized prompts for deduplication
+- **Redis Hot Cache** — Optional fast cache (2-minute TTL for memory bundles)
+- **Postgres Persistence** — Durable storage for AI runs (7-day default TTL)
+
+```bash
+# CLI memory lookup
+npx tsx src/cli.ts memory 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D --chain ethereum
+
+# Start memory HTTP server (optional)
+WR_MEMORY_HTTP_ENABLED=true npx tsx src/memory-server.ts
+
+# HTTP endpoint (when server is running)
+curl http://localhost:8787/memory/contract/ethereum/0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+```
+
+### Context Management
+
+The scanner automatically manages context to prevent overflow errors.
+
+| Mode | Max Output | Use Case |
+|------|-----------|----------|
+| Interactive (default) | 2048 tokens | Chat, quick queries |
+| Report | 4096 tokens | Full analysis reports |
+| Minimal | 1024 tokens | Status checks, simple answers |
+
+**Context-Saving Commands:**
+
+| Command | Action |
+|---------|--------|
+| `brief status` | Get minimal status (saves context) |
+| `full report on [X]` | Triggers report mode for one response |
+
+**Memory Payload Limits:**
+- Default findings per request: 10 (max 50)
+- Default scans per request: 5 (max 50)
+- Max response tokens: 5000
+
+### Micro-Protocol Hunting
+
+Hunt small protocols ($10K-$10M TVL) with prioritized targets:
+
+```bash
+npx tsx src/cli.ts micro --chain base --min-tvl 10000 --max-tvl 100000
+npx tsx src/cli.ts micro --tier 1  # Use predefined tier ($10K-$100K)
+npx tsx src/cli.ts micro --continuous  # Auto-tier progression
+npx tsx src/cli.ts sessions  # View hunting sessions
+npx tsx src/cli.ts sessions --learning  # Show learning data
+```
+
+**TVL Tiers:**
+| Tier | Range | Description |
+|------|-------|-------------|
+| 1 | $10K-$100K | Micro protocols |
+| 2 | $100K-$500K | Small protocols |
+| 3 | $500K-$1M | Growing protocols |
+| 4 | $1M-$5M | Medium protocols |
+| 5 | $5M-$10M | Established protocols |
 
 ### Process Management
 

@@ -17,8 +17,9 @@
 
     "contextConstraints": {
       "whenLLMAllowed": {
-        "maxSummaryChars": 3000,
+        "maxSummaryChars": 2000,
         "maxFindings": 5,
+        "maxTotalInputTokens": 40000,
         "includeOnly": [
           "compressed_summaries",
           "top_findings",
@@ -28,8 +29,14 @@
           "raw_transaction_histories",
           "full_observation_logs",
           "large_decoded_traces",
-          "prior_conversations"
+          "prior_conversations",
+          "full_source_code"
         ]
+      },
+      "outputBudget": {
+        "default": 2048,
+        "report": 4096,
+        "maximum": 8192
       }
     },
 

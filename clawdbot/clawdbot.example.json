@@ -18,7 +18,8 @@
       "workspace": "/home/ubuntu/clawd",
       "envelopeTimezone": "utc",
       "envelopeTimestamp": "on",
-      "contextTokens": 120000,
+      "contextTokens": 50000,
+      "maxOutputTokens": 2048,
       "heartbeat": {
         "every": "30m",
         "activeHours": {
@@ -39,9 +40,26 @@
         "identity": {
           "name": "White Rabbit",
           "emoji": "🐇"
-        }
+        },
+        "policyFiles": [
+          "agents/white-rabbit.policy.json"
+        ]
       }
     ]
+  },
+  "compaction": {
+    "memoryFlush": {
+      "enabled": true,
+      "_comment": "Flush important context to memory files before compaction to prevent forgetting"
+    }
+  },
+  "memorySearch": {
+    "experimental": {
+      "sessionMemory": true,
+      "_comment": "Enable session transcript search (increases indexing workload)"
+    },
+    "sources": ["memory", "sessions"],
+    "_comment": "Search both memory files and session transcripts"
   },
   "tools": {
     "web": {
@@ -83,7 +101,10 @@
     "restart": true
   },
   "session": {
-    "dmScope": "per-peer"
+    "dmScope": "per-peer",
+    "maxHistoryTurns": 10,
+    "maxHistoryTokens": 15000,
+    "compressAfterTurns": 5
   },
   "channels": {
     "telegram": {
