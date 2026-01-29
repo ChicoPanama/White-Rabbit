@@ -114,6 +114,8 @@ export class ContextService {
    * and known protocol mappings.
    */
   analyzeContext(sourceCode: string, contractName: string | null, protocolName: string | null): ContractContext {
+    // Handle null/undefined sourceCode
+    const safeSourceCode = sourceCode || '';
     const normalizedProtocol = protocolName?.toLowerCase().replace(/[^a-z0-9]/g, '') ?? '';
     const normalizedName = contractName?.toLowerCase() ?? '';
 
@@ -126,8 +128,8 @@ export class ContextService {
       if (
         normalizedProtocol.includes(protocol) ||
         normalizedName.includes(protocol) ||
-        sourceCode.toLowerCase().includes(`@${protocol}`) ||
-        sourceCode.toLowerCase().includes(`${protocol}/`)
+        safeSourceCode.toLowerCase().includes(`@${protocol}`) ||
+        safeSourceCode.toLowerCase().includes(`${protocol}/`)
       ) {
         isAudited = true;
         auditedBy = auditors;
@@ -137,7 +139,7 @@ export class ContextService {
     }
 
     // Also check for common OpenZeppelin imports (widely audited library)
-    if (!isAudited && sourceCode.includes('@openzeppelin/')) {
+    if (!isAudited && safeSourceCode.includes('@openzeppelin/')) {
       // Using OZ doesn't mean the whole contract is audited,
       // but the imported components are battle-tested.
       // We don't set isAudited=true, but note it in context.
@@ -148,10 +150,10 @@ export class ContextService {
       auditedBy,
       knownProtocol,
       contractAgeDays: null, // Would need on-chain data to compute
-      hasReentrancyGuard: /ReentrancyGuard|nonReentrant/i.test(sourceCode),
-      hasAccessControl: /Ownable|AccessControl|onlyOwner|onlyRole|hasRole/i.test(sourceCode),
-      hasTimelocks: /TimelockController|timelock|delay\s*>/i.test(sourceCode),
-      hasPauseability: /Pausable|whenNotPaused|_pause\(\)/i.test(sourceCode),
+      hasReentrancyGuard: /ReentrancyGuard|nonReentrant/i.test(safeSourceCode),
+      hasAccessControl: /Ownable|AccessControl|onlyOwner|onlyRole|hasRole/i.test(safeSourceCode),
+      hasTimelocks: /TimelockController|timelock|delay\s*>/i.test(safeSourceCode),
+      hasPauseability: /Pausable|whenNotPaused|_pause\(\)/i.test(safeSourceCode),
       usesOracle: /oracle|priceFeed|chainlink|AggregatorV3/i.test(sourceCode),
       usesTWAP: /TWAP|twap|timeWeightedAverage|observe\(/i.test(sourceCode),
     };

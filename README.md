@@ -295,6 +295,73 @@ npm run build:hacks:extract  # Extract patterns
 npm run build:hacks:generate # Generate known-hacks.ts
 ```
 
+## AI Memory System
+
+White-Rabbit includes a durable memory and caching layer for AI analysis results, enabling cost-effective and consistent contract analysis.
+
+### Memory HTTP Server
+
+The memory server provides REST API access to cached AI analysis:
+
+```bash
+# Start the memory server
+WR_MEMORY_HTTP_ENABLED=true npx tsx src/memory-server.ts
+
+# Check health
+curl http://localhost:8787/healthz
+
+# Get memory bundle for a contract
+curl "http://localhost:8787/memory/contract/ethereum/0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D?includeSummaries=true&includeSimilar=true"
+```
+
+### Memory Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WR_MEMORY_HTTP_ENABLED` | `false` | Enable HTTP memory server |
+| `WR_MEMORY_HTTP_PORT` | `8787` | HTTP server port |
+| `WR_AI_CACHE_TTL_DAYS` | `7` | AI result cache TTL in days |
+
+### Deterministic Confidence Scoring
+
+The memory system computes a deterministic confidence score (0-1) for each contract analysis. This score determines whether an LLM call is needed:
+
+| Confidence | Recommendation | Action |
+|------------|----------------|--------|
+| >= 0.75 | `use_memory` | Return decision from cached memory, no LLM call |
+| < 0.75 | `call_llm` | LLM call allowed with compressed context only |
+
+Signals that increase confidence:
+- Definitive tags (honeypot, rug, audited, verified)
+- High similarity to known contracts (>= 85% match)
+- All findings marked as false positives
+- Rich summaries with final determinations
+
+Signals that decrease confidence:
+- No findings or scans
+- Contradictory findings (critical + low)
+- Very recent data with limited history
+
+### CLI Memory Command
+
+```bash
+# Get memory bundle for a contract
+npx tsx src/cli.ts memory 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D --chain ethereum
+
+# With full options
+npx tsx src/cli.ts memory 0x... --chain base --scans 10 --findings 50 --includeSummaries --includeSimilar
+```
+
+### Clawdbot Memory Policy
+
+When using White-Rabbit with Clawdbot, the agent follows a strict memory-first policy:
+
+1. **MANDATORY**: Call `white_rabbit_memory_lookup` before any contract analysis
+2. **Check confidence**: If score >= 0.75, use cached memory without calling AI
+3. **Compressed context**: When AI is needed, use only summaries + top 5 findings
+
+See `clawdbot/agents/white-rabbit.policy.json` for the full policy configuration.
+
 ## Supported Chains
 
 Chains are dynamically ranked by TVL from DeFiLlama.

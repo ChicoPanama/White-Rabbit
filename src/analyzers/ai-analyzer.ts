@@ -3,6 +3,9 @@ import type { Finding, AIAnalysisResult, Severity } from '../types/index.js';
 import type { AIConfig, AIRateLimitConfig } from '../config.js';
 import { CostTracker } from '../services/cost-tracker.js';
 import { AIQueueManager, type AIJobFinding } from '../queue/ai-queue.js';
+import { AiCacheService, type AiPromptInput } from '../services/ai-cache.js';
+import { Database } from '../database.js';
+import { getRedisCache } from '../services/redis-cache.js';
 
 export type AnalysisTier = 'none' | 'haiku' | 'sonnet';
 
@@ -77,6 +80,7 @@ export class AIAnalyzer {
   private aiConfig: AIConfig;
   private queueManager: AIQueueManager | null = null;
   private useQueue: boolean = false;
+  private cacheService: AiCacheService | null = null;
 
   constructor(
     apiKey: string | null,
@@ -86,6 +90,8 @@ export class AIAnalyzer {
       useQueue?: boolean;
       redisUrl?: string;
       rateLimitConfig?: AIRateLimitConfig;
+      db?: Database;
+      enableCache?: boolean;
     }
   ) {
     this.client = apiKey ? new Anthropic({ apiKey }) : null;
@@ -101,6 +107,16 @@ export class AIAnalyzer {
       this.queueManager = new AIQueueManager(options.redisUrl, options.rateLimitConfig);
       console.log('[AIAnalyzer] Queue mode enabled - AI jobs will be enqueued to Redis');
     }
+
+    // Initialize AI cache service if database provided
+    if (options?.db && options?.enableCache !== false) {
+      this.cacheService = new AiCacheService(options.db, getRedisCache());
+      console.log('[AIAnalyzer] Cache mode enabled - AI results will be cached');
+    }
+  }
+
+  getCacheService(): AiCacheService | null {
+    return this.cacheService;
   }
 
   get isAvailable(): boolean {
@@ -213,6 +229,7 @@ export class AIAnalyzer {
     contractSource: string,
     protocolType: string | null,
     model: string,
+    findingContext?: { chain: string; address: string },
   ): Promise<AIAnalysisResult[]> {
     if (!this.client) return [];
 
@@ -259,6 +276,36 @@ Focus on:
 
 Respond with a JSON array of assessments, one per finding, in the same order.`;
 
+    // Build prompt input for caching
+    const promptInput: AiPromptInput = {
+      model,
+      systemPrompt: SYSTEM_PROMPT,
+      userPrompt,
+      findingContext: findingContext && findings[0] ? {
+        chain: findingContext.chain,
+        address: findingContext.address,
+        detectorName: findings.map(f => f.detectorName).join(','),
+        tool: findings.map(f => f.tool).join(','),
+        severity: findings[0].severity,
+        codeSnippet: findings[0].codeSnippet ?? undefined,
+      } : undefined,
+    };
+
+    // Check cache first
+    if (this.cacheService) {
+      const promptHash = this.cacheService.computePromptHash(promptInput);
+      const cacheResult = await this.cacheService.lookup(promptHash);
+
+      if (cacheResult.hit && cacheResult.result) {
+        console.log(`[AIAnalyzer] Cache HIT (${cacheResult.source}): ${promptHash.slice(0, 12)}...`);
+        // Parse cached output
+        const cachedOutput = cacheResult.result.outputJson as { assessments?: unknown[] };
+        if (cachedOutput.assessments && Array.isArray(cachedOutput.assessments)) {
+          return this.parseResponseFromCached(cachedOutput.assessments, findings);
+        }
+      }
+    }
+
     try {
       const response = await this.client.messages.create({
         model,
@@ -268,22 +315,82 @@ Respond with a JSON array of assessments, one per finding, in the same order.`;
       });
 
       // Record usage for cost tracking
-      this.costTracker.recordCall(
-        model,
-        response.usage?.input_tokens ?? 0,
-        response.usage?.output_tokens ?? 0,
-      );
+      const tokensIn = response.usage?.input_tokens ?? 0;
+      const tokensOut = response.usage?.output_tokens ?? 0;
+      this.costTracker.recordCall(model, tokensIn, tokensOut);
 
       const text = response.content
         .filter((block): block is Anthropic.TextBlock => block.type === 'text')
         .map(block => block.text)
         .join('');
 
-      return this.parseResponse(text, findings);
+      const results = this.parseResponse(text, findings);
+
+      // Store in cache
+      if (this.cacheService && results.length > 0) {
+        const promptHash = this.cacheService.computePromptHash(promptInput);
+        await this.cacheService.store({
+          promptHash,
+          input: promptInput,
+          output: { assessments: results, rawText: text },
+          tokensIn,
+          tokensOut,
+          costUsd: CostTracker.estimateCost(model, tokensIn, tokensOut),
+          status: 'ok',
+        });
+      }
+
+      return results;
     } catch (err) {
       console.error('AI analysis failed:', err);
+
+      // Store error in cache to avoid retrying immediately
+      if (this.cacheService) {
+        const promptHash = this.cacheService.computePromptHash(promptInput);
+        await this.cacheService.store({
+          promptHash,
+          input: promptInput,
+          output: {},
+          status: 'error',
+          errorText: err instanceof Error ? err.message : String(err),
+        });
+      }
+
       return [];
     }
+  }
+
+  private parseResponseFromCached(assessments: unknown[], findings: Finding[]): AIAnalysisResult[] {
+    const severityMap: Record<string, Severity> = {
+      critical: 'critical',
+      high: 'high',
+      medium: 'medium',
+      low: 'low',
+      informational: 'informational',
+    };
+
+    return (assessments as Array<{
+      findingId?: string;
+      isFalsePositive: boolean;
+      assessment: string;
+      attackPath: string | null;
+      recommendedFix: string | null;
+      adjustedSeverity: string | null;
+    }>).map((result, idx) => {
+      const finding = findings[idx];
+      if (!finding) return null;
+
+      return {
+        findingId: result.findingId ?? finding.id,
+        isFalsePositive: result.isFalsePositive,
+        assessment: result.assessment,
+        attackPath: result.attackPath ?? null,
+        recommendedFix: result.recommendedFix ?? null,
+        adjustedSeverity: result.adjustedSeverity
+          ? (severityMap[result.adjustedSeverity.toLowerCase()] ?? null)
+          : null,
+      };
+    }).filter((r): r is AIAnalysisResult => r !== null);
   }
 
   private parseResponse(text: string, findings: Finding[]): AIAnalysisResult[] {

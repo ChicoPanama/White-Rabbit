@@ -4,6 +4,8 @@ import * as os from 'os';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import type { SlitherOutput, SlitherDetectorResult, Finding, Severity, Confidence } from '../types/index.js';
+import { vyperHandler } from '../services/vyperHandler.js';
+import { patternAnalyzer } from './patternAnalyzer.js';
 
 const CONTRACTS_DIR = path.resolve(process.cwd(), 'contracts');
 
@@ -18,6 +20,17 @@ export class SlitherAnalyzer {
     sourceCode: string,
     compilerVersion: string,
   ): Promise<Finding[]> {
+    // Check if this is a Vyper contract
+    if (vyperHandler.isVyperContract(sourceCode)) {
+      console.log(`[Slither] Detected Vyper contract: ${contractAddress}`);
+      try {
+        return await vyperHandler.analyzeVyperContract(sourceCode, contractAddress);
+      } catch (error) {
+        console.log(`[Slither] Vyper analysis failed, falling back to pattern matching:`, error);
+        return [];
+      }
+    }
+    
     const contractDir = await this.writeContractSource(contractAddress, chainId, sourceCode);
     const solFile = path.join(contractDir, 'contract.sol');
 
@@ -34,11 +47,27 @@ export class SlitherAnalyzer {
     try {
       const solcPath = this.ensureSolcVersion(compilerVersion, sourceCode);
       const output = await this.runSlither(solFile, solcPath);
-      if (!output.success && !output.results?.detectors?.length) {
+      
+      if (!output.success || !output.results?.detectors?.length) {
         console.warn(`Slither analysis failed for ${contractAddress}: ${output.error}`);
-        return [];
+        console.log(`[Slither] Falling back to pattern analysis...`);
+        
+        // Fallback to pattern-based analysis
+        const patternFindings = patternAnalyzer.analyze(contractAddress, sourceCode, contractAddress);
+        console.log(`[Slither] Pattern analyzer found ${patternFindings.length} potential issues`);
+        return patternFindings;
       }
-      return this.parseFindings(output.results.detectors, contractAddress);
+      
+      const slitherFindings = this.parseFindings(output.results.detectors, contractAddress);
+      
+      // If Slither found very few findings but contract looks complex, supplement with pattern analysis
+      if (slitherFindings.length < 3 && patternAnalyzer.hasHighValueFunctions(sourceCode)) {
+        console.log(`[Slither] Supplementing with pattern analysis for high-value contract`);
+        const patternFindings = patternAnalyzer.analyze(contractAddress, sourceCode, contractAddress);
+        return [...slitherFindings, ...patternFindings];
+      }
+      
+      return slitherFindings;
     } finally {
       // Clean up written files
       this.cleanupDir(contractDir);
@@ -55,7 +84,24 @@ export class SlitherAnalyzer {
       version = this.parsePragmaVersion(sourceCode);
     }
     if (!version) {
-      return null;
+      // Default to recent stable version
+      version = '0.8.20';
+    }
+
+    // Handle version compatibility
+    const versionParts = version.split('.').map(Number);
+    const [major, minor] = versionParts;
+    
+    // If version is too old (< 0.4.0), use 0.4.26 as minimum
+    if (major === 0 && minor < 4) {
+      console.log(`[Slither] Version ${version} too old, using 0.4.26`);
+      version = '0.4.26';
+    }
+    
+    // Special handling for Vyper version indicators
+    if (version.includes('2.11') || compilerVersion.includes('vyper')) {
+      console.log(`[Slither] Vyper version detected, using latest Solidity`);
+      version = '0.8.20';
     }
 
     const artifactsDir = path.join(os.homedir(), '.solc-select', 'artifacts');
@@ -65,7 +111,7 @@ export class SlitherAnalyzer {
       return solcBin;
     }
 
-    // Install the needed version
+    // Try to install the version
     try {
       console.log(`[Slither] Installing solc ${version} via solc-select...`);
       execSync(`solc-select install ${version}`, {
@@ -78,7 +124,27 @@ export class SlitherAnalyzer {
       }
     } catch (err) {
       console.warn(`[Slither] Failed to install solc ${version}: ${err}`);
+      
+      // Fallback to available versions
+      const fallbackVersions = ['0.8.20', '0.8.19', '0.8.13', '0.7.6', '0.6.12', '0.5.17', '0.4.26'];
+      for (const fallback of fallbackVersions) {
+        const fallbackBin = path.join(artifactsDir, `solc-${fallback}`, `solc-${fallback}`);
+        if (fs.existsSync(fallbackBin)) {
+          console.log(`[Slither] Using fallback version ${fallback}`);
+          return fallbackBin;
+        }
+      }
     }
+    
+    // Last resort: use system solc
+    try {
+      execSync('solc --version', { stdio: 'ignore' });
+      console.log(`[Slither] Using system solc`);
+      return 'solc';
+    } catch (err) {
+      console.warn(`[Slither] No usable solc version found`);
+    }
+    
     return null;
   }
 
@@ -154,6 +220,25 @@ export class SlitherAnalyzer {
   private runSlither(contractPath: string, solcPath?: string | null): Promise<SlitherOutput> {
     return new Promise((resolve) => {
       const outputFile = path.join(os.tmpdir(), `slither-${crypto.randomBytes(16).toString('hex')}.json`);
+      
+      // Create remappings for common dependencies
+      const contractDir = path.dirname(contractPath);
+      const remappingsFile = path.join(contractDir, 'remappings.txt');
+      const remappings = [
+        '@openzeppelin/contracts/=../node_modules/@openzeppelin/contracts/',
+        '@openzeppelin/=../node_modules/@openzeppelin/',
+        '@nomad-xyz/src/=../node_modules/@nomad-xyz/excessively-safe-call/src/',
+        'forge-std/=../node_modules/forge-std/src/',
+        'ds-test/=../node_modules/ds-test/src/',
+        './=./',
+        '../=../',
+      ];
+      
+      try {
+        fs.writeFileSync(remappingsFile, remappings.join('\n'));
+      } catch (err) {
+        console.log('[Slither] Failed to create remappings file:', err);
+      }
 
       const args = [
         contractPath,
@@ -162,9 +247,16 @@ export class SlitherAnalyzer {
         '--filter-paths', 'node_modules|test|mock',
         '--ignore-compile',  // Skip compilation errors for missing dependencies
         '--disable-color',   // Cleaner output
+        '--solc-remaps', remappings.join(' '),
       ];
       if (solcPath) {
         args.push('--solc', solcPath);
+      }
+      
+      // Add foundry config if exists
+      const foundryToml = path.join(process.cwd(), 'foundry.toml');
+      if (fs.existsSync(foundryToml)) {
+        args.push('--foundry-out-dir', './out');
       }
 
       const proc = spawn('slither', args, {

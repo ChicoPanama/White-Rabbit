@@ -11,6 +11,17 @@ export interface AIConfig {
   disableAiAnalysis: boolean;
 }
 
+/** Micro-protocol hunting configuration */
+export interface MicroProtocolConfig {
+  enabled: boolean;
+  minTvl: number;                    // Minimum TVL to scan (default: $10K)
+  maxTvl: number;                    // Maximum TVL to scan (default: $1M)
+  primaryChain: string;              // Focus chain (default: base)
+  alertMinValue: number;             // Minimum finding value for alerts (default: $10K)
+  prioritizeNewDeployments: boolean; // Scan new contracts first
+  maxDeployAgeDays: number;          // Max age for "new" contracts (default: 30)
+}
+
 export interface AIRateLimitConfig {
   rpm: number;                    // Requests per minute (global across workers)
   minDelayMs: number;             // Minimum delay between API calls
@@ -29,14 +40,17 @@ export interface Config {
   databaseUrl: string;
   redisUrl: string;
   minTvlThreshold: number;
+  maxTvlThreshold: number;           // Added: cap for micro-protocol hunting
   scanChains: ChainConfig[];
   alertMinSeverity: Severity;
+  alertMinValue: number;             // Added: minimum exploit value for alerts
   etherscanRequestIntervalMs: number;
   defiLlamaCacheTtlMs: number;
   ai: AIConfig;
   aiRateLimit: AIRateLimitConfig;
   workerMode: WorkerMode;
   useAiQueue: boolean; // If true, enqueue AI jobs instead of direct calls
+  microProtocol: MicroProtocolConfig; // Added: micro-protocol hunting config
 }
 
 export function loadConfig(): Config {
@@ -98,6 +112,25 @@ export function loadConfig(): Config {
   // Use AI queue by default when running multiple replicas or explicit opt-in
   const useAiQueue = process.env.WR_USE_AI_QUEUE !== 'false';
 
+  // Micro-protocol hunting configuration
+  const microProtocolEnabled = process.env.WR_MICRO_PROTOCOL_ENABLED === 'true';
+  const microProtocol: MicroProtocolConfig = {
+    enabled: microProtocolEnabled,
+    minTvl: Number(process.env.WR_MICRO_MIN_TVL) || 10_000,        // $10K default
+    maxTvl: Number(process.env.WR_MICRO_MAX_TVL) || 1_000_000,     // $1M default
+    primaryChain: process.env.WR_MICRO_PRIMARY_CHAIN || 'base',
+    alertMinValue: Number(process.env.WR_MICRO_ALERT_MIN_VALUE) || 10_000,
+    prioritizeNewDeployments: process.env.WR_MICRO_PRIORITIZE_NEW !== 'false',
+    maxDeployAgeDays: Number(process.env.WR_MICRO_MAX_DEPLOY_AGE) || 30,
+  };
+
+  // If micro-protocol mode is enabled, adjust defaults
+  const effectiveMinTvl = microProtocolEnabled
+    ? microProtocol.minTvl
+    : (Number(process.env.MIN_TVL_THRESHOLD) || 10_000_000);
+
+  const effectiveMaxTvl = Number(process.env.MAX_TVL_THRESHOLD) || (microProtocolEnabled ? microProtocol.maxTvl : Number.MAX_SAFE_INTEGER);
+
   return {
     etherscanApiKey: process.env.ETHERSCAN_API_KEY!,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN!,
@@ -105,14 +138,34 @@ export function loadConfig(): Config {
     anthropicApiKey: process.env.ANTHROPIC_API_KEY || null,
     databaseUrl: process.env.DATABASE_URL!,
     redisUrl: process.env.REDIS_URL!,
-    minTvlThreshold: Number(process.env.MIN_TVL_THRESHOLD) || 10_000_000,
+    minTvlThreshold: effectiveMinTvl,
+    maxTvlThreshold: effectiveMaxTvl,
     scanChains,
     alertMinSeverity,
+    alertMinValue: Number(process.env.ALERT_MIN_VALUE) || (microProtocolEnabled ? 10_000 : 25_000),
     etherscanRequestIntervalMs: 200,
     defiLlamaCacheTtlMs: 5 * 60 * 1000,
     ai,
     aiRateLimit,
     workerMode,
     useAiQueue,
+    microProtocol,
   };
+}
+
+/**
+ * Get hunting range description for logging
+ */
+export function getHuntingRangeDescription(config: Config): string {
+  const minStr = config.minTvlThreshold >= 1_000_000
+    ? `$${(config.minTvlThreshold / 1_000_000).toFixed(1)}M`
+    : `$${(config.minTvlThreshold / 1_000).toFixed(0)}K`;
+
+  const maxStr = config.maxTvlThreshold >= Number.MAX_SAFE_INTEGER
+    ? 'unlimited'
+    : config.maxTvlThreshold >= 1_000_000
+      ? `$${(config.maxTvlThreshold / 1_000_000).toFixed(1)}M`
+      : `$${(config.maxTvlThreshold / 1_000).toFixed(0)}K`;
+
+  return `${minStr} - ${maxStr}`;
 }

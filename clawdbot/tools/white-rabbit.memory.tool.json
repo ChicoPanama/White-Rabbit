@@ -1,0 +1,234 @@
+{
+  "$schema": "https://clawdbot.dev/schemas/tool-v1.json",
+  "name": "white_rabbit_memory_lookup",
+  "version": "2.0.0",
+  "description": "MANDATORY first step before any contract analysis. Retrieve AI memory bundle with deterministic confidence scoring. If confidence >= 0.75, do NOT call additional AI - use cached memory directly.",
+  "category": "security",
+  "author": "White Rabbit",
+
+  "execution": {
+    "type": "http",
+    "endpoint": "http://localhost:8787/memory/contract/{chain}/{address}",
+    "method": "GET",
+    "queryParams": {
+      "scans": "{scans}",
+      "findings": "{findings}",
+      "includeSummaries": "{includeSummaries}",
+      "includeSimilar": "{includeSimilar}"
+    },
+    "timeout": 30000
+  },
+
+  "fallback": {
+    "type": "exec",
+    "command": "cd ~/White-Rabbit && npx tsx src/cli.ts memory {address} --chain {chain} --scans {scans} --findings {findings} --includeSummaries {includeSummaries} --includeSimilar {includeSimilar}",
+    "timeout": 60000
+  },
+
+  "parameters": {
+    "chain": {
+      "type": "string",
+      "description": "Blockchain name (ethereum, base, arbitrum, bsc, polygon, optimism, etc.)",
+      "required": true,
+      "default": "ethereum",
+      "examples": ["ethereum", "base", "arbitrum", "bsc", "polygon"]
+    },
+    "address": {
+      "type": "string",
+      "description": "Contract address (0x...)",
+      "required": true,
+      "pattern": "^0x[a-fA-F0-9]{40}$",
+      "examples": ["0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D"]
+    },
+    "scans": {
+      "type": "integer",
+      "description": "Number of recent scans to include (max 50)",
+      "required": false,
+      "default": 5,
+      "minimum": 1,
+      "maximum": 50
+    },
+    "findings": {
+      "type": "integer",
+      "description": "Number of findings to include (max 100)",
+      "required": false,
+      "default": 25,
+      "minimum": 1,
+      "maximum": 100
+    },
+    "includeSummaries": {
+      "type": "boolean",
+      "description": "Include aggregated summaries (daily/weekly/lifetime). RECOMMENDED: true for full context.",
+      "required": false,
+      "default": true
+    },
+    "includeSimilar": {
+      "type": "boolean",
+      "description": "Include similar contracts from pattern matching. RECOMMENDED: true for confidence scoring.",
+      "required": false,
+      "default": true
+    }
+  },
+
+  "response": {
+    "type": "json",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "chain": { "type": "string", "description": "Blockchain name" },
+        "address": { "type": "string", "description": "Contract address" },
+        "contract": {
+          "type": "object",
+          "description": "Contract metadata",
+          "properties": {
+            "name": { "type": "string" },
+            "symbol": { "type": "string" },
+            "protocolName": { "type": "string" },
+            "tvlUsd": { "type": "number" },
+            "isProxy": { "type": "boolean" },
+            "compilerVersion": { "type": "string" }
+          }
+        },
+        "tags": {
+          "type": "array",
+          "description": "Contract tags/labels",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tag": { "type": "string" },
+              "value": { "type": "string" }
+            }
+          }
+        },
+        "scans": {
+          "type": "array",
+          "description": "Recent scan history",
+          "items": {
+            "type": "object",
+            "properties": {
+              "scanId": { "type": "string" },
+              "startedAt": { "type": "string", "format": "date-time" },
+              "completedAt": { "type": "string", "format": "date-time" },
+              "status": { "type": "string" },
+              "toolsUsed": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "description": "Security findings with AI analysis",
+          "items": {
+            "type": "object",
+            "properties": {
+              "findingHash": { "type": "string" },
+              "severity": { "type": "string", "enum": ["critical", "high", "medium", "low", "informational"] },
+              "confidence": { "type": "string", "enum": ["high", "medium", "low"] },
+              "title": { "type": "string" },
+              "summary": { "type": "string" },
+              "tool": { "type": "string" },
+              "detectorName": { "type": "string" },
+              "aiIsFalsePositive": { "type": "boolean" },
+              "ai": {
+                "type": "object",
+                "description": "AI analysis result",
+                "properties": {
+                  "model": { "type": "string" },
+                  "createdAt": { "type": "string", "format": "date-time" },
+                  "summary": { "type": "string" },
+                  "cached": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "stats": {
+          "type": "object",
+          "description": "Summary statistics",
+          "properties": {
+            "totalScans": { "type": "integer" },
+            "totalFindings": { "type": "integer" },
+            "criticalCount": { "type": "integer" },
+            "highCount": { "type": "integer" },
+            "mediumCount": { "type": "integer" },
+            "lowCount": { "type": "integer" },
+            "aiAnalyzedCount": { "type": "integer" }
+          }
+        },
+        "summaries": {
+          "type": "array",
+          "description": "Aggregated AI summaries (daily/weekly/lifetime)",
+          "items": {
+            "type": "object",
+            "properties": {
+              "scope": { "type": "string", "enum": ["daily", "weekly", "lifetime"] },
+              "periodStart": { "type": "string", "format": "date-time" },
+              "periodEnd": { "type": "string", "format": "date-time" },
+              "text": { "type": "string" }
+            }
+          }
+        },
+        "similar": {
+          "type": "array",
+          "description": "Similar contracts from pattern matching",
+          "items": {
+            "type": "object",
+            "properties": {
+              "chain": { "type": "string" },
+              "address": { "type": "string" },
+              "score": { "type": "number", "description": "0.0-1.0 similarity score" },
+              "reasonSnippet": { "type": "string" },
+              "contractName": { "type": "string" }
+            }
+          }
+        },
+        "confidence": {
+          "type": "object",
+          "description": "CRITICAL: Deterministic confidence score. If score >= threshold, do NOT call AI.",
+          "properties": {
+            "score": { "type": "number", "description": "0.0-1.0 confidence score" },
+            "reasons": { "type": "array", "items": { "type": "string" }, "description": "Human-readable explanations" },
+            "signals": { "type": "object", "description": "Individual signal contributions" },
+            "recommendation": { "type": "string", "enum": ["use_memory", "call_llm"] },
+            "threshold": { "type": "number", "description": "Configured threshold (default 0.75)" }
+          }
+        },
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "cached": { "type": "boolean" }
+      }
+    }
+  },
+
+  "examples": [
+    {
+      "description": "MANDATORY: Full memory lookup with summaries and similar contracts",
+      "params": {
+        "chain": "ethereum",
+        "address": "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",
+        "includeSummaries": true,
+        "includeSimilar": true
+      }
+    },
+    {
+      "description": "Lookup with extended history",
+      "params": {
+        "chain": "base",
+        "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "scans": 10,
+        "findings": 50,
+        "includeSummaries": true,
+        "includeSimilar": true
+      }
+    }
+  ],
+
+  "usageNotes": [
+    "MANDATORY: Call this tool FIRST before any contract analysis",
+    "Check response.confidence.recommendation - if 'use_memory', do NOT call AI",
+    "If confidence.score >= 0.75, cite the memory evidence and return decision",
+    "Only call AI when confidence.recommendation is 'call_llm'",
+    "When AI is needed, use ONLY summaries and topFindings (compressed context)",
+    "Never include raw transaction histories or full observation logs in AI context",
+    "The HTTP endpoint requires WR_MEMORY_HTTP_ENABLED=true to be set",
+    "Falls back to CLI execution if HTTP server is not running"
+  ]
+}

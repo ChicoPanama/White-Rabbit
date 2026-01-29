@@ -10,7 +10,11 @@ import { isValidEthAddress } from './utils/validation.js';
 import { StateManager } from './services/state.js';
 import { WalletManager, CHAIN_NAMES, NATIVE_SYMBOLS, MIN_BALANCES } from './services/walletManager.js';
 import { ForkHunterV2 } from './services/fork-hunter-v2.js';
+import { huntingMemory, TVL_TIERS } from './services/huntingMemory.js';
+import { getProtocolContracts } from './data/protocol-contracts.js';
 import { ethers } from 'ethers';
+import { Database } from './database.js';
+import { initRedisCache } from './services/redis-cache.js';
 
 const HELP = `
 White-Rabbit: Autonomous Smart Contract Vulnerability Scanner
@@ -24,6 +28,8 @@ Usage:
   npx tsx src/cli.ts auto [--networks <list>] [--top-chains <n>] [--min-tvl <usd>] [--interval <min>]
   npx tsx src/cli.ts hunt [--chains <list>] [--min-tvl <usd>] [--max-spend <usd>] [--interval <min>]
   npx tsx src/cli.ts hunt-forks [--hack <id|all>] [--min-tvl <usd>] [--chains <list>]
+  npx tsx src/cli.ts micro [--chain <name>] [--min-tvl <usd>] [--max-tvl <usd>] [--tier <1-5>]
+  npx tsx src/cli.ts sessions [--list]
   npx tsx src/cli.ts stats
   npx tsx src/cli.ts findings [--limit <n>]
 
@@ -36,21 +42,26 @@ Commands:
   auto        Start autonomous scanning loop
   hunt        Continuous cost-optimized scanning (tiered AI, budget controls)
   hunt-forks  Hunt for unpatched forks of known hacked protocols
+  micro       Micro-protocol hunting ($10K-$10M TVL range, prioritized targets)
+  sessions    List hunting sessions and learning data
   stats       Show scanner status and statistics
   findings    Show recent verified/likely-real findings
   wallet:init      Initialize verification wallet (generates mnemonic)
   wallet:balances  Check wallet balances across all chains
   wallet:fund      Show deposit address for gas funding
+  memory           Get memory bundle for a contract (AI history, findings, tags)
   patterns         Show learned vulnerability patterns
   knowledge        Show learning statistics and evolution history
   evolve           Run self-evolution cycle (refine patterns, analyze FPs)
 
 Options:
-  --chain <name>       Chain name (default: ethereum)
+  --chain <name>       Chain name (default: ethereum, micro default: base)
   --chains <list>      Comma-separated chains for hunt mode (default: top 10 by TVL)
   --top <n>            Number of top chains to show/scan (default: 10)
   --top-chains <n>     Scan top N chains in auto mode (overrides --networks)
-  --min-tvl <usd>      Minimum TVL threshold (default: 10000000)
+  --min-tvl <usd>      Minimum TVL threshold (default: 10000000, micro: 10000)
+  --max-tvl <usd>      Maximum TVL threshold (micro mode only, default: 1000000)
+  --tier <1-5>         TVL tier for micro hunting (1=$10K-100K, 5=$5M-10M)
   --hack <id>          Specific hack ID to hunt (default: all). Use 'list' to see IDs
   --max-spend <usd>    Max daily AI spend in USD for hunt mode (default: 1.00)
   --networks <list>    Comma-separated networks (default: ethereum,base,arbitrum)
@@ -97,6 +108,10 @@ async function main() {
     runPatterns(args.slice(1));
     return;
   }
+  if (command === 'memory') {
+    await runMemory(args.slice(1));
+    return;
+  }
   if (command === 'knowledge') {
     runKnowledge();
     return;
@@ -105,14 +120,40 @@ async function main() {
     runEvolve();
     return;
   }
+  if (command === 'sessions') {
+    await runSessions(args.slice(1));
+    return;
+  }
 
   const config = loadConfig();
-  const scanner = new Scanner(config);
+  
+  // Initialize wallet manager if wallet exists and password available
+  let walletManager = null;
+  if (WalletManager.walletExists()) {
+    const password = process.env.WALLET_ENCRYPTION_PASSWORD || 
+                    (process.env.WALLET_PASSWORD_FILE ? 
+                     require('fs').readFileSync(process.env.WALLET_PASSWORD_FILE, 'utf8').trim() : null);
+    
+    if (password) {
+      try {
+        walletManager = new WalletManager();
+        await walletManager.unlock(password);
+        console.log('Wallet unlocked for enhanced verification:', walletManager.getAddress());
+      } catch (error) {
+        console.log('Failed to unlock wallet:', error instanceof Error ? error.message : String(error));
+      }
+    }
+  }
+  
+  const scanner = new Scanner(config, walletManager);
 
   // Graceful shutdown for scanner-using commands
   const handleSignal = async (signal: string) => {
     console.log(`\n${signal} received, shutting down scanner...`);
     await scanner.shutdown();
+    if (walletManager) {
+      walletManager.destroy();
+    }
     process.exit(0);
   };
   process.on('SIGINT', () => { handleSignal('SIGINT'); });
@@ -140,6 +181,9 @@ async function main() {
         break;
       case 'hunt-forks':
         await runHuntForks(scanner, args.slice(1), config);
+        break;
+      case 'micro':
+        await runMicroHunt(scanner, args.slice(1), config);
         break;
       default:
         console.error(`Unknown command: ${command}`);
@@ -669,6 +713,277 @@ async function runHuntForks(scanner: Scanner, args: string[], config: ReturnType
   }
 }
 
+// ── micro-protocol hunting ──
+
+async function runMicroHunt(scanner: Scanner, args: string[], config: ReturnType<typeof loadConfig>) {
+  const chain = getFlag(args, '--chain') ?? config.microProtocol.primaryChain;
+  const tierNum = getFlag(args, '--tier');
+
+  // Determine TVL range from tier or flags
+  let minTvl: number;
+  let maxTvl: number;
+  let tierName: string;
+
+  if (tierNum) {
+    const tierIndex = parseInt(tierNum, 10) - 1;
+    if (tierIndex < 0 || tierIndex >= TVL_TIERS.length) {
+      console.error(`Invalid tier: ${tierNum}. Valid tiers: 1-${TVL_TIERS.length}`);
+      process.exit(1);
+    }
+    const tier = TVL_TIERS[tierIndex];
+    minTvl = tier.min;
+    maxTvl = tier.max;
+    tierName = tier.name;
+  } else {
+    minTvl = Number(getFlag(args, '--min-tvl') ?? config.microProtocol.minTvl);
+    maxTvl = Number(getFlag(args, '--max-tvl') ?? config.microProtocol.maxTvl);
+    tierName = `Custom ($${formatTvlCompact(minTvl)}-$${formatTvlCompact(maxTvl)})`;
+  }
+
+  const intervalMin = Number(getFlag(args, '--interval') ?? 30);
+  const continuous = args.includes('--continuous') || args.includes('-c');
+
+  // Try to resume existing session or start new
+  let session = await huntingMemory.resumeSession();
+  if (!session) {
+    const tvlRange = `$${formatTvlCompact(minTvl)} - $${formatTvlCompact(maxTvl)}`;
+    await huntingMemory.startSession(chain, tvlRange, minTvl, maxTvl);
+    session = huntingMemory.getCurrentSession();
+  }
+
+  console.log('Micro-Protocol Hunter');
+  console.log('='.repeat(50));
+  console.log(`  Chain: ${chain}`);
+  console.log(`  TVL Range: ${tierName}`);
+  console.log(`  Min TVL: $${formatTvlCompact(minTvl)}`);
+  console.log(`  Max TVL: $${formatTvlCompact(maxTvl)}`);
+  console.log(`  Mode: ${continuous ? 'Continuous' : 'Single scan'}`);
+  console.log(`  Session: ${session?.sessionId ?? 'new'}`);
+  console.log();
+
+  // Fetch protocols in range
+  console.log('Fetching protocols in TVL range...');
+  const protocols = await scanner.listProtocols(chain, minTvl);
+  const filtered = protocols.filter(p => p.tvl >= minTvl && p.tvl <= maxTvl);
+
+  // Sort by TVL (smaller = higher priority for micro hunting)
+  const sorted = [...filtered].sort((a, b) => a.tvl - b.tvl);
+
+  // Categorize by priority based on TVL within range
+  const tvlMid = (minTvl + maxTvl) / 2;
+  const tier1 = sorted.filter(p => p.tvl <= tvlMid * 0.5);  // Lower quarter
+  const tier2 = sorted.filter(p => p.tvl > tvlMid * 0.5 && p.tvl <= tvlMid);  // Mid-low
+  const tier3 = sorted.filter(p => p.tvl > tvlMid);  // Upper half
+  const totalTvl = filtered.reduce((sum, p) => sum + p.tvl, 0);
+
+  console.log(`\nTarget Summary:`);
+  console.log(`  Total protocols in range: ${filtered.length}`);
+  console.log(`  Tier 1 (high priority, smallest TVL): ${tier1.length} protocols`);
+  console.log(`  Tier 2 (medium priority): ${tier2.length} protocols`);
+  console.log(`  Tier 3 (lower priority, larger TVL): ${tier3.length} protocols`);
+  console.log(`  Total TVL in range: $${formatTvlCompact(totalTvl)}`);
+  console.log();
+
+  // Add targets to session (prioritize smaller TVL first)
+  for (const p of sorted.slice(0, 50)) {
+    const priority = tier1.includes(p) ? 'EXTREME' :
+                     tier2.includes(p) ? 'HIGH' : 'MEDIUM';
+    await huntingMemory.addTarget(p.name, `$${formatTvlCompact(p.tvl)}`, priority, p.slug);
+  }
+
+  // Scan loop
+  const state = new StateManager();
+  const scanTargets = async () => {
+    let target = huntingMemory.getNextTarget();
+    let scanned = 0;
+
+    while (target) {
+      console.log(`\nScanning: ${target.protocol} (${target.tvl}, ${target.priority} priority)`);
+      await huntingMemory.updateTarget(target.protocol, 'SCANNING');
+
+      try {
+        // Find protocol in our list - use slug for identification
+        const protocol = filtered.find(p => p.name === target!.protocol || p.slug === target!.address);
+        const chainConfig = CHAINS[chain.toLowerCase()] ?? scanner.chainDiscovery.getChainConfig(chain);
+
+        if (protocol && chainConfig) {
+          // Get contract addresses for this protocol
+          const contracts = getProtocolContracts(protocol.slug, chainConfig.chainId);
+
+          if (contracts.length === 0) {
+            console.log(`  No known contracts for ${protocol.name} on chain ${chainConfig.chainId}, skipping`);
+            await huntingMemory.updateTarget(target.protocol, 'COMPLETED', 0);
+          } else {
+            console.log(`  Found ${contracts.length} contracts for ${protocol.name}`);
+            let totalFindings = 0;
+            const allVulns: string[] = [];
+
+            // Scan each contract
+            for (const contract of contracts.slice(0, 3)) { // Limit to 3 contracts per protocol
+              console.log(`    Scanning ${contract.address} (${contract.name})`);
+              const findings = await scanner.scanContract(contract.address, chainConfig.chainId);
+
+              totalFindings += findings.length;
+
+              // Record findings
+              const vulns = findings
+                .filter(f => f.verificationStatus === 'verified' || f.verificationStatus === 'likely_real')
+                .map(f => f.detectorName);
+              allVulns.push(...vulns);
+
+              // Record learning data
+              for (const f of findings) {
+                if (f.verificationStatus === 'false_positive' || f.aiIsFalsePositive) {
+                  await huntingMemory.recordFalsePositive(f.detectorName);
+                } else if (f.verificationStatus === 'verified') {
+                  await huntingMemory.recordConfirmedPattern(f.detectorName);
+                }
+              }
+
+              // Record in state manager
+              for (const f of findings) {
+                if (f.verificationStatus === 'verified' || f.verificationStatus === 'likely_real') {
+                  state.addFinding({
+                    id: f.id,
+                    timestamp: new Date().toISOString(),
+                    contractAddress: contract.address,
+                    contractName: `${target.protocol} - ${contract.name}`,
+                    chain,
+                    detector: f.detectorName,
+                    severity: f.severity,
+                    confidenceScore: f.confidenceScore,
+                    verificationStatus: f.verificationStatus,
+                    description: f.description.slice(0, 200),
+                    exploitableValue: f.exploitEstimate?.estimatedExploitable ?? 0,
+                    pocExtractedValue: null,
+                  });
+                }
+              }
+            }
+
+            await huntingMemory.updateTarget(target.protocol, 'COMPLETED', totalFindings, allVulns);
+          }
+        } else {
+          console.log(`  Protocol ${target.protocol} not found or chain config unavailable, skipping`);
+          await huntingMemory.updateTarget(target.protocol, 'FAILED');
+        }
+      } catch (err) {
+        console.error(`  Error scanning ${target.protocol}:`, err);
+        await huntingMemory.updateTarget(target.protocol, 'FAILED');
+      }
+
+      scanned++;
+      target = huntingMemory.getNextTarget();
+
+      // Progress update every 5 protocols
+      if (scanned % 5 === 0) {
+        console.log(`\n${huntingMemory.getProgress()}\n`);
+      }
+    }
+
+    return scanned;
+  };
+
+  if (continuous) {
+    const shutdown = async () => {
+      console.log('\nPausing micro-protocol hunt...');
+      await huntingMemory.pauseSession();
+      console.log(huntingMemory.getProgress());
+      process.exit(0);
+    };
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
+
+    while (true) {
+      const scanned = await scanTargets();
+
+      if (scanned === 0) {
+        // Check if we should move to next tier
+        const nextTier = huntingMemory.getNextTvlTier();
+        if (nextTier) {
+          console.log(`\nCurrent tier complete. Moving to ${nextTier.name}...`);
+          await huntingMemory.adjustTvlRange(nextTier.min, nextTier.max);
+          // Refresh protocols for new tier
+          const newProtocols = await scanner.listProtocols(chain, nextTier.min);
+          const newFiltered = newProtocols.filter(p => p.tvl >= nextTier.min && p.tvl <= nextTier.max);
+          for (const p of newFiltered.slice(0, 50)) {
+            await huntingMemory.addTarget(p.name, `$${formatTvlCompact(p.tvl)}`, 'HIGH');
+          }
+        } else {
+          console.log('\nAll tiers complete. Waiting before restarting...');
+        }
+      }
+
+      console.log(`\nNext scan in ${intervalMin} minutes...`);
+      await sleep(intervalMin * 60 * 1000);
+    }
+  } else {
+    await scanTargets();
+    console.log('\n' + huntingMemory.getProgress());
+
+    // Suggest next tier
+    const nextTier = huntingMemory.getNextTvlTier();
+    if (nextTier) {
+      console.log(`\nNext tier available: ${nextTier.name}`);
+      console.log(`Run: npx tsx src/cli.ts micro --chain ${chain} --min-tvl ${nextTier.min} --max-tvl ${nextTier.max}`);
+    }
+  }
+}
+
+// ── sessions ──
+
+async function runSessions(args: string[]) {
+  const showLearning = args.includes('--learning') || args.includes('-l');
+
+  const sessions = await huntingMemory.listSessions();
+
+  if (sessions.length === 0) {
+    console.log('No hunting sessions found.');
+    console.log('Start one with: npx tsx src/cli.ts micro --chain base');
+    return;
+  }
+
+  console.log(`Hunting Sessions (${sessions.length} total)\n`);
+  console.log(`${'ID'.padEnd(20)} ${'Chain'.padEnd(10)} ${'Status'.padEnd(10)} ${'Protocols'.padStart(10)} ${'Findings'.padStart(10)} ${'Verified'.padStart(10)}`);
+  console.log('-'.repeat(80));
+
+  for (const s of sessions.slice(0, 20)) {
+    console.log(
+      `${s.sessionId.padEnd(20)} ${s.chain.padEnd(10)} ${s.status.padEnd(10)} ${String(s.stats.protocols).padStart(10)} ${String(s.stats.findings).padStart(10)} ${String(s.stats.verified).padStart(10)}`
+    );
+  }
+
+  if (showLearning) {
+    const learning = await huntingMemory.getLearningData();
+    console.log(`\nLearning Data (aggregated from all sessions):`);
+    console.log(`  Total false positives recorded: ${learning.totalFP}`);
+    console.log(`  Total confirmed patterns: ${learning.totalConfirmed}`);
+
+    if (learning.falsePositivePatterns.length > 0) {
+      console.log(`\n  False Positive Patterns (${learning.falsePositivePatterns.length}):`);
+      for (const p of learning.falsePositivePatterns.slice(0, 10)) {
+        console.log(`    - ${p}`);
+      }
+    }
+
+    if (learning.confirmedPatterns.length > 0) {
+      console.log(`\n  Confirmed Patterns (${learning.confirmedPatterns.length}):`);
+      for (const p of learning.confirmedPatterns.slice(0, 10)) {
+        console.log(`    - ${p}`);
+      }
+    }
+  }
+
+  // Show current session progress if active
+  const current = huntingMemory.getCurrentSession();
+  if (current) {
+    console.log(`\nCurrent Session:`);
+    console.log(huntingMemory.getProgress());
+  }
+
+  console.log(`\nUse --learning flag to see aggregated learning data.`);
+}
+
 // ── stats & findings ──
 
 function runStats() {
@@ -823,6 +1138,99 @@ async function runWalletFund() {
   console.log('The wallet never executes actual exploits on mainnet.');
 
   wm.destroy();
+}
+
+// ── Memory Command ──
+
+async function runMemory(args: string[]) {
+  // Import confidence scoring
+  const { computeConfidence } = await import('./memory/confidence.js');
+
+  const chain = getFlag(args, '--chain') ?? 'ethereum';
+  const address = args.find(a => a.startsWith('0x')) ?? getFlag(args, '--address');
+  const scans = Math.min(Number(getFlag(args, '--scans') ?? 5), 50);
+  const findings = Math.min(Number(getFlag(args, '--findings') ?? 25), 100);
+  const includeSummaries = args.includes('--includeSummaries') || getFlag(args, '--includeSummaries') === 'true';
+  const includeSimilar = args.includes('--includeSimilar') || getFlag(args, '--includeSimilar') === 'true';
+
+  if (!address) {
+    console.error('Error: contract address required');
+    console.error('Usage: memory <address> [--chain <name>] [--scans <n>] [--findings <n>] [--includeSummaries] [--includeSimilar]');
+    console.error('       memory --chain base --address 0x... --scans 5 --findings 25 --includeSummaries --includeSimilar');
+    process.exit(1);
+  }
+
+  if (!isValidEthAddress(address)) {
+    console.error('Error: invalid Ethereum address (expected 0x + 40 hex characters)');
+    process.exit(1);
+  }
+
+  const config = loadConfig();
+  const db = new Database(config.databaseUrl);
+  const redis = await initRedisCache();
+
+  try {
+    // Run migrations (idempotent)
+    try {
+      await db.runMigrations('./migrations');
+    } catch (err) {
+      // Ignore migration errors (table may already exist)
+    }
+
+    console.error(`[Memory] Looking up ${chain}/${address} (scans=${scans}, findings=${findings}, summaries=${includeSummaries}, similar=${includeSimilar})...`);
+
+    const bundle = await db.getContractMemoryBundle({
+      chain,
+      address,
+      limitScans: scans,
+      limitFindings: findings,
+      includeSummaries,
+      includeSimilar,
+    });
+
+    if (!bundle) {
+      // Return empty bundle instead of failing
+      const emptyBundle = {
+        chain,
+        address: address.toLowerCase(),
+        tags: [],
+        scans: [],
+        findings: [],
+        stats: {
+          totalScans: 0,
+          totalFindings: 0,
+          criticalCount: 0,
+          highCount: 0,
+          mediumCount: 0,
+          lowCount: 0,
+          aiAnalyzedCount: 0,
+        },
+        confidence: computeConfidence({
+          chain,
+          address: address.toLowerCase(),
+          tags: [],
+          scans: [],
+          findings: [],
+          stats: { totalScans: 0, totalFindings: 0, criticalCount: 0, highCount: 0, mediumCount: 0, lowCount: 0, aiAnalyzedCount: 0 },
+          generatedAt: new Date().toISOString(),
+          cached: false,
+        }),
+        generatedAt: new Date().toISOString(),
+        cached: false,
+      };
+      console.log(JSON.stringify(emptyBundle, null, 2));
+      return;
+    }
+
+    // Compute confidence score
+    bundle.confidence = computeConfidence(bundle);
+
+    // Output JSON to stdout (for piping)
+    console.log(JSON.stringify(bundle, null, 2));
+  } finally {
+    await redis.close();
+    await db.close();
+  }
 }
 
 // ── Intelligence Commands ──

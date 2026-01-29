@@ -22,7 +22,12 @@
     "deploy-army": "npm run army && npm run dashboard",
     "test-rpc": "tsx -e \"import { rpcTester } from './src/utils/rpc-tester'; rpcTester.testAllChains().then(results => rpcTester.generateReport(results))\"",
     "test-rpc-quick": "tsx -e \"import { quickTest } from './src/utils/rpc-tester'; quickTest()\"",
-    "test-rpc-tier1": "tsx -e \"import { rpcTester } from './src/utils/rpc-tester'; rpcTester.testHighPriorityChains().then(results => rpcTester.generateReport(results))\""
+    "test-rpc-tier1": "tsx -e \"import { rpcTester } from './src/utils/rpc-tester'; rpcTester.testHighPriorityChains().then(results => rpcTester.generateReport(results))\"",
+    "memory": "tsx src/cli.ts memory",
+    "memory:server": "WR_MEMORY_HTTP_ENABLED=true tsx src/memory-server.ts",
+    "ai:worker": "tsx src/ai-worker.ts",
+    "test-deps": "node test-dependencies.js",
+    "fix-deps": "bash setup-dependencies.sh"
   },
   "keywords": [
     "smart-contract",
@@ -34,6 +39,9 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@nomad-xyz/excessively-safe-call": "^0.0.1-rc.1",
+    "@openzeppelin/contracts": "^5.4.0",
+    "@shazow/whatsabi": "^0.25.0",
     "better-sqlite3": "^12.6.2",
     "bullmq": "^5.0.0",
     "dotenv": "^17.2.3",
