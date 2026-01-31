@@ -1,0 +1,76 @@
+{
+  "version": "1.0",
+  "description": "Multi-agent archetypes for advanced vulnerability analysis. Each agent brings a different perspective to the same problem.",
+  "agents": {
+    "archaeologist": {
+      "role": "Hack post-mortem analyst",
+      "model": "anthropic/claude-opus-4-5-20251101",
+      "perspective": "Forensic analysis of past exploits to extract reusable patterns",
+      "tasks": [
+        "Analyze hack post-mortems from rekt.news",
+        "Extract vulnerability signatures from exploit transactions",
+        "Map exploit techniques to detector rules",
+        "Build timeline of attack evolution"
+      ],
+      "prompt_prefix": "You are analyzing a past DeFi exploit. Your goal is to extract the exact vulnerability pattern so it can be detected in other contracts. Focus on the root cause, not the symptoms."
+    },
+    "adversary": {
+      "role": "Red team attacker",
+      "model": "anthropic/claude-sonnet-4-5-20250514",
+      "perspective": "Assume the contract is vulnerable and find the exploit",
+      "tasks": [
+        "Generate exploit hypotheses for a given contract",
+        "Design flash loan attack strategies",
+        "Identify MEV extraction opportunities",
+        "Evaluate economic feasibility of attacks"
+      ],
+      "prompt_prefix": "You are a skilled DeFi attacker with unlimited flash loan capital. Your goal is to find the most profitable exploit in this contract. Think step by step about what you can manipulate and how to extract value."
+    },
+    "economist": {
+      "role": "Tokenomics and incentive analyst",
+      "model": "anthropic/claude-sonnet-4-5-20250514",
+      "perspective": "Analyze economic incentives and game theory",
+      "tasks": [
+        "Evaluate whether an exploit is economically viable",
+        "Analyze protocol incentive alignment",
+        "Estimate real exploitable value vs theoretical",
+        "Assess flash loan profitability"
+      ],
+      "prompt_prefix": "You are analyzing the economic incentives of a DeFi protocol. Your goal is to determine whether the reported vulnerability is actually exploitable for profit, considering gas costs, flash loan fees, slippage, and MEV competition."
+    },
+    "synthesizer": {
+      "role": "Cross-agent insight combiner",
+      "model": "anthropic/claude-opus-4-5-20251101",
+      "perspective": "Combine insights from all agents into a unified assessment",
+      "tasks": [
+        "Combine findings from archaeologist, adversary, and economist",
+        "Produce final vulnerability assessment with confidence score",
+        "Identify contradictions between agent analyses",
+        "Generate actionable recommendations"
+      ],
+      "prompt_prefix": "You are synthesizing multiple expert analyses of a potential DeFi vulnerability. You have input from a forensic analyst, a red team attacker, and an economist. Your goal is to produce a final, calibrated assessment with an overall confidence score and recommended action."
+    }
+  },
+  "routing": {
+    "description": "When to use each agent (future self-routing capability)",
+    "rules": [
+      {
+        "trigger": "new_hack_reported",
+        "agents": ["archaeologist"],
+        "then": ["adversary"],
+        "purpose": "Analyze hack, then hunt for same vulnerability"
+      },
+      {
+        "trigger": "high_value_finding",
+        "agents": ["adversary", "economist"],
+        "then": ["synthesizer"],
+        "purpose": "Validate finding from multiple perspectives"
+      },
+      {
+        "trigger": "weekly_review",
+        "agents": ["synthesizer"],
+        "purpose": "Combine week's findings into strategic assessment"
+      }
+    ]
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "discovery_results": {
+    "known_contracts": {
+      "AERO_TOKEN": {
+        "address": "0x940181a94a35a4569e4529a3cdfb74e38fd98631",
+        "has_code": true,
+        "bytecode_size": 9474,
+        "vulnerability_patterns": {
+          "SELFDESTRUCT": true,
+          "DELEGATECALL": true,
+          "CREATE2": true,
+          "PROXY_PATTERN": false,
+          "UPGRADE_PATTERN": false,
+          "LARGE_CONTRACT": false
+        }
+      },
+      "POOL_FACTORY": {
+        "address": "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+        "has_code": true,
+        "bytecode_size": 7034,
+        "vulnerability_patterns": {
+          "SELFDESTRUCT": true,
+          "DELEGATECALL": true,
+          "CREATE2": true,
+          "PROXY_PATTERN": false,
+          "UPGRADE_PATTERN": false,
+          "LARGE_CONTRACT": false
+        }
+      },
+      "SUSPECTED_FACTORY": {
+        "address": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        "has_code": true,
+        "bytecode_size": 27720,
+        "vulnerability_patterns": {
+          "SELFDESTRUCT": true,
+          "DELEGATECALL": true,
+          "CREATE2": true,
+          "PROXY_PATTERN": false,
+          "UPGRADE_PATTERN": false,
+          "LARGE_CONTRACT": false
+        }
+      }
+    },
+    "vulnerability_patterns": {
+      "0x940181a94a35a4569e4529a3cdfb74e38fd98631": {
+        "SELFDESTRUCT": true,
+        "DELEGATECALL": true,
+        "CREATE2": true,
+        "PROXY_PATTERN": false,
+        "UPGRADE_PATTERN": false,
+        "LARGE_CONTRACT": false
+      },
+      "0x420DD381b31aEf6683db6B902084cB0FFECe40Da": {
+        "SELFDESTRUCT": true,
+        "DELEGATECALL": true,
+        "CREATE2": true,
+        "PROXY_PATTERN": false,
+        "UPGRADE_PATTERN": false,
+        "LARGE_CONTRACT": false
+      },
+      "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6": {
+        "SELFDESTRUCT": true,
+        "DELEGATECALL": true,
+        "CREATE2": true,
+        "PROXY_PATTERN": false,
+        "UPGRADE_PATTERN": false,
+        "LARGE_CONTRACT": false
+      }
+    },
+    "analysis_timestamp": 1769816859
+  },
+  "catastrophic_verification": {
+    "address": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+    "has_code": true,
+    "confirmed_vulnerabilities": [
+      "SELFDESTRUCT",
+      "DELEGATECALL"
+    ],
+    "risk_level": "CATASTROPHIC"
+  },
+  "timestamp": 1769816861
+}

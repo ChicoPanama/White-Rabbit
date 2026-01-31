@@ -1,0 +1,184 @@
+{
+  "sandwich_attacks": {
+    "description": "Front-run and back-run user transactions to extract profit",
+    "variants": {
+      "simple_sandwich": {
+        "pattern": "buy -> user_trade -> sell",
+        "gas_strategy": "high_priority_fee",
+        "detection_markers": [
+          "same_token_pair_consecutive",
+          "opposite_directions",
+          "sandwich_profit_threshold"
+        ],
+        "profit_sources": ["slippage_extraction", "price_impact"],
+        "typical_profit_range": "0.1-50 ETH",
+        "complexity": "low"
+      },
+      "multi_block_sandwich": {
+        "pattern": "buy_block_n -> user_trade_block_n+1 -> sell_block_n+2",
+        "gas_strategy": "mempool_monitoring",
+        "detection_markers": [
+          "cross_block_correlation",
+          "position_accumulation",
+          "strategic_timing"
+        ],
+        "profit_sources": ["extended_position_holding"],
+        "typical_profit_range": "1-200 ETH",
+        "complexity": "high"
+      },
+      "cross_dex_sandwich": {
+        "pattern": "arb_setup -> user_trade -> cross_dex_completion",
+        "gas_strategy": "multi_tx_bundling",
+        "detection_markers": [
+          "multiple_dex_interactions",
+          "arbitrage_opportunity_creation"
+        ],
+        "profit_sources": ["cross_venue_arbitrage"],
+        "complexity": "medium"
+      }
+    }
+  },
+  "liquidation_bots": {
+    "description": "Automated liquidation of undercollateralized positions",
+    "variants": {
+      "aave_liquidation": {
+        "protocol": "aave",
+        "triggers": ["health_factor_below_1"],
+        "gas_strategy": "priority_fee_auction",
+        "detection_markers": [
+          "liquidateCall",
+          "flashloan_usage",
+          "collateral_seized"
+        ],
+        "profit_sources": ["liquidation_bonus", "collateral_discount"],
+        "typical_profit_range": "0.05-20 ETH",
+        "complexity": "medium"
+      },
+      "compound_liquidation": {
+        "protocol": "compound",
+        "triggers": ["shortfall_detected"],
+        "gas_strategy": "mempool_replacement",
+        "detection_markers": [
+          "liquidateBorrow",
+          "cToken_interactions"
+        ],
+        "profit_sources": ["close_factor_bonus"],
+        "complexity": "medium"
+      },
+      "flash_liquidation": {
+        "protocol": "multi",
+        "triggers": ["market_volatility"],
+        "gas_strategy": "atomic_execution",
+        "detection_markers": [
+          "flashloan_initiation",
+          "multi_protocol_liquidation",
+          "same_tx_repayment"
+        ],
+        "profit_sources": ["capital_efficiency", "liquidation_cascades"],
+        "typical_profit_range": "1-100 ETH",
+        "complexity": "high"
+      }
+    }
+  },
+  "arbitrage_bots": {
+    "description": "Price discrepancy exploitation across venues",
+    "variants": {
+      "dex_arbitrage": {
+        "venues": ["uniswap_v3", "sushiswap", "curve"],
+        "detection_markers": [
+          "simultaneous_opposite_trades",
+          "price_convergence",
+          "zero_net_position"
+        ],
+        "profit_sources": ["price_discrepancy"],
+        "gas_strategy": "optimal_route_calculation",
+        "complexity": "medium"
+      },
+      "cex_dex_arbitrage": {
+        "venues": ["binance", "uniswap", "1inch"],
+        "detection_markers": [
+          "large_size_trades",
+          "timing_correlation_cex"
+        ],
+        "profit_sources": ["venue_price_lag"],
+        "complexity": "high"
+      },
+      "statistical_arbitrage": {
+        "strategy": "mean_reversion",
+        "detection_markers": [
+          "correlated_pair_trading",
+          "volatility_exploitation"
+        ],
+        "profit_sources": ["statistical_edge"],
+        "complexity": "very_high"
+      }
+    }
+  },
+  "advanced_techniques": {
+    "description": "Sophisticated multi-vector MEV strategies",
+    "variants": {
+      "time_bandit_attacks": {
+        "description": "Past block reorganization for profit",
+        "detection_markers": [
+          "uncle_block_analysis",
+          "reorg_correlation",
+          "historical_profit_extraction"
+        ],
+        "profit_sources": ["blockchain_reorganization"],
+        "complexity": "very_high",
+        "legality": "questionable"
+      },
+      "uncle_bandit": {
+        "description": "Uncle block MEV extraction",
+        "detection_markers": [
+          "uncle_block_transactions",
+          "missed_opportunity_capture"
+        ],
+        "complexity": "high"
+      },
+      "mev_amplification": {
+        "description": "Coordinated MEV across multiple blocks",
+        "detection_markers": [
+          "multi_block_strategy",
+          "position_building",
+          "coordinated_execution"
+        ],
+        "profit_sources": ["strategy_amplification"],
+        "complexity": "very_high"
+      },
+      "private_mempool_manipulation": {
+        "description": "Private orderflow exploitation via MEV-Protect",
+        "detection_markers": [
+          "flashbots_bundle_analysis",
+          "private_tx_correlation"
+        ],
+        "tools": ["mev_geth", "flashbots_relay"],
+        "complexity": "high"
+      }
+    }
+  },
+  "detection_evasion": {
+    "description": "Techniques to avoid MEV detection",
+    "methods": {
+      "gas_price_obfuscation": {
+        "description": "Variable gas pricing to hide patterns"
+      },
+      "multi_account_distribution": {
+        "description": "Spreading activity across multiple addresses"
+      },
+      "timing_randomization": {
+        "description": "Adding noise to execution timing"
+      },
+      "private_relay_usage": {
+        "description": "Using private mempools to hide intentions"
+      }
+    }
+  },
+  "metadata": {
+    "last_updated": "2025-01-28",
+    "data_sources": ["flashbots", "eigenphi", "mevboost", "etherscan"],
+    "coverage_period": "2020-2025",
+    "total_patterns": 20,
+    "complexity_levels": ["low", "medium", "high", "very_high"]
+  }
+}

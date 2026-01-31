@@ -1,0 +1,656 @@
+{
+  "FWX DEX": {
+    "target_info": {
+      "contract": "0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73",
+      "estimated_value": 494800,
+      "vulnerabilities": [
+        "Unlimited Approval Frontend",
+        "Leveraged AMM Manipulation",
+        "Slippage Protection Bypass",
+        "Reentrancy in Swap Functions",
+        "Integer Overflow Risk"
+      ]
+    },
+    "verification_steps": [
+      {
+        "step": 1,
+        "name": "Contract Scope Verification",
+        "description": "Verify contract is in Immunify scope",
+        "actions": [
+          "Check Immunify program scope",
+          "Verify contract address on Base chain",
+          "Confirm protocol participation in bounty program",
+          "Review program rules and restrictions"
+        ],
+        "tools": [
+          "Immunify dashboard",
+          "BaseScan explorer"
+        ],
+        "status": "Required before testing"
+      },
+      {
+        "step": 2,
+        "name": "Testnet Environment Setup",
+        "description": "Set up safe testing environment",
+        "actions": [
+          "Fork Base mainnet to local testnet",
+          "Deploy contract copy for testing",
+          "Fund testing accounts with test tokens",
+          "Verify fork behaves identically to mainnet"
+        ],
+        "tools": [
+          "Hardhat",
+          "Foundry",
+          "Anvil"
+        ],
+        "status": "Recommended for safe testing"
+      },
+      {
+        "step": 3,
+        "name": "Static Analysis Verification",
+        "description": "Verify vulnerabilities via static analysis",
+        "actions": [
+          "Run Slither on contract source/bytecode",
+          "Execute Mythril security analysis",
+          "Perform manual code review",
+          "Document specific vulnerability locations"
+        ],
+        "tools": [
+          "Slither",
+          "Mythril",
+          "Manual analysis"
+        ],
+        "status": "Safe - No contract interaction"
+      },
+      {
+        "step": 4,
+        "name": "Non-Destructive PoC Development",
+        "description": "Develop proof-of-concept on testnet",
+        "actions": [
+          "Create exploit scripts for testnet",
+          "Test vulnerability reproduction",
+          "Measure actual impact vs estimates",
+          "Document step-by-step exploitation"
+        ],
+        "tools": [
+          "Foundry tests",
+          "Hardhat scripts"
+        ],
+        "status": "Testnet only - No mainnet interaction"
+      }
+    ],
+    "poc_framework": [
+      {
+        "vulnerability": "Unlimited Approval Frontend",
+        "poc_type": "Frontend Analysis + Smart Contract",
+        "framework": "Manual testing + Scripts",
+        "test_approach": [
+          "1. Analyze frontend for approval patterns",
+          "2. Identify unlimited approval prompts",
+          "3. Create malicious contract for approval abuse",
+          "4. Test on forked environment",
+          "5. Calculate potential user fund extraction"
+        ],
+        "safety_measures": [
+          "Frontend analysis only on testnet",
+          "No user interaction on mainnet",
+          "Simulated attack scenarios",
+          "Clear documentation of risk"
+        ]
+      },
+      {
+        "vulnerability": "Leveraged AMM Manipulation",
+        "poc_type": "Flash Loan Attack Simulation",
+        "framework": "Foundry + Flash loan contracts",
+        "test_approach": [
+          "1. Fork mainnet state for testing",
+          "2. Deploy flash loan attack contract",
+          "3. Simulate price manipulation attack",
+          "4. Measure arbitrage profit potential",
+          "5. Document attack economics"
+        ],
+        "safety_measures": [
+          "Fork/simulation environment only",
+          "No actual flash loans on mainnet",
+          "Test with simulated liquidity",
+          "Economic analysis only"
+        ]
+      },
+      {
+        "vulnerability": "Slippage Protection Bypass",
+        "poc_type": "Static Analysis + Theoretical PoC",
+        "framework": "Analysis tools",
+        "test_approach": [
+          "1. Static analysis to confirm vulnerability",
+          "2. Code review for exploitability",
+          "3. Theoretical exploitation documentation",
+          "4. Impact assessment calculation",
+          "5. Mitigation recommendations"
+        ],
+        "safety_measures": [
+          "No contract interaction required",
+          "Analysis-based verification",
+          "Theoretical impact only",
+          "Safe documentation approach"
+        ]
+      },
+      {
+        "vulnerability": "Reentrancy in Swap Functions",
+        "poc_type": "Smart Contract Test",
+        "framework": "Foundry",
+        "test_approach": [
+          "1. Deploy vulnerable contract on testnet",
+          "2. Create malicious contract with reentrancy attack",
+          "3. Execute attack in controlled environment",
+          "4. Measure extracted value",
+          "5. Document attack vector"
+        ],
+        "safety_measures": [
+          "Testnet/fork environment only",
+          "No mainnet interaction",
+          "Controlled test tokens only",
+          "Documentation for responsible disclosure"
+        ]
+      },
+      {
+        "vulnerability": "Integer Overflow Risk",
+        "poc_type": "Static Analysis + Theoretical PoC",
+        "framework": "Analysis tools",
+        "test_approach": [
+          "1. Static analysis to confirm vulnerability",
+          "2. Code review for exploitability",
+          "3. Theoretical exploitation documentation",
+          "4. Impact assessment calculation",
+          "5. Mitigation recommendations"
+        ],
+        "safety_measures": [
+          "No contract interaction required",
+          "Analysis-based verification",
+          "Theoretical impact only",
+          "Safe documentation approach"
+        ]
+      }
+    ],
+    "disclosure_checklist": [
+      {
+        "item": "Verify Immunify Program Scope",
+        "description": "Confirm all targets are within authorized scope",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Use Safe Testing Environment",
+        "description": "All testing on testnet/fork, no mainnet exploitation",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Develop Non-Destructive PoCs",
+        "description": "Proof-of-concepts that demonstrate without causing harm",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Document Clear Impact",
+        "description": "Specific financial impact and exploitation steps",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Provide Remediation Guidance",
+        "description": "Clear recommendations for fixing vulnerabilities",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Follow Disclosure Timeline",
+        "description": "Respect Immunify disclosure timeline and communication",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "No Public Disclosure Before Fix",
+        "description": "Keep vulnerabilities private until remediation",
+        "required": true,
+        "completed": false
+      }
+    ],
+    "submission_ready": false
+  },
+  "Soswap": {
+    "target_info": {
+      "contract": "0x9E8F7A6B5C4D3E2F1023456789ABCDEFabcdef12",
+      "estimated_value": 478600,
+      "vulnerabilities": [
+        "RAI Integration Vulnerability",
+        "Small Team Social Risk",
+        "Unverified Upgrade Logic",
+        "Reentrancy in Swap Functions",
+        "Integer Overflow Risk"
+      ]
+    },
+    "verification_steps": [
+      {
+        "step": 1,
+        "name": "Contract Scope Verification",
+        "description": "Verify contract is in Immunify scope",
+        "actions": [
+          "Check Immunify program scope",
+          "Verify contract address on Base chain",
+          "Confirm protocol participation in bounty program",
+          "Review program rules and restrictions"
+        ],
+        "tools": [
+          "Immunify dashboard",
+          "BaseScan explorer"
+        ],
+        "status": "Required before testing"
+      },
+      {
+        "step": 2,
+        "name": "Testnet Environment Setup",
+        "description": "Set up safe testing environment",
+        "actions": [
+          "Fork Base mainnet to local testnet",
+          "Deploy contract copy for testing",
+          "Fund testing accounts with test tokens",
+          "Verify fork behaves identically to mainnet"
+        ],
+        "tools": [
+          "Hardhat",
+          "Foundry",
+          "Anvil"
+        ],
+        "status": "Recommended for safe testing"
+      },
+      {
+        "step": 3,
+        "name": "Static Analysis Verification",
+        "description": "Verify vulnerabilities via static analysis",
+        "actions": [
+          "Run Slither on contract source/bytecode",
+          "Execute Mythril security analysis",
+          "Perform manual code review",
+          "Document specific vulnerability locations"
+        ],
+        "tools": [
+          "Slither",
+          "Mythril",
+          "Manual analysis"
+        ],
+        "status": "Safe - No contract interaction"
+      },
+      {
+        "step": 4,
+        "name": "Non-Destructive PoC Development",
+        "description": "Develop proof-of-concept on testnet",
+        "actions": [
+          "Create exploit scripts for testnet",
+          "Test vulnerability reproduction",
+          "Measure actual impact vs estimates",
+          "Document step-by-step exploitation"
+        ],
+        "tools": [
+          "Foundry tests",
+          "Hardhat scripts"
+        ],
+        "status": "Testnet only - No mainnet interaction"
+      }
+    ],
+    "poc_framework": [
+      {
+        "vulnerability": "RAI Integration Vulnerability",
+        "poc_type": "Static Analysis + Theoretical PoC",
+        "framework": "Analysis tools",
+        "test_approach": [
+          "1. Static analysis to confirm vulnerability",
+          "2. Code review for exploitability",
+          "3. Theoretical exploitation documentation",
+          "4. Impact assessment calculation",
+          "5. Mitigation recommendations"
+        ],
+        "safety_measures": [
+          "No contract interaction required",
+          "Analysis-based verification",
+          "Theoretical impact only",
+          "Safe documentation approach"
+        ]
+      },
+      {
+        "vulnerability": "Small Team Social Risk",
+        "poc_type": "Static Analysis + Theoretical PoC",
+        "framework": "Analysis tools",
+        "test_approach": [
+          "1. Static analysis to confirm vulnerability",
+          "2. Code review for exploitability",
+          "3. Theoretical exploitation documentation",
+          "4. Impact assessment calculation",
+          "5. Mitigation recommendations"
+        ],
+        "safety_measures": [
+          "No contract interaction required",
+          "Analysis-based verification",
+          "Theoretical impact only",
+          "Safe documentation approach"
+        ]
+      },
+      {
+        "vulnerability": "Unverified Upgrade Logic",
+        "poc_type": "Static Analysis + Theoretical PoC",
+        "framework": "Analysis tools",
+        "test_approach": [
+          "1. Static analysis to confirm vulnerability",
+          "2. Code review for exploitability",
+          "3. Theoretical exploitation documentation",
+          "4. Impact assessment calculation",
+          "5. Mitigation recommendations"
+        ],
+        "safety_measures": [
+          "No contract interaction required",
+          "Analysis-based verification",
+          "Theoretical impact only",
+          "Safe documentation approach"
+        ]
+      },
+      {
+        "vulnerability": "Reentrancy in Swap Functions",
+        "poc_type": "Smart Contract Test",
+        "framework": "Foundry",
+        "test_approach": [
+          "1. Deploy vulnerable contract on testnet",
+          "2. Create malicious contract with reentrancy attack",
+          "3. Execute attack in controlled environment",
+          "4. Measure extracted value",
+          "5. Document attack vector"
+        ],
+        "safety_measures": [
+          "Testnet/fork environment only",
+          "No mainnet interaction",
+          "Controlled test tokens only",
+          "Documentation for responsible disclosure"
+        ]
+      },
+      {
+        "vulnerability": "Integer Overflow Risk",
+        "poc_type": "Static Analysis + Theoretical PoC",
+        "framework": "Analysis tools",
+        "test_approach": [
+          "1. Static analysis to confirm vulnerability",
+          "2. Code review for exploitability",
+          "3. Theoretical exploitation documentation",
+          "4. Impact assessment calculation",
+          "5. Mitigation recommendations"
+        ],
+        "safety_measures": [
+          "No contract interaction required",
+          "Analysis-based verification",
+          "Theoretical impact only",
+          "Safe documentation approach"
+        ]
+      }
+    ],
+    "disclosure_checklist": [
+      {
+        "item": "Verify Immunify Program Scope",
+        "description": "Confirm all targets are within authorized scope",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Use Safe Testing Environment",
+        "description": "All testing on testnet/fork, no mainnet exploitation",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Develop Non-Destructive PoCs",
+        "description": "Proof-of-concepts that demonstrate without causing harm",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Document Clear Impact",
+        "description": "Specific financial impact and exploitation steps",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Provide Remediation Guidance",
+        "description": "Clear recommendations for fixing vulnerabilities",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Follow Disclosure Timeline",
+        "description": "Respect Immunify disclosure timeline and communication",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "No Public Disclosure Before Fix",
+        "description": "Keep vulnerabilities private until remediation",
+        "required": true,
+        "completed": false
+      }
+    ],
+    "submission_ready": false
+  },
+  "Graphene by Velocimeter": {
+    "target_info": {
+      "contract": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+      "estimated_value": 413800,
+      "vulnerabilities": [
+        "Velocimeter Fork Risks",
+        "Carbon DeFi Pattern Vulnerability",
+        "Low Liquidity Manipulation",
+        "Reentrancy in Swap Functions",
+        "Integer Overflow Risk"
+      ]
+    },
+    "verification_steps": [
+      {
+        "step": 1,
+        "name": "Contract Scope Verification",
+        "description": "Verify contract is in Immunify scope",
+        "actions": [
+          "Check Immunify program scope",
+          "Verify contract address on Base chain",
+          "Confirm protocol participation in bounty program",
+          "Review program rules and restrictions"
+        ],
+        "tools": [
+          "Immunify dashboard",
+          "BaseScan explorer"
+        ],
+        "status": "Required before testing"
+      },
+      {
+        "step": 2,
+        "name": "Testnet Environment Setup",
+        "description": "Set up safe testing environment",
+        "actions": [
+          "Fork Base mainnet to local testnet",
+          "Deploy contract copy for testing",
+          "Fund testing accounts with test tokens",
+          "Verify fork behaves identically to mainnet"
+        ],
+        "tools": [
+          "Hardhat",
+          "Foundry",
+          "Anvil"
+        ],
+        "status": "Recommended for safe testing"
+      },
+      {
+        "step": 3,
+        "name": "Static Analysis Verification",
+        "description": "Verify vulnerabilities via static analysis",
+        "actions": [
+          "Run Slither on contract source/bytecode",
+          "Execute Mythril security analysis",
+          "Perform manual code review",
+          "Document specific vulnerability locations"
+        ],
+        "tools": [
+          "Slither",
+          "Mythril",
+          "Manual analysis"
+        ],
+        "status": "Safe - No contract interaction"
+      },
+      {
+        "step": 4,
+        "name": "Non-Destructive PoC Development",
+        "description": "Develop proof-of-concept on testnet",
+        "actions": [
+          "Create exploit scripts for testnet",
+          "Test vulnerability reproduction",
+          "Measure actual impact vs estimates",
+          "Document step-by-step exploitation"
+        ],
+        "tools": [
+          "Foundry tests",
+          "Hardhat scripts"
+        ],
+        "status": "Testnet only - No mainnet interaction"
+      }
+    ],
+    "poc_framework": [
+      {
+        "vulnerability": "Velocimeter Fork Risks",
+        "poc_type": "Static Analysis + Theoretical PoC",
+        "framework": "Analysis tools",
+        "test_approach": [
+          "1. Static analysis to confirm vulnerability",
+          "2. Code review for exploitability",
+          "3. Theoretical exploitation documentation",
+          "4. Impact assessment calculation",
+          "5. Mitigation recommendations"
+        ],
+        "safety_measures": [
+          "No contract interaction required",
+          "Analysis-based verification",
+          "Theoretical impact only",
+          "Safe documentation approach"
+        ]
+      },
+      {
+        "vulnerability": "Carbon DeFi Pattern Vulnerability",
+        "poc_type": "Static Analysis + Theoretical PoC",
+        "framework": "Analysis tools",
+        "test_approach": [
+          "1. Static analysis to confirm vulnerability",
+          "2. Code review for exploitability",
+          "3. Theoretical exploitation documentation",
+          "4. Impact assessment calculation",
+          "5. Mitigation recommendations"
+        ],
+        "safety_measures": [
+          "No contract interaction required",
+          "Analysis-based verification",
+          "Theoretical impact only",
+          "Safe documentation approach"
+        ]
+      },
+      {
+        "vulnerability": "Low Liquidity Manipulation",
+        "poc_type": "Static Analysis + Theoretical PoC",
+        "framework": "Analysis tools",
+        "test_approach": [
+          "1. Static analysis to confirm vulnerability",
+          "2. Code review for exploitability",
+          "3. Theoretical exploitation documentation",
+          "4. Impact assessment calculation",
+          "5. Mitigation recommendations"
+        ],
+        "safety_measures": [
+          "No contract interaction required",
+          "Analysis-based verification",
+          "Theoretical impact only",
+          "Safe documentation approach"
+        ]
+      },
+      {
+        "vulnerability": "Reentrancy in Swap Functions",
+        "poc_type": "Smart Contract Test",
+        "framework": "Foundry",
+        "test_approach": [
+          "1. Deploy vulnerable contract on testnet",
+          "2. Create malicious contract with reentrancy attack",
+          "3. Execute attack in controlled environment",
+          "4. Measure extracted value",
+          "5. Document attack vector"
+        ],
+        "safety_measures": [
+          "Testnet/fork environment only",
+          "No mainnet interaction",
+          "Controlled test tokens only",
+          "Documentation for responsible disclosure"
+        ]
+      },
+      {
+        "vulnerability": "Integer Overflow Risk",
+        "poc_type": "Static Analysis + Theoretical PoC",
+        "framework": "Analysis tools",
+        "test_approach": [
+          "1. Static analysis to confirm vulnerability",
+          "2. Code review for exploitability",
+          "3. Theoretical exploitation documentation",
+          "4. Impact assessment calculation",
+          "5. Mitigation recommendations"
+        ],
+        "safety_measures": [
+          "No contract interaction required",
+          "Analysis-based verification",
+          "Theoretical impact only",
+          "Safe documentation approach"
+        ]
+      }
+    ],
+    "disclosure_checklist": [
+      {
+        "item": "Verify Immunify Program Scope",
+        "description": "Confirm all targets are within authorized scope",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Use Safe Testing Environment",
+        "description": "All testing on testnet/fork, no mainnet exploitation",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Develop Non-Destructive PoCs",
+        "description": "Proof-of-concepts that demonstrate without causing harm",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Document Clear Impact",
+        "description": "Specific financial impact and exploitation steps",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Provide Remediation Guidance",
+        "description": "Clear recommendations for fixing vulnerabilities",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "Follow Disclosure Timeline",
+        "description": "Respect Immunify disclosure timeline and communication",
+        "required": true,
+        "completed": false
+      },
+      {
+        "item": "No Public Disclosure Before Fix",
+        "description": "Keep vulnerabilities private until remediation",
+        "required": true,
+        "completed": false
+      }
+    ],
+    "submission_ready": false
+  }
+}

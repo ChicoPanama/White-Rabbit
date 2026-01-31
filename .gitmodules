@@ -1,0 +1,6 @@
+[submodule "ssv-exploit-lab/lib/openzeppelin-contracts"]
+	path = ssv-exploit-lab/lib/openzeppelin-contracts
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts
+[submodule "ssv-exploit-lab/lib/openzeppelin-contracts-upgradeable"]
+	path = ssv-exploit-lab/lib/openzeppelin-contracts-upgradeable
+	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable

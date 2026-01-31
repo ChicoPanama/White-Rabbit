@@ -1,0 +1,2897 @@
+[
+  {
+    "name": "Graphene by Velocimeter",
+    "tvl": 10147.721895530765,
+    "category": "Dexs",
+    "url": "https://graphene.velocimeter.xyz/",
+    "description": "Graphene is a licensed fork of Carbon DeFi in the Velocimeter eco-system. This product allow users t",
+    "chains": [
+      "Base",
+      "IOTA EVM",
+      "Mantle",
+      "Fantom"
+    ]
+  },
+  {
+    "name": "Hedgey",
+    "tvl": 10191.27625754197,
+    "category": "Payments",
+    "url": "https://hedgey.finance/",
+    "description": "Hedgey helps teams create & manage employee token vesting, investor lockups, & community token claim",
+    "chains": [
+      "Polygon",
+      "Mode",
+      "Binance",
+      "Ethereum",
+      "Arbitrum",
+      "Base",
+      "Avalanche",
+      "zkSync Era",
+      "Linea",
+      "Optimism",
+      "Berachain"
+    ]
+  },
+  {
+    "name": "Alkimiya",
+    "tvl": 10637.84572083358,
+    "category": "Derivatives",
+    "url": "https://alkimiya.io/",
+    "description": "Alkimiya is a decentralized blockspace derivatives protocol that lets users create and trade tokeniz",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Soswap",
+    "tvl": 11230.17049668055,
+    "category": "Dexs",
+    "url": "https://soswap.rai.finance",
+    "description": "Decentralized exchange on Base chain",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "GullNetwork Service",
+    "tvl": 11464.73614871988,
+    "category": "Farm",
+    "url": "https://www.gullnetwork.com",
+    "description": "GullNetwork, The trailblazing Layer 3 solution on Manta Network, transforming Defi with intuitive, c",
+    "chains": [
+      "Manta",
+      "Binance",
+      "Ethereum",
+      "Base"
+    ]
+  },
+  {
+    "name": "SharesGram",
+    "tvl": 12062.647327391844,
+    "category": "SoFi",
+    "url": "https://twitter.com/SharesGram",
+    "description": "Experience the real SocialFi on Telegram. Unlock the full potential of your shares.",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Precog Market",
+    "tvl": 12103.749580282623,
+    "category": "Prediction Market",
+    "url": "https://core.precog.market/",
+    "description": "Precog is a prediction market protocol where you can launch, invest, and trade on markets about futu",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Burve Protocol",
+    "tvl": 12178.218219091055,
+    "category": "Dexs",
+    "url": "https://burve.io",
+    "description": "The consensus-driven Bonding Curve DeFi protocol for innovative liquidity and fair token launch solu",
+    "chains": [
+      "Binance",
+      "Base",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "FWX DEX",
+    "tvl": 12874.016339642765,
+    "category": "Dexs",
+    "url": "https://swap.fwx.finance/pool",
+    "description": "FWX is a permissionless leveraged AMM DEX with permissionless creation of lending markets and future",
+    "chains": [
+      "Base",
+      "Avalanche"
+    ]
+  },
+  {
+    "name": "toupee.tech",
+    "tvl": 13291.895793246573,
+    "category": "Yield",
+    "url": "https://www.toupee.tech",
+    "description": "A coordination system for ecosystem incentives.",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "OasisSwap",
+    "tvl": 13767.571622433525,
+    "category": "Dexs",
+    "url": "",
+    "description": "Official Dex for Trident, a 2D MMO, procedurally-generated infinite universe video game on Arbitrum",
+    "chains": [
+      "Arbitrum",
+      "Base"
+    ]
+  },
+  {
+    "name": "Omni Exchange V2",
+    "tvl": 13809.208789344286,
+    "category": "Dexs",
+    "url": "https://omni.exchange",
+    "description": "Omni Exchange connects liquidity across chains through a single onchain engine.",
+    "chains": [
+      "Base",
+      "Sonic",
+      "Arbitrum",
+      "Avalanche",
+      "Binance",
+      "Optimism",
+      "Plasma"
+    ]
+  },
+  {
+    "name": "T2T2",
+    "tvl": 14411.166159344732,
+    "category": "SoFi",
+    "url": "",
+    "description": "T2T2 is a social trading platform powered by social bonding curve and fund investing curve.",
+    "chains": [
+      "Base",
+      "Ethereum"
+    ]
+  },
+  {
+    "name": "Blend Finance",
+    "tvl": 14584.048043545634,
+    "category": "Lending",
+    "url": "https://www.blend.fan/",
+    "description": "Lending Protocol on EDU Chain",
+    "chains": [
+      "EDU Chain",
+      "Arbitrum",
+      "Base",
+      "BEVM"
+    ]
+  },
+  {
+    "name": "Goblins AMM",
+    "tvl": 14972.23348714315,
+    "category": "Dexs",
+    "url": "https://app.goblins.cash/",
+    "description": "Goblins provides a cutting-edge DEX  on smartBCH",
+    "chains": [
+      "Binance",
+      "Base",
+      "smartBCH"
+    ]
+  },
+  {
+    "name": "prePO",
+    "tvl": 15079.77351251969,
+    "category": "Derivatives",
+    "url": "https://app.prepo.io",
+    "description": "Go long or short on pre-IPO stocks & pre-IDO tokens.",
+    "chains": [
+      "Arbitrum",
+      "Blast",
+      "Base"
+    ]
+  },
+  {
+    "name": "SongTech",
+    "tvl": 15490.839490819135,
+    "category": "SoFi",
+    "url": "",
+    "description": "Market for Songs",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Fringe V2",
+    "tvl": 16022.206517270028,
+    "category": "Lending",
+    "url": "https://fringe.fi",
+    "description": "DeFi lending, borrowing & margin trading ecosystem",
+    "chains": [
+      "Optimism",
+      "Ethereum",
+      "Polygon",
+      "zkSync Era",
+      "Arbitrum",
+      "Base"
+    ]
+  },
+  {
+    "name": "Fufuture V2",
+    "tvl": 16037.583032024699,
+    "category": "Options",
+    "url": "https://www.fufuture.io",
+    "description": "Decentralization Coin-based Perpetual Options Trading Agreement",
+    "chains": [
+      "Binance",
+      "Conflux",
+      "Base",
+      "Op_Bnb",
+      "Acala"
+    ]
+  },
+  {
+    "name": "UniVoucher",
+    "tvl": 16296.76676845281,
+    "category": "Payments",
+    "url": "https://univoucher.com/",
+    "description": "UniVoucher allows users to create crypto gift cards with ETH or ERC20 tokens that can be redeemed by",
+    "chains": [
+      "Base",
+      "Binance",
+      "Ethereum",
+      "Polygon",
+      "Arbitrum",
+      "Avalanche",
+      "Optimism"
+    ]
+  },
+  {
+    "name": "Words.art",
+    "tvl": 16935.289388283578,
+    "category": "SoFi",
+    "url": "",
+    "description": "Buy and Sell WORDS. ALPHA is live. Invite Only",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "SwapBased Perp",
+    "tvl": 17363.963011265037,
+    "category": "Derivatives",
+    "url": "https://perps.swapbased.finance",
+    "description": "Trade main assets on Base Chain with no price impact, low fees & up-to 30x leverage",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Synthswap V2",
+    "tvl": 17849.458279431725,
+    "category": "Dexs",
+    "url": "https://synthswap.io",
+    "description": "Synthswap is one of the first decentralized exchanges (DEX) with an automated market-maker (AMM) in ",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Stabil Finance",
+    "tvl": 18355.186812649816,
+    "category": "Yield Aggregator",
+    "url": "https://stabil.finance",
+    "description": "Compound APR to APY on Stabil Finance",
+    "chains": [
+      "Base",
+      "Cronos",
+      "Arbitrum",
+      "Hyperliquid L1"
+    ]
+  },
+  {
+    "name": "MARSWAP",
+    "tvl": 18964.189150937822,
+    "category": "Dexs",
+    "url": "",
+    "description": "MultiChain Dex & DeFi Platform",
+    "chains": [
+      "Shibarium",
+      "Cronos zkEVM",
+      "Binance",
+      "Cronos",
+      "Ethereum",
+      "Base"
+    ]
+  },
+  {
+    "name": "dexVAULTS",
+    "tvl": 19108.06784356032,
+    "category": "Yield",
+    "url": "https://www.dexfinance.com/vaults",
+    "description": "dexVAULTS is the modern way to manage yield farm investments. It empowers investors by incorporating",
+    "chains": [
+      "Base",
+      "Pulse",
+      "Manta",
+      "Arbitrum",
+      "Optimism",
+      "Binance",
+      "Avalanche",
+      "Fantom"
+    ]
+  },
+  {
+    "name": "FeeFree",
+    "tvl": 19676.2643035792,
+    "category": "Dexs",
+    "url": "https://app.feefree.fi",
+    "description": "FeeFree aims to build a RobinHood-Style DEX in blockchain industry, enable every individual in the w",
+    "chains": [
+      "Zora",
+      "Scroll",
+      "Base"
+    ]
+  },
+  {
+    "name": "Catalyst",
+    "tvl": 20096.02056636911,
+    "category": "Cross Chain Bridge",
+    "url": "https://catalyst.exchange",
+    "description": "Any asset, any chain powered by native cross-chain swaps.",
+    "chains": [
+      "Base",
+      "Blast",
+      "Optimism",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "Xena Finance",
+    "tvl": 20302.520064162996,
+    "category": "Derivatives",
+    "url": "https://xena.finance",
+    "description": "Xena - Decentralized Perpetual Exchange.",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Swapline V2",
+    "tvl": 20466.0968730565,
+    "category": "Dexs",
+    "url": "https://swapline.com",
+    "description": "Swapline is a multichain DEX bringing the power of Liquidity Book AMM to new ecosystems. Experience ",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "scoop",
+    "tvl": 22919.689054394705,
+    "category": "SoFi",
+    "url": "https://www.scoopit.lol/",
+    "description": "Scoop lets users buy their favorite creators. The more engagement they receive, the more users earn ",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "HaloFi",
+    "tvl": 23942.0244016075,
+    "category": "Services",
+    "url": "https://halofi.me",
+    "description": "HaloFi (prev. GoodGhosting) helps you grow your wealth, step by step, with crypto. Whether you want ",
+    "chains": [
+      "Polygon",
+      "Celo",
+      "Base"
+    ]
+  },
+  {
+    "name": "Yel Finance",
+    "tvl": 24409.70174519669,
+    "category": "Yield",
+    "url": "https://yel.finance",
+    "description": "Yel Finance is a DeFi R&D laboratory that focuses on generation of smart and real yield.",
+    "chains": [
+      "Sonic",
+      "Base",
+      "Blast",
+      "Fantom",
+      "Avalanche",
+      "Ethereum",
+      "Binance",
+      "Polygon"
+    ]
+  },
+  {
+    "name": "Chainchat",
+    "tvl": 24910.838959190893,
+    "category": "SoFi",
+    "url": "https://zapper.xyz/chat",
+    "description": "Onchain group chats. By zapper_fi. Available on BuildOnBase",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Yield Millionaire",
+    "tvl": 25151.2064542669,
+    "category": "Yield",
+    "url": "https://www.yieldmillionaire.com/",
+    "description": "Yield Millionaire is a DeFi platform where users can deposit USDC to earn yield, using a gasless mec",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Alien Base Area51",
+    "tvl": 25287.68766543734,
+    "category": "Dexs",
+    "url": "https://alienbase.xyz",
+    "description": "Alien Base is building the Base trading hub for efficiently trading tokens and memecoins onchain. Of",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "TiTi Protocol",
+    "tvl": 25315.99770477401,
+    "category": "Algo-Stables",
+    "url": "https://titi.finance/",
+    "description": "TiTi Protocol is a decentralized, use-to-earn algorithmic stablecoin offering diversified financial ",
+    "chains": [
+      "Ethereum",
+      "zkSync Era",
+      "Base"
+    ]
+  },
+  {
+    "name": "Interport Finance",
+    "tvl": 25529.72483664003,
+    "category": "Cross Chain Bridge",
+    "url": "https://interport.fi",
+    "description": "Interport Finance is a DeFi platform enabling cross-chain and single-chain swaps with the best tradi",
+    "chains": [
+      "inEVM",
+      "Scroll",
+      "Fantom",
+      "zkLink",
+      "Linea",
+      "Ethereum",
+      "Manta",
+      "Blast",
+      "Optimism",
+      "Base",
+      "Binance",
+      "Arbitrum",
+      "Avalanche",
+      "zkSync Era",
+      "Op_Bnb",
+      "Polygon",
+      "Polygon zkEVM",
+      "Horizen EON"
+    ]
+  },
+  {
+    "name": "JOJO",
+    "tvl": 26202.613220787574,
+    "category": "Derivatives",
+    "url": "https://app.jojo.exchange/trade",
+    "description": "JOJO is a decentralized perpetual contract trading platform that uses an off-chain matching and on-c",
+    "chains": [
+      "Base",
+      "Arbitrum",
+      "Binance",
+      "zkSync Era"
+    ]
+  },
+  {
+    "name": "Primex Finance",
+    "tvl": 26562.590873266963,
+    "category": "Derivatives",
+    "url": "https://primex.finance",
+    "description": "Primex Finance is a leveraged farming and trading protocol that offers the highest APYs in the marke",
+    "chains": [
+      "Ethereum",
+      "Polygon",
+      "Arbitrum",
+      "Base"
+    ]
+  },
+  {
+    "name": "SquadSwap V2",
+    "tvl": 27967.223572599687,
+    "category": "Dexs",
+    "url": "https://squadswap.com/",
+    "description": "SquadSwap is a DEX backed by the Squad NFT community and powered by the SQUAD token",
+    "chains": [
+      "Binance",
+      "Base",
+      "Blast",
+      "Optimism",
+      "Polygon",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "Thick",
+    "tvl": 28732.05310063952,
+    "category": "Dexs",
+    "url": "https://eliteness.network/thick",
+    "description": "Thick introduces the concept of Protocol-Agnostic Concentrated Liquidity into DeFi, empowering it to",
+    "chains": [
+      "Base",
+      "Fantom",
+      "Arbitrum",
+      "Sonic"
+    ]
+  },
+  {
+    "name": "DerpDEX",
+    "tvl": 29130.465713244055,
+    "category": "Dexs",
+    "url": "https://derpdex.com/",
+    "description": "Trade, earn, stake, and launch crypto with the most autistic DEX on the internet. Make derp great ag",
+    "chains": [
+      "zkSync Era",
+      "Op_Bnb",
+      "Base"
+    ]
+  },
+  {
+    "name": "Apex DeFi",
+    "tvl": 29293.170101977907,
+    "category": "Dexs",
+    "url": "https://apexdefi.xyz",
+    "description": "Apex DeFi is the first and only all-in-one platform for ERC314 tokens, revolutionizing trading and D",
+    "chains": [
+      "Avalanche",
+      "Base",
+      "Ethereum"
+    ]
+  },
+  {
+    "name": "Ape.Store",
+    "tvl": 29498.263435869037,
+    "category": "Launchpad",
+    "url": "https://ape.store/",
+    "description": "Launch and Trade Your Tokens with Ease and Low Fees",
+    "chains": [
+      "Base",
+      "Ethereum"
+    ]
+  },
+  {
+    "name": "Cap Finance V4",
+    "tvl": 30735.79772666951,
+    "category": "Derivatives",
+    "url": "https://cap.io",
+    "description": "Decentralized Perps. Trade global markets with low fees, deep liquidity, and up to 100\u00d7 leverage.",
+    "chains": [
+      "Arbitrum",
+      "Base"
+    ]
+  },
+  {
+    "name": "Magic Square",
+    "tvl": 32893.279165569984,
+    "category": "Farm",
+    "url": "https://magicsquare.io/",
+    "description": "Magic Square is the official Web3 app store, fundamentally changing how users discover and interact ",
+    "chains": [
+      "Ethereum",
+      "Binance",
+      "Base",
+      "Avalanche",
+      "Optimism"
+    ]
+  },
+  {
+    "name": "PWN",
+    "tvl": 34640.51095824761,
+    "category": "Lending",
+    "url": "https://pwn.xyz",
+    "description": "PWN is a peer-to-peer permissionless lending protocol. In the true spirit of DeFi composability, PWN",
+    "chains": [
+      "Polygon",
+      "Ethereum",
+      "Arbitrum",
+      "Unichain",
+      "Optimism",
+      "Base",
+      "xDai",
+      "Cronos",
+      "Linea",
+      "Binance",
+      "Mantle",
+      "World Chain"
+    ]
+  },
+  {
+    "name": "Gasp",
+    "tvl": 34830.741958121995,
+    "category": "Cross Chain Bridge",
+    "url": "https://www.gasp.xyz",
+    "description": "Gasp is a cross-chain DEX and protocol designed for exchanging crypto assets between blockchains, su",
+    "chains": [
+      "Ethereum",
+      "Base",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "Ulysses",
+    "tvl": 36386.05092129509,
+    "category": "Bridge",
+    "url": "https://app.maiadao.io/",
+    "description": "Ulysses Protocol is a decentralized and permissionless 'Omnichain Liquidity Protocol' owned by the c",
+    "chains": [
+      "Ethereum",
+      "Metis",
+      "Optimism",
+      "Base",
+      "Binance",
+      "Avalanche",
+      "Sonic",
+      "Arbitrum",
+      "Swellchain",
+      "Berachain",
+      "Fraxtal",
+      "Polygon"
+    ]
+  },
+  {
+    "name": "UniDex Perp",
+    "tvl": 36670.19512490591,
+    "category": "Derivatives",
+    "url": "https://unidex.exchange",
+    "description": "UniDex is a DeFi aggregation layer making interesting trading products such as leverage trading aggr",
+    "chains": [
+      "Optimism",
+      "zkSync Era",
+      "Arbitrum",
+      "Metis",
+      "Fantom",
+      "Evmos",
+      "Base",
+      "Binance",
+      "Boba"
+    ]
+  },
+  {
+    "name": "DackieSwap V2",
+    "tvl": 37262.96577508528,
+    "category": "Dexs",
+    "url": "https://dackieswap.xyz",
+    "description": "The Premier Multichain DEX with AI Agent Technology",
+    "chains": [
+      "Base",
+      "Arbitrum",
+      "Optimism",
+      "Mode",
+      "X Layer",
+      "Blast",
+      "inEVM",
+      "World Chain",
+      "Linea",
+      "Unichain",
+      "Ethereum"
+    ]
+  },
+  {
+    "name": "O.LAB",
+    "tvl": 37593.40575459727,
+    "category": "Prediction Market",
+    "url": "https://www.olab.xyz/",
+    "description": "The World's Opinion Protocol, enabling anyone to create predictions using any token in a decentraliz",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "CreateMyToken",
+    "tvl": 37838.31266665881,
+    "category": "Launchpad",
+    "url": "https://www.createmytoken.com/",
+    "description": "Create your own token in just 1 minute and deploy it on Solana, Ethereum, Base, BNB Smart Chain and ",
+    "chains": [
+      "Base",
+      "Ethereum",
+      "Binance",
+      "Polygon",
+      "Arbitrum",
+      "Avalanche",
+      "Optimism",
+      "Blast"
+    ]
+  },
+  {
+    "name": "MYSO V2",
+    "tvl": 38813.91409539774,
+    "category": "Lending",
+    "url": "https://www.myso.finance",
+    "description": "We're building a liquidation-free, fixed-interest and oracle-free borrowing solution. Borrowers are ",
+    "chains": [
+      "Arbitrum",
+      "Evmos",
+      "Mantle",
+      "Ethereum",
+      "Telos",
+      "Base",
+      "Linea"
+    ]
+  },
+  {
+    "name": "ChainGPT",
+    "tvl": 38884.165127198474,
+    "category": "Launchpad",
+    "url": "https://pad.chaingpt.org/staking-pools",
+    "description": "Sophisticated. Balanced. Secure. Enabling the future of Web3 innovation with AI; ChainGPT Pad is the",
+    "chains": [
+      "Binance",
+      "Ethereum",
+      "Arbitrum",
+      "Polygon",
+      "Base",
+      "X Layer",
+      "CORE",
+      "zkSync Era",
+      "Linea",
+      "Avalanche"
+    ]
+  },
+  {
+    "name": "KRAV",
+    "tvl": 39294.03129826199,
+    "category": "Derivatives",
+    "url": "https://krav.trade",
+    "description": "Decentralized Quanto Exchange on Base",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Throne V3",
+    "tvl": 39663.49283536534,
+    "category": "Dexs",
+    "url": "",
+    "description": "A Majestic Native DEX Reigning over the Base Ecosystem. Fortified by the Community, Empowered by V3 ",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Onchain Trade",
+    "tvl": 39717.083100518525,
+    "category": "Derivatives",
+    "url": "",
+    "description": "Onchain Trade(OT) is a vertically integrated DeFi protocol where people can provide liquidity, swap,",
+    "chains": [
+      "zkSync Era",
+      "Base"
+    ]
+  },
+  {
+    "name": "Yusan",
+    "tvl": 41164.003743961,
+    "category": "Lending",
+    "url": "https://yusan.fi/",
+    "description": "Yusan is a cross-chain lending protocol. Borrow against assets on Bitcoin, Ethereum, Doge, Base, Arb",
+    "chains": [
+      "ICP",
+      "Ethereum",
+      "Bitcoin",
+      "Base",
+      "Arbitrum",
+      "Doge"
+    ]
+  },
+  {
+    "name": "PowaDAP",
+    "tvl": 42444.43747613203,
+    "category": "Launchpad",
+    "url": "https://powadap.com",
+    "description": "PowaDAP is a decentralized platform where developers and entrepreneurs have the opportunity to offer",
+    "chains": [
+      "Base",
+      "Genesys",
+      "Binance"
+    ]
+  },
+  {
+    "name": "Velocimeter V2",
+    "tvl": 44944.66449886224,
+    "category": "Dexs",
+    "url": "https://www.velocimeter.xyz/swap",
+    "description": "Velocimeter's twin-AMM design unites StableSwap pools with Standard 'kxy' liquidity pools. All the t",
+    "chains": [
+      "Base",
+      "Canto",
+      "Mantle",
+      "Pulse"
+    ]
+  },
+  {
+    "name": "Omni Exchange V3",
+    "tvl": 45056.82702439492,
+    "category": "Dexs",
+    "url": "https://omni.exchange",
+    "description": "Omni Exchange connects liquidity across chains through a single onchain engine.",
+    "chains": [
+      "Base",
+      "Binance",
+      "Plasma",
+      "Optimism",
+      "Sonic",
+      "Avalanche",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "DackieSwap V3",
+    "tvl": 48888.87401113887,
+    "category": "Dexs",
+    "url": "https://dackieswap.xyz",
+    "description": "The Premier Multichain DEX with AI Agent Technology",
+    "chains": [
+      "Base",
+      "X Layer",
+      "Arbitrum",
+      "Optimism",
+      "Mode",
+      "inEVM",
+      "World Chain",
+      "Blast",
+      "Linea",
+      "Ethereum",
+      "Unichain"
+    ]
+  },
+  {
+    "name": "Veil Cash",
+    "tvl": 48953.33601758502,
+    "category": "Privacy",
+    "url": "https://www.veil.cash/",
+    "description": "Veil Cash is a privacy application leveraging zk-SNARKs on Base L2, enabling verified depositors to ",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Autoearn Finance",
+    "tvl": 49918.13152775962,
+    "category": "Yield Aggregator",
+    "url": "",
+    "description": "Autoearn Finance, a yield aggregator specially built for Layer2 users.. In Autoearn, you earn automa",
+    "chains": [
+      "Base",
+      "zkSync Era",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "Astaria V2",
+    "tvl": 50484.55509227187,
+    "category": "Lending",
+    "url": "https://astaria.xyz/",
+    "description": "Astaria is an oracle-less, intent-based, fixed-rate lending protocol supporting unlimited loan durat",
+    "chains": [
+      "Base",
+      "Ethereum"
+    ]
+  },
+  {
+    "name": "KEWL EXCHANGE",
+    "tvl": 52971.69807443644,
+    "category": "Dexs",
+    "url": "https://www.kewl.exchange",
+    "description": "Join the fully community-driven revolution of decentralized finance on the blockchain with the power",
+    "chains": [
+      "Chiliz",
+      "Arbitrum",
+      "Binance",
+      "Avalanche",
+      "Sonic",
+      "Base"
+    ]
+  },
+  {
+    "name": "Button Wrappers",
+    "tvl": 53902.89755367931,
+    "category": "CDP",
+    "url": "https://tranche.button.finance",
+    "description": "Easily segment your crypto assets into senior and junior tranches to use across DeFi.",
+    "chains": [
+      "Ethereum",
+      "Base",
+      "Avalanche",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "Meridian Finance",
+    "tvl": 54142.29037846954,
+    "category": "CDP",
+    "url": "https://www.meridianfinance.net/",
+    "description": "Meridian is a decentralized, non-custodial, governance-free borrowing protocol that enables users to",
+    "chains": [
+      "Telos",
+      "Base",
+      "Taraxa",
+      "Fuse",
+      "Artela"
+    ]
+  },
+  {
+    "name": "time.fun",
+    "tvl": 54780.11422844759,
+    "category": "SoFi",
+    "url": "https://time.fun/",
+    "description": "Tokenize your time, in minutes, and let fans trade & redeem time with you. Exclusively on Base. Earn",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Poolside",
+    "tvl": 57018.49073782947,
+    "category": "Dexs",
+    "url": "https://www.poolside.party",
+    "description": "Poolside is an AMM for value-accruing and rebasing tokens, where LPs can mitigate divergence loss an",
+    "chains": [
+      "Base",
+      "Ethereum",
+      "Avalanche",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "Rigoblock",
+    "tvl": 57196.184617926345,
+    "category": "Onchain Capital Allocator",
+    "url": "https://rigoblock.com",
+    "description": "Swap, earn and interact with DeFi through smart pools.",
+    "chains": [
+      "Ethereum",
+      "Unichain",
+      "Base",
+      "Optimism",
+      "Arbitrum",
+      "Binance"
+    ]
+  },
+  {
+    "name": "Bitbond Sales",
+    "tvl": 57360.3890780667,
+    "category": "Launchpad",
+    "url": "https://tokentool.bitbond.com/",
+    "description": "Launch your crowdsale in a few clicks - no coding required",
+    "chains": [
+      "Ethereum",
+      "Binance",
+      "Base",
+      "Polygon",
+      "Avalanche",
+      "Arbitrum",
+      "Optimism"
+    ]
+  },
+  {
+    "name": "Andromeada",
+    "tvl": 58177.814903604325,
+    "category": "Dexs",
+    "url": "",
+    "description": "Andromeada is a decentralized exchange that has launched on the Base network with low fees, near 0 s",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Fren Pets",
+    "tvl": 61724.573345636905,
+    "category": "Gaming",
+    "url": "https://frenpet.xyz/",
+    "description": "Grow and battle fren pets with frens. A gaming \"P2E\" NFT project with staking and farm attributes",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "2THICK",
+    "tvl": 63184.57499320079,
+    "category": "Dexs",
+    "url": "https://eliteness.network/thick",
+    "description": "Protocol-agnostic Concentrated Liquidity Self-incentivizing AMM, now with Dynamic Trade Fee & Strate",
+    "chains": [
+      "Sonic",
+      "Base",
+      "Fantom"
+    ]
+  },
+  {
+    "name": "Relend Network",
+    "tvl": 66743.15408267584,
+    "category": "Risk Curators",
+    "url": "https://relend.network",
+    "description": "Relend Network solves stablecoin liquidity shortages across L2s by supplying rUSDC to their DeFi eco",
+    "chains": [
+      "Ethereum",
+      "Base",
+      "Swellchain"
+    ]
+  },
+  {
+    "name": "Vendor V2",
+    "tvl": 67403.4305653451,
+    "category": "Lending",
+    "url": "https://vendor.finance",
+    "description": "Vendor Finance V2 features a simplified, transparent fee structure and the addition of 'strategies' ",
+    "chains": [
+      "Arbitrum",
+      "Berachain",
+      "Base",
+      "Superposition"
+    ]
+  },
+  {
+    "name": "TradingStrategy",
+    "tvl": 68028.75131043344,
+    "category": "Onchain Capital Allocator",
+    "url": "https://tradingstrategy.ai/",
+    "description": "Algorithmic trading protocol for decentralised markets. Automated non-custodial trading, execution d",
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Polygon",
+      "Base",
+      "Binance"
+    ]
+  },
+  {
+    "name": "Deli Swap",
+    "tvl": 69435.37642751554,
+    "category": "Dexs",
+    "url": "https://deliswap.com/",
+    "description": "A Capital-Efficient, Permissionless DEX Built on Uniswap v4",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "9mm V2",
+    "tvl": 72758.79372732868,
+    "category": "Dexs",
+    "url": "https://dex.9mm.pro/",
+    "description": "9MM Pro is a suite of user-friendly protocols designed to revolutionize the decentralized finance (D",
+    "chains": [
+      "Pulse",
+      "Base",
+      "Sonic"
+    ]
+  },
+  {
+    "name": "Definitive Yield Vaults",
+    "tvl": 80044.41448034649,
+    "category": "Yield",
+    "url": "https://www.definitive.fi",
+    "description": "Definitive is the premier non-custodial platform for advanced DeFi yield and on-chain trade executio",
+    "chains": [
+      "Base",
+      "Avalanche",
+      "Ethereum",
+      "Arbitrum",
+      "Optimism",
+      "Polygon"
+    ]
+  },
+  {
+    "name": "Gridex",
+    "tvl": 80579.37215485558,
+    "category": "Dexs",
+    "url": "",
+    "description": "The first fully on-chain order book protocol for the Ethereum ecosystem. The protocol is powered by ",
+    "chains": [
+      "Arbitrum",
+      "Linea",
+      "Polygon",
+      "Base",
+      "Optimism"
+    ]
+  },
+  {
+    "name": "Umoja yBTC",
+    "tvl": 80631.62744560697,
+    "category": "Basis Trading",
+    "url": "https://umoja.xyz/smartcoins",
+    "description": "$yBTC is a multi-strategy, next-gen BTC yield vault token providing the lowest risk, highest yields ",
+    "chains": [
+      "Arbitrum",
+      "Base"
+    ]
+  },
+  {
+    "name": "E3",
+    "tvl": 82345.91599775568,
+    "category": "Dexs",
+    "url": "https://eliteness.network/e3",
+    "description": "E3 is a Dex offering zero-slippage trading and capital efficiency through its 'Bucket' model and con",
+    "chains": [
+      "Base",
+      "Fantom",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "HorizonDEX",
+    "tvl": 82606.23332341397,
+    "category": "Dexs",
+    "url": "https://horizondex.io",
+    "description": "HorizonDEX is a Concantrated Liquidity DEX which let users allocate liqudiity within a custom price ",
+    "chains": [
+      "Linea",
+      "Base"
+    ]
+  },
+  {
+    "name": "Tanken Capital",
+    "tvl": 82669.43125807765,
+    "category": "Risk Curators",
+    "url": "https://tankencapital.notion.site/Tanken-Capital-1841505ced0680d88c31feb5f6f83433",
+    "description": "Tanken Capital operates on-chain vaults that allocate assets across multiple DeFi protocols. Strateg",
+    "chains": [
+      "Base",
+      "Ethereum"
+    ]
+  },
+  {
+    "name": "Raindex",
+    "tvl": 85385.57802075763,
+    "category": "Dexs",
+    "url": "https://rainlang.xyz/",
+    "description": "Raindex allows anyone to write, deploy and manage token trading strategies, written in Rainlang, on ",
+    "chains": [
+      "Base",
+      "Flare",
+      "Polygon",
+      "Binance",
+      "Ethereum",
+      "Arbitrum",
+      "Linea"
+    ]
+  },
+  {
+    "name": "Hyperdrive",
+    "tvl": 85672.54596292114,
+    "category": "Yield",
+    "url": "https://hyperdrive.box",
+    "description": "Hyperdrive is a novel AMM for traders to obtain fixed rates or boosted variable yields.",
+    "chains": [
+      "Ethereum",
+      "Linea",
+      "Base",
+      "xDai"
+    ]
+  },
+  {
+    "name": "Gardens",
+    "tvl": 86354.98796705897,
+    "category": "Governance Incentives",
+    "url": "https://app.gardens.fund/",
+    "description": "Gardens is a community governance platform optimized for bottom-up decision-making. Built using an e",
+    "chains": [
+      "Celo",
+      "xDai",
+      "Optimism",
+      "Base",
+      "Arbitrum",
+      "Polygon"
+    ]
+  },
+  {
+    "name": "maxAPY",
+    "tvl": 88946.98470970274,
+    "category": "Yield Aggregator",
+    "url": "https://app.maxapy.io",
+    "description": "maxAPY is DeFi on autopilot: a meta-aggregator protocol that automates DeFi yield optimization acros",
+    "chains": [
+      "Base",
+      "Ethereum",
+      "Polygon"
+    ]
+  },
+  {
+    "name": "LiveArt",
+    "tvl": 93058.22104442354,
+    "category": "RWA",
+    "url": "https://liveart.io/",
+    "description": "LiveArt is the first AI-powered RWA protocol tokenizing fine art and luxury assets into programmable",
+    "chains": [
+      "Binance",
+      "Base"
+    ]
+  },
+  {
+    "name": "CookieBase Farm",
+    "tvl": 94740.8656798567,
+    "category": "Farm",
+    "url": "",
+    "description": "Sweeten your DeFi journey with CookieBase! Embrace creamy yields and crumbly rewards on Base Blockch",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Clober V2",
+    "tvl": 94849.29111861213,
+    "category": "Dexs",
+    "url": "https://app.clober.io/",
+    "description": "Clober is a fully on-chain orderbook DEX protocol that offers CEX-equivalent trading experience, pow",
+    "chains": [
+      "Monad",
+      "Base",
+      "zkSync Era"
+    ]
+  },
+  {
+    "name": "Sobal",
+    "tvl": 96126.87521664781,
+    "category": "Dexs",
+    "url": "",
+    "description": "Sobal is a decentralized asset management platform, or in simple terms, a DEX that utilizes Balancer",
+    "chains": [
+      "Base",
+      "Neon"
+    ]
+  },
+  {
+    "name": "Infusion",
+    "tvl": 97541.37238732092,
+    "category": "Dexs",
+    "url": "https://infusion.finance",
+    "description": "Infusion is a new AMM protocol that introduces a new standard for the base liquidity layer.",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "IcecreamSwap V2",
+    "tvl": 100672.80750424946,
+    "category": "Dexs",
+    "url": "https://icecreamswap.com/",
+    "description": "The first Swap on the Bitgert (Brise) Blockchain",
+    "chains": [
+      "CORE",
+      "Neon",
+      "BOB",
+      "XDC",
+      "Blast",
+      "Dogechain",
+      "Base",
+      "ShimmerEVM",
+      "Scroll",
+      "Telos",
+      "LightLink",
+      "Taiko",
+      "Fuse",
+      "Bitgert"
+    ]
+  },
+  {
+    "name": "Clip Finance",
+    "tvl": 103488.80294506974,
+    "category": "Liquidity manager",
+    "url": "https://www.clip.finance/",
+    "description": "Simplifying yield farming and maximizing profitability by leveraging AI-driven liquidity management",
+    "chains": [
+      "Linea",
+      "Binance",
+      "Base"
+    ]
+  },
+  {
+    "name": "Everclear",
+    "tvl": 105479.18861271715,
+    "category": "Cross Chain Bridge",
+    "url": "https://www.everclear.org/",
+    "description": "The Crosschain Clearing and Settlement Protocol.",
+    "chains": [
+      "Base",
+      "Ethereum",
+      "Unichain",
+      "Blast",
+      "Polygon",
+      "Binance",
+      "Avalanche",
+      "Ink",
+      "Optimism",
+      "Arbitrum",
+      "Mode",
+      "Ronin",
+      "zkSync Era",
+      "Mantle",
+      "Linea",
+      "Scroll",
+      "Taiko",
+      "xDai",
+      "Sonic",
+      "Berachain",
+      "Zircuit",
+      "ApeChain"
+    ]
+  },
+  {
+    "name": "Aloe",
+    "tvl": 107129.6257586846,
+    "category": "Lending",
+    "url": "https://aloe.capital",
+    "description": "Aloe is a permissionless lending protocol built on Uniswap, featuring risk-isolated pools, dynamic L",
+    "chains": [
+      "Arbitrum",
+      "Base",
+      "Optimism",
+      "Linea",
+      "Ethereum"
+    ]
+  },
+  {
+    "name": "BakerFi",
+    "tvl": 114506.73418904413,
+    "category": "Liquid Staking",
+    "url": "https://bakerfi.ai",
+    "description": "Skip the DeFi complexity with BakerFi's intelligent AI agents that work 24/7 to maximize your crypto",
+    "chains": [
+      "Base",
+      "Ethereum",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "Mellow Yield",
+    "tvl": 118226.56632049145,
+    "category": "Yield Aggregator",
+    "url": "https://mellow.finance",
+    "description": "Mellow Protocol is a permissionless system for active liquidity management and building trustless au",
+    "chains": [
+      "Ethereum",
+      "Polygon zkEVM",
+      "Polygon",
+      "Base"
+    ]
+  },
+  {
+    "name": "VoltSwap V2",
+    "tvl": 118475.24862305609,
+    "category": "Dexs",
+    "url": "https://voltswap.finance",
+    "description": "VoltSwap is the first major DEX in the Meter ecosystem. It is a completely community-driven project ",
+    "chains": [
+      "Meter",
+      "Base"
+    ]
+  },
+  {
+    "name": "KIM Exchange V2",
+    "tvl": 120217.64878409226,
+    "category": "Dexs",
+    "url": "https://kim.exchange",
+    "description": "Native DEX for the Mode Network with staking modules to incentivize LPs",
+    "chains": [
+      "Mode",
+      "Base"
+    ]
+  },
+  {
+    "name": "Verified Network",
+    "tvl": 126681.19799700605,
+    "category": "RWA",
+    "url": "https://www.verified.network/",
+    "description": "Verified Network is decentralized, global financial infrastructure for issuing, distributing and ser",
+    "chains": [
+      "Ethereum",
+      "Base"
+    ]
+  },
+  {
+    "name": "Lucidly Finance",
+    "tvl": 127126.81946576863,
+    "category": "Yield",
+    "url": "https://app.lucidly.finance",
+    "description": "Lucidly is an onchain capital deployment engine designed to create and aggregate complex yield strat",
+    "chains": [
+      "Base",
+      "Ethereum",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "DegenPrime",
+    "tvl": 128148.28542076288,
+    "category": "Leveraged Farming",
+    "url": "https://www.degenprime.io",
+    "description": "DegenPrime is the community-driven Prime Brokerage for the Based Degen. Here you lend, or trade and ",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "ZebraDAO",
+    "tvl": 129884.28574402063,
+    "category": "Lending",
+    "url": "",
+    "description": "ZebraDAO is a cutting-edge lending protocol on the Base blockchain. It redefines decentralized finan",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "BaseX",
+    "tvl": 130027.2726880197,
+    "category": "Dexs",
+    "url": "https://baseswap.fi",
+    "description": "Uniswap V3 fork on Base Chain.",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "SwapBased AMM",
+    "tvl": 131484.47830511816,
+    "category": "Dexs",
+    "url": "https://swapbased.finance",
+    "description": "Kickstarting the Base ecosystem, SwapBased is THE DEX on Base.",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Cybro",
+    "tvl": 138862.06281722346,
+    "category": "Yield Aggregator",
+    "url": "https://app.cybro.io",
+    "description": "CYBRO is an AI-powered multichain earn markeplace",
+    "chains": [
+      "Arbitrum",
+      "Blast",
+      "Base",
+      "Binance"
+    ]
+  },
+  {
+    "name": "KyberSwap Elastic",
+    "tvl": 139784.9610198596,
+    "category": "Dexs",
+    "url": "https://kyberswap.com/#/swap",
+    "description": "KyberSwap is both a decentralized exchange (DEX) aggregator and a liquidity source with capital-effi",
+    "chains": [
+      "Linea",
+      "Scroll",
+      "Arbitrum",
+      "Optimism",
+      "Polygon",
+      "Ethereum",
+      "Binance",
+      "Base",
+      "Avalanche",
+      "Fantom",
+      "Cronos"
+    ]
+  },
+  {
+    "name": "Kokonut Swap",
+    "tvl": 139980.24044917306,
+    "category": "Dexs",
+    "url": "https://kokonutswap.finance",
+    "description": "Kokonut Swap is a 2nd generation DEX protocol, with the lowest slippage and fees made possible throu",
+    "chains": [
+      "Klaytn",
+      "Polygon zkEVM",
+      "Base"
+    ]
+  },
+  {
+    "name": "MultichainZ",
+    "tvl": 148404.02652133335,
+    "category": "Lending",
+    "url": "https://dapp.multichainz.com/",
+    "description": "Omnichain money markets for Real-World Assets and Liquid Staking Derivatives",
+    "chains": [
+      "Plume Mainnet",
+      "Ethereum",
+      "Base",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "BMX Freestyle",
+    "tvl": 150843.70387160964,
+    "category": "Derivatives",
+    "url": "https://www.bmx.trade",
+    "description": "Freestyle is a SYMMIO (intent-based) frontend for derivatives trading that we operate alongside our ",
+    "chains": [
+      "Base",
+      "Mode"
+    ]
+  },
+  {
+    "name": "InfinityPools",
+    "tvl": 153739.73439220124,
+    "category": "Derivatives",
+    "url": "https://infinitypools.finance/",
+    "description": "InfinityPools is a decentralized exchange that can offer unlimited leverage on any asset, with no li",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Magic Eden",
+    "tvl": 155034.38471110206,
+    "category": "NFT Marketplace",
+    "url": "https://magiceden.io",
+    "description": "The largest NFT marketplace and Runes platform. Buy, sell and discover Ordinals and NFTs across Sola",
+    "chains": [
+      "Bitcoin",
+      "Solana",
+      "Arbitrum",
+      "Base",
+      "Ethereum"
+    ]
+  },
+  {
+    "name": "9Summits",
+    "tvl": 155233.0188034943,
+    "category": "Risk Curators",
+    "url": "https://9summits.io",
+    "description": "By curating top-performing vaults, we empower our clients to access the best opportunities in decent",
+    "chains": [
+      "Ethereum",
+      "Base",
+      "Unichain"
+    ]
+  },
+  {
+    "name": "Flat Money V1",
+    "tvl": 156811.0302976459,
+    "category": "Partially Algorithmic Stablecoin",
+    "url": "https://flat.money",
+    "description": "New money with Flatcoin \u2014 100% capital efficient, amplified purchasing power, backed by staked $rETH",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "SharkSwap DEX",
+    "tvl": 158695.7049646612,
+    "category": "Dexs",
+    "url": "https://sharkswap.finance",
+    "description": "SharkSwap is the most advanced decentralized exchange on Base chain.",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Mummy Finance",
+    "tvl": 170269.88310188198,
+    "category": "Derivatives",
+    "url": "https://www.mummy.finance",
+    "description": "Bring unparalleled Swap and Perpetual trading experience to FantomFDN users",
+    "chains": [
+      "Optimism",
+      "Arbitrum",
+      "Fantom",
+      "Base"
+    ]
+  },
+  {
+    "name": "KIM Exchange V3",
+    "tvl": 183579.85772549215,
+    "category": "Dexs",
+    "url": "https://kim.exchange",
+    "description": "Native DEX for the Mode Network with staking modules to incentivize LPs",
+    "chains": [
+      "Mode",
+      "Base"
+    ]
+  },
+  {
+    "name": "Stabull Finance",
+    "tvl": 184103.83575305878,
+    "category": "Dexs",
+    "url": "https://stabull.finance",
+    "description": "Stabull Finance is an AMM optimized for stablecoins and RWAs. Live on Polygon, Base, and Ethereum, a",
+    "chains": [
+      "Base",
+      "Polygon",
+      "Ethereum"
+    ]
+  },
+  {
+    "name": "IXS",
+    "tvl": 185911.24423026937,
+    "category": "Dexs",
+    "url": "https://www.ixs.finance/",
+    "description": "Uniswap for Real-World Asset Tokens (RWA).",
+    "chains": [
+      "Ethereum",
+      "Base",
+      "Polygon"
+    ]
+  },
+  {
+    "name": "Granary Finance",
+    "tvl": 188775.75832044086,
+    "category": "Lending",
+    "url": "https://granary.finance/",
+    "description": "Granary Finance is a decentralized, user-driven borrowing and lending liquidity market inspired by A",
+    "chains": [
+      "Optimism",
+      "Metis",
+      "Arbitrum",
+      "Binance",
+      "Avalanche",
+      "Fantom",
+      "Ethereum",
+      "Base"
+    ]
+  },
+  {
+    "name": "Stryke CLAMM",
+    "tvl": 192822.74431017094,
+    "category": "Options",
+    "url": "https://www.dopex.io",
+    "description": "Stryke is a maximum liquidity and minimal exposure options protocol",
+    "chains": [
+      "Arbitrum",
+      "Sonic",
+      "Base",
+      "Blast",
+      "Mantle"
+    ]
+  },
+  {
+    "name": "8lends",
+    "tvl": 192853.3671740232,
+    "category": "RWA Lending",
+    "url": "https://app.8lends.io",
+    "description": "P2P Crypto CrowdLending Platform. Swiss Regulated Direct Business Investments With Up To 25.0% Inter",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "SYNO Finance",
+    "tvl": 202284.3178338247,
+    "category": "Lending",
+    "url": "https://syno.finance/",
+    "description": "SYNO is a truly cross-chain money market built on the Wormhole xChain technology stack",
+    "chains": [
+      "Arbitrum",
+      "Scroll",
+      "Ethereum",
+      "Optimism",
+      "Base"
+    ]
+  },
+  {
+    "name": "SwapBased Concentrated Liquidity",
+    "tvl": 203061.60883969604,
+    "category": "Dexs",
+    "url": "https://swapbased.finance/#/swap",
+    "description": "Concentrated Liquidity AMM on Base",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "g8keep",
+    "tvl": 203193.40512226088,
+    "category": "Launchpad",
+    "url": "https://www.g8.xyz",
+    "description": "Safely deploy, discover, and trade tokens. Currently on EVM.",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "ZKP2P",
+    "tvl": 204696.37860984617,
+    "category": "Payments",
+    "url": "https://www.zkp2p.xyz/",
+    "description": "ZKP2P is a peer-to-peer, non-custodial protocol that enables seamless crypto <> fiat on and off ramp",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "PrimeFi",
+    "tvl": 205461.33127489313,
+    "category": "Lending",
+    "url": "https://primefi.xyz/",
+    "description": "PrimeFi Protocol is an omnichain lending and borrowing platform developed by Prime Numbers Labs, des",
+    "chains": [
+      "Hyperliquid L1",
+      "Base",
+      "XDC"
+    ]
+  },
+  {
+    "name": "Skate Fi",
+    "tvl": 205668.78479859946,
+    "category": "Liquidity manager",
+    "url": "https://www.rangeprotocol.com",
+    "description": "Skate Fi (formerly known as Range Protocol): Liquidity Layer of Skate Chain",
+    "chains": [
+      "Ethereum",
+      "Binance",
+      "Manta",
+      "ZetaChain",
+      "Mantle",
+      "Arbitrum",
+      "Blast",
+      "Polygon",
+      "Zkfair",
+      "Scroll",
+      "Base"
+    ]
+  },
+  {
+    "name": "Skate AMM",
+    "tvl": 210213.8422195396,
+    "category": "Dexs",
+    "url": "https://amm.skatechain.org/swap",
+    "description": "The Skate AMM is Skate's flagship product that enables a shared liquidity pool across different bloc",
+    "chains": [
+      "Sui",
+      "0G",
+      "Binance",
+      "Solana",
+      "Arbitrum",
+      "Base",
+      "Monad",
+      "Ethereum",
+      "Hyperliquid L1",
+      "Mantle",
+      "Plume Mainnet",
+      "Eclipse"
+    ]
+  },
+  {
+    "name": "LeetSwap",
+    "tvl": 226974.44771731878,
+    "category": "Dexs",
+    "url": "https://leetswap.finance",
+    "description": "LeetSwap is an emerging DEX and DeFi ecosystem built on the Canto blockchain with a focus on retaini",
+    "chains": [
+      "Base",
+      "Op_Bnb",
+      "Manta",
+      "Linea",
+      "Shibarium",
+      "Polygon zkEVM",
+      "Canto",
+      "Scroll"
+    ]
+  },
+  {
+    "name": "Bass Exchange",
+    "tvl": 245251.51653191366,
+    "category": "Dexs",
+    "url": "",
+    "description": "Bass Exchange is a hyper-efficient multichain stableswap with minimal slippage.",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "ShimmerBridge",
+    "tvl": 247378.71646817587,
+    "category": "Bridge",
+    "url": "https://shimmerbridge.org/bridge",
+    "description": "ShimmerBridge is the official LayerZero Wrapped Asset Bridge on ShimmerEVM",
+    "chains": [
+      "Ethereum",
+      "Binance",
+      "Avalanche",
+      "Polygon",
+      "Optimism",
+      "Arbitrum",
+      "Fantom",
+      "Base"
+    ]
+  },
+  {
+    "name": "Impermax V3",
+    "tvl": 248818.12748425762,
+    "category": "Lending",
+    "url": "https://impermax.finance",
+    "description": "Impermax is a DeFi ecosystem that enables liquidity providers to leverage their LP tokens",
+    "chains": [
+      "Base",
+      "Unichain",
+      "Hyperliquid L1",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "Javsphere",
+    "tvl": 252490.41872191947,
+    "category": "Derivatives",
+    "url": "https://javsphere.com/",
+    "description": "Javsphere is enhancing decentralized finance (DeFi) with innovative solutions powered by the JAV Tok",
+    "chains": [
+      "Base",
+      "DeFiChain EVM",
+      "DefiChain"
+    ]
+  },
+  {
+    "name": "Balmy",
+    "tvl": 258277.87812203067,
+    "category": "DCA Tools",
+    "url": "https://balmy.xyz",
+    "description": "Balmy is your home for accessing the world of decentralized finance as it was meant to be: safe, ope",
+    "chains": [
+      "Ethereum",
+      "Optimism",
+      "Arbitrum",
+      "Polygon",
+      "Base",
+      "Binance",
+      "RSK",
+      "Avalanche",
+      "xDai",
+      "Moonbeam"
+    ]
+  },
+  {
+    "name": "SparkleX",
+    "tvl": 259757.57800400045,
+    "category": "Yield",
+    "url": "https://sparklex.ai/",
+    "description": "SparkleX is an intelligent omnichain yield network that leverages AI to maximize your yields effortl",
+    "chains": [
+      "Ethereum",
+      "Base",
+      "Binance"
+    ]
+  },
+  {
+    "name": "YLDR",
+    "tvl": 268522.8291396288,
+    "category": "Lending",
+    "url": "https://yldr.com",
+    "description": "YLDR is the first lending protocol for Uniswap. Users can either leverage their Uniswap V3 position ",
+    "chains": [
+      "Arbitrum",
+      "Polygon",
+      "Ethereum",
+      "Base"
+    ]
+  },
+  {
+    "name": "Union Protocol",
+    "tvl": 269816.9525904833,
+    "category": "Uncollateralized Lending",
+    "url": "https://union.finance",
+    "description": "A decentralized protocol for permissionless credit.",
+    "chains": [
+      "Optimism",
+      "Ethereum",
+      "Base",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "Superfund",
+    "tvl": 271308.4696675934,
+    "category": "Onchain Capital Allocator",
+    "url": "https://funds.superlend.xyz/",
+    "description": "SuperFunds are crypto-based vaults that work like mutual funds, each designed for a specific purpose",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Clober Liquidity Vault",
+    "tvl": 274203.6081712043,
+    "category": "Dexs",
+    "url": "https://app.clober.io/",
+    "description": "Clober is a fully on-chain orderbook DEX protocol that offers CEX-equivalent trading experience, pow",
+    "chains": [
+      "Monad",
+      "Base"
+    ]
+  },
+  {
+    "name": "Elk",
+    "tvl": 275935.8570260228,
+    "category": "Dexs",
+    "url": "https://elk.finance",
+    "description": "Elk Finance is building Web3 infrastructure for cross-chain value and data transfer via ElkNet - our",
+    "chains": [
+      "Binance",
+      "Avalanche",
+      "xDai",
+      "Polygon",
+      "Kucoin",
+      "Arbitrum",
+      "Optimism",
+      "Ethereum",
+      "Fantom",
+      "Cronos",
+      "Bittorrent",
+      "Base",
+      "Elastos",
+      "Q Protocol",
+      "RSK",
+      "Linea",
+      "Fuse",
+      "IoTeX",
+      "Telos",
+      "Kava",
+      "Harmony",
+      "Metis",
+      "Wanchain",
+      "Moonriver",
+      "Neon",
+      "Astar",
+      "OKExChain",
+      "Velas",
+      "Heco",
+      "Hoo",
+      "Bitgert"
+    ]
+  },
+  {
+    "name": "Rubicon",
+    "tvl": 278832.1973828224,
+    "category": "Dexs",
+    "url": "https://app.rubicon.finance/swap",
+    "description": "An on-chain order book protocol for Ethereum. Built on leading L2 networks.",
+    "chains": [
+      "Optimism",
+      "Base",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "Sonne Finance",
+    "tvl": 279966.05654234416,
+    "category": "Lending",
+    "url": "https://sonne.finance",
+    "description": "Sonne Finance is a decentralized lending protocol for individuals, institutions and protocols to acc",
+    "chains": [
+      "Base",
+      "Optimism"
+    ]
+  },
+  {
+    "name": "Bunni V2",
+    "tvl": 298362.39725855435,
+    "category": "Dexs",
+    "url": "https://bunni.xyz/",
+    "description": "Bunni v2 is the leading Uniswap V4 hook, a shapeshifting DEX that maximizes LP yields via dynamic, a",
+    "chains": [
+      "Ethereum",
+      "Base",
+      "Unichain",
+      "Arbitrum",
+      "Binance"
+    ]
+  },
+  {
+    "name": "Preon Finance",
+    "tvl": 315816.71546025726,
+    "category": "CDP",
+    "url": "https://app.preon.finance/borrow",
+    "description": "Preon is a decentralized, lending protocol that allows you to borrow against your crypto - at 0 inte",
+    "chains": [
+      "Arbitrum",
+      "Polygon",
+      "Base"
+    ]
+  },
+  {
+    "name": "Scale",
+    "tvl": 323788.31203435786,
+    "category": "Dexs",
+    "url": "https://base.equalizer.exchange",
+    "description": "twin-AMM design unites StableSwap pools with Standard 'kxy' liquidity pools",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Renegade",
+    "tvl": 340878.1886774864,
+    "category": "Dexs",
+    "url": "https://trade.renegade.fi",
+    "description": "Crypto's first on-chain dark pool. Live on Arbitrum One",
+    "chains": [
+      "Arbitrum",
+      "Base"
+    ]
+  },
+  {
+    "name": "Yieldoor",
+    "tvl": 343050.64920250775,
+    "category": "Leveraged Farming",
+    "url": "https://app.yieldoor.com/",
+    "description": "Platform for Leveraged Yield Farming",
+    "chains": [
+      "Ethereum",
+      "Sonic",
+      "Base"
+    ]
+  },
+  {
+    "name": "Tempest Finance",
+    "tvl": 347893.8269352995,
+    "category": "Liquidity manager",
+    "url": "https://www.tempestfinance.xyz/",
+    "description": "Tempest is the Large Liquidity Model for Ambient Finance. Tempest's Vaults automatically manage user",
+    "chains": [
+      "Swellchain",
+      "Scroll",
+      "Ethereum",
+      "Optimism",
+      "Binance",
+      "Canto",
+      "Arbitrum",
+      "Manta",
+      "Base"
+    ]
+  },
+  {
+    "name": "Infinite Trading Protocol",
+    "tvl": 352372.708213857,
+    "category": "AI Agents",
+    "url": "https://www.infinitetrading.io/",
+    "description": "Infinite Trading is a groundbreaking marketplace and protocol that enables you to invest in fully au",
+    "chains": [
+      "Optimism",
+      "Base",
+      "Polygon",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "Timeswap V2",
+    "tvl": 361883.5817525636,
+    "category": "Lending",
+    "url": "https://app.timeswap.io",
+    "description": "Timeswap is the first oracleless lending/borrowing protocol. Timeswap enables the creation of money ",
+    "chains": [
+      "Arbitrum",
+      "Hyperliquid L1",
+      "Base",
+      "Ethereum",
+      "Polygon",
+      "Optimism",
+      "Mantle",
+      "inEVM",
+      "Polygon zkEVM",
+      "X Layer"
+    ]
+  },
+  {
+    "name": "MoneyFi",
+    "tvl": 363724.80654352304,
+    "category": "Yield Aggregator",
+    "url": "https://app.moneyfi.fund/",
+    "description": "The MoneyFi Smart Stablecoin Vault auto-distributes funds across multiple chains and protocols to ma",
+    "chains": [
+      "Aptos",
+      "CORE",
+      "Base",
+      "Binance",
+      "Soneium",
+      "Optimism",
+      "Arbitrum",
+      "Ethereum"
+    ]
+  },
+  {
+    "name": "BrownFi",
+    "tvl": 366404.6711400957,
+    "category": "Dexs",
+    "url": "https://brownfi.io/",
+    "description": "A renovated AMM derived from Elastic Parameterized Limit Order Book",
+    "chains": [
+      "Berachain",
+      "Linea",
+      "Hyperliquid L1",
+      "Base",
+      "Monad",
+      "Arbitrum",
+      "Binance"
+    ]
+  },
+  {
+    "name": "Vela Exchange",
+    "tvl": 366878.67756756826,
+    "category": "Derivatives",
+    "url": "https://www.vela.exchange/",
+    "description": "Vela Exchange is a decentralized exchange with advanced perpetuals trading capabilities, community f",
+    "chains": [
+      "Arbitrum",
+      "Base"
+    ]
+  },
+  {
+    "name": "Diamondswap",
+    "tvl": 367415.1982027533,
+    "category": "Dexs",
+    "url": "https://diamondswap.com/exchange",
+    "description": "DiamondSwap - Multi-Chain DEX and DEX Aggregator",
+    "chains": [
+      "Odyssey",
+      "Base",
+      "Ethereum",
+      "Binance",
+      "Avalanche"
+    ]
+  },
+  {
+    "name": "Kinetix AMM V3",
+    "tvl": 372041.49091428885,
+    "category": "Dexs",
+    "url": "https://kinetix.finance/",
+    "description": "Fork of Uniswap V3",
+    "chains": [
+      "Kava",
+      "Base"
+    ]
+  },
+  {
+    "name": "Dyson",
+    "tvl": 381457.4736121268,
+    "category": "Liquidity manager",
+    "url": "https://www.dyson.money/",
+    "description": "Dyson brings exotic investment strategies to some of the most popular cryptocurrencies, amplifies th",
+    "chains": [
+      "Arbitrum",
+      "Polygon",
+      "Base",
+      "Avalanche",
+      "Optimism",
+      "Binance",
+      "Kava"
+    ]
+  },
+  {
+    "name": "Snowbl Capital",
+    "tvl": 385321.5584422461,
+    "category": "Onchain Capital Allocator",
+    "url": "https://snowbl.capital",
+    "description": "Snowbl Capital is an on-chain capital allocator with an USDC vault diversifying across funding, lend",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Sudoswap V2",
+    "tvl": 393210.54914768774,
+    "category": "NFT Marketplace",
+    "url": "https://sudoswap.xyz",
+    "description": "SudoSwap V2 includes features like on-chain royalties, adaptable creator settings, ERC-1155 support,",
+    "chains": [
+      "Ethereum",
+      "Sanko",
+      "Base",
+      "Berachain",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "StratEx",
+    "tvl": 397269.6901273593,
+    "category": "Yield Aggregator",
+    "url": "https://www.stratex.finance/",
+    "description": "StratEx is an advanced decentralised finance (DeFi) protocol designed to revolutionise yield optimis",
+    "chains": [
+      "Base",
+      "Flare"
+    ]
+  },
+  {
+    "name": "Thirdfy",
+    "tvl": 400766.96348521847,
+    "category": "Dexs",
+    "url": "https://thirdfy.com/",
+    "description": "Thirdfy is a decentralized exchange platform on Base that aims to simplify DeFi with autonomous, AI-",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Napier",
+    "tvl": 407648.0586706402,
+    "category": "Yield",
+    "url": "https://app.napier.finance/",
+    "description": "A modular yield tokenization protocol that enables you to own, manage, create any yield products wit",
+    "chains": [
+      "Ethereum",
+      "Base",
+      "Sonic",
+      "Arbitrum",
+      "Hyperliquid L1",
+      "Polygon",
+      "Fraxtal",
+      "Binance",
+      "Mantle",
+      "Optimism",
+      "Avalanche"
+    ]
+  },
+  {
+    "name": "MONSTRO",
+    "tvl": 409171.58113380254,
+    "category": "Yield",
+    "url": "https://v2.monstro.fun",
+    "description": "Protocol on base chain",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "CREAM Lending",
+    "tvl": 418122.1519333014,
+    "category": "Lending",
+    "url": "https://cream.finance/",
+    "description": "Money markets, liquid staking and protocol-to-protocol lending",
+    "chains": [
+      "Binance",
+      "Ethereum",
+      "Polygon",
+      "Arbitrum",
+      "Base"
+    ]
+  },
+  {
+    "name": "Solidly V3",
+    "tvl": 424701.2098387135,
+    "category": "Dexs",
+    "url": "https://solidly.com",
+    "description": "Self-optimizing DEX combining the best of Curve, Uniswap and ve(3,3)",
+    "chains": [
+      "Base",
+      "Optimism",
+      "Ethereum",
+      "Sonic",
+      "Arbitrum",
+      "Fantom"
+    ]
+  },
+  {
+    "name": "Stability",
+    "tvl": 447090.07582345576,
+    "category": "Liquidity manager",
+    "url": "https://stability.farm",
+    "description": "Asset management, liquidity mining and yield farming platform.",
+    "chains": [
+      "Sonic",
+      "Base",
+      "Polygon",
+      "re.al"
+    ]
+  },
+  {
+    "name": "Ethos Markets",
+    "tvl": 452536.5632299801,
+    "category": "SoFi",
+    "url": "https://ethos.markets/",
+    "description": "Ethos Markets provides reputation markets, allowing you to trade both trust and distrust on someone'",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Limitless Exchange",
+    "tvl": 478175.6631977758,
+    "category": "Prediction Market",
+    "url": "https://limitless.exchange/?r=0UWWSGL92U",
+    "description": "Prediction market on Base",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Biswap V3",
+    "tvl": 519435.3208223621,
+    "category": "Dexs",
+    "url": "https://biswap.org/pool",
+    "description": "Biswap is a multichain DEX that allows trades across BNB, Ethereum, Arbitrum and Base Chains with lo",
+    "chains": [
+      "Binance",
+      "Base",
+      "Arbitrum",
+      "Ethereum"
+    ]
+  },
+  {
+    "name": "Clovis",
+    "tvl": 539045.8427802991,
+    "category": "Yield Aggregator",
+    "url": "https://clovis.network/",
+    "description": "Deposit once, earn everywhere. Earn real yields and Clovis points while supporting liquidity across ",
+    "chains": [
+      "Sei",
+      "Arbitrum",
+      "Ethereum",
+      "Base",
+      "Binance",
+      "Avalanche",
+      "Optimism",
+      "Polygon",
+      "Hyperliquid L1",
+      "Swellchain"
+    ]
+  },
+  {
+    "name": "Pell Network",
+    "tvl": 545528.110408484,
+    "category": "Restaking",
+    "url": "https://pell.network/",
+    "description": "Pell uses BTC and its LSD to provide actively validated services (AVS) to BTC ecosystem projects, pl",
+    "chains": [
+      "Binance",
+      "Bitlayer",
+      "BOB",
+      "IoTeX",
+      "BSquared",
+      "Ethereum",
+      "CORE",
+      "Merlin",
+      "RSK",
+      "Arbitrum",
+      "Mantle",
+      "Base",
+      "Scroll",
+      "ZetaChain",
+      "AILayer",
+      "Goat",
+      "Hemi",
+      "HashKey Chain",
+      "BEVM",
+      "Plume Mainnet"
+    ]
+  },
+  {
+    "name": "Muscadine",
+    "tvl": 545584.3744196864,
+    "category": "Risk Curators",
+    "url": "https://muscadine.io",
+    "description": "Muscadine delivers professionally curated vault risk strategies designed to compound long-term wealt",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "VaultCraft",
+    "tvl": 566640.8203580739,
+    "category": "Yield",
+    "url": "https://vaultcraft.io/",
+    "description": "Build, deploy, and zap into automated yield strategies with vaultcraft",
+    "chains": [
+      "Arbitrum",
+      "Ethereum",
+      "Polygon",
+      "Optimism",
+      "Base",
+      "Hemi",
+      "Binance"
+    ]
+  },
+  {
+    "name": "Prime Protocol",
+    "tvl": 581116.3257771868,
+    "category": "Lending",
+    "url": "https://app.primeprotocol.xyz",
+    "description": "Prime Protocol is the first natively cross-chain decentralized liquidity protocol, serving as a prim",
+    "chains": [
+      "Binance",
+      "Arbitrum",
+      "Base",
+      "Moonbeam",
+      "Optimism",
+      "Avalanche",
+      "Polygon",
+      "Ethereum",
+      "Celo"
+    ]
+  },
+  {
+    "name": "Treble Spot",
+    "tvl": 585331.6652310209,
+    "category": "Dexs",
+    "url": "https://trebleswap.com",
+    "description": "Treble is the first modular V4 DEX on Base with a full-suite DeFi Hub offering cross-chain swaps, fi",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "GammaSwap Yield Tokens",
+    "tvl": 585929.9188581081,
+    "category": "Yield",
+    "url": "https://app.gammaswap.com/yield-tokens",
+    "description": "Mint yield tokens that deepen onchain liquidity",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "SMARDEX AMM",
+    "tvl": 599040.980154692,
+    "category": "Dexs",
+    "url": "https://smardex.io",
+    "description": "SMARDEX sophisticated fine-tuned algorithm transforms impermanent loss to impermanent gain!",
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Binance",
+      "Base",
+      "Polygon"
+    ]
+  },
+  {
+    "name": "BIM",
+    "tvl": 606031.2280849081,
+    "category": "Yield Aggregator",
+    "url": "https://exchange.bim.finance/",
+    "description": "BIM is a permissionless DeFi platform that helps users earn yield, move assets, and interact seamles",
+    "chains": [
+      "Plasma",
+      "Base",
+      "Optimism",
+      "Polygon",
+      "Ethereum",
+      "Binance",
+      "Sonic",
+      "Fraxtal",
+      "Hyperliquid L1",
+      "Arbitrum",
+      "Avalanche",
+      "xDai"
+    ]
+  },
+  {
+    "name": "Toucan Protocol",
+    "tvl": 628967.0748231588,
+    "category": "RWA",
+    "url": "https://toucan.earth",
+    "description": "The protocol provides tools that allow anyone to bring carbon credits onto the blockchain to improve",
+    "chains": [
+      "Polygon",
+      "Celo",
+      "Base",
+      "Regen"
+    ]
+  },
+  {
+    "name": "Yelay V3",
+    "tvl": 630959.7762975215,
+    "category": "Yield Aggregator",
+    "url": "https://www.yelay.io/",
+    "description": "Automatically optimize yield across the best DeFi platforms. Transform crypto yield into things your",
+    "chains": [
+      "Ethereum",
+      "Sonic",
+      "Base"
+    ]
+  },
+  {
+    "name": "Clearpool Lending",
+    "tvl": 633761.1498883117,
+    "category": "Uncollateralized Lending",
+    "url": "https://clearpool.finance",
+    "description": "Clearpool is a decentralized marketplace for unsecured institutional capital. It allows institutions",
+    "chains": [
+      "Ethereum",
+      "Base",
+      "Optimism",
+      "Polygon",
+      "Mantle",
+      "Polygon zkEVM",
+      "Avalanche",
+      "Arbitrum",
+      "Flare"
+    ]
+  },
+  {
+    "name": "Degen Bridge",
+    "tvl": 639463.1791708347,
+    "category": "Canonical Bridge",
+    "url": "https://bridge.degen.tips",
+    "description": "The Degen chain uses $degen as its native gas token (instead of ETH), so to use the chain you\u2019ll hav",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Sherpa",
+    "tvl": 653927.827342768,
+    "category": "Onchain Capital Allocator",
+    "url": "https://earn.sherpa.trade",
+    "description": "A managed multi-chain yield vault generating returns on USDC through delta-neutral strategies includ",
+    "chains": [
+      "Ethereum",
+      "Monad",
+      "Base"
+    ]
+  },
+  {
+    "name": "Ajna V2",
+    "tvl": 691894.9816028676,
+    "category": "Lending",
+    "url": "https://www.ajna.finance/",
+    "description": "Ajna is a peer to peer, oracleless, permissionless lending protocol with no governance, accepting bo",
+    "chains": [
+      "Ethereum",
+      "Hemi",
+      "Base",
+      "Arbitrum",
+      "Rari",
+      "Optimism",
+      "Polygon",
+      "Avalanche",
+      "Filecoin",
+      "Binance",
+      "Blast",
+      "Mode",
+      "Linea"
+    ]
+  },
+  {
+    "name": "NerveBridge",
+    "tvl": 692910.2498586446,
+    "category": "Bridge",
+    "url": "https://nerve.network/",
+    "description": "NerveNetwork is a Decentralized Digital Asset Service Network.It is an asset relay network connectin",
+    "chains": [
+      "Ethereum",
+      "Nuls",
+      "Binance",
+      "Blast",
+      "Linea",
+      "zkSync Era",
+      "Tron",
+      "Bitcoin",
+      "Arbitrum",
+      "Optimism",
+      "Scroll",
+      "EthereumClassic",
+      "ENULS",
+      "Polygon zkEVM",
+      "Base",
+      "smartBCH",
+      "Polygon",
+      "Celo",
+      "X Layer",
+      "Bitgert",
+      "Kucoin",
+      "Avalanche",
+      "Klaytn",
+      "Cronos",
+      "REI",
+      "OKExChain",
+      "Kava",
+      "EthereumPoW",
+      "Metis",
+      "ZetaChain",
+      "Fantom",
+      "Harmony",
+      "IoTeX",
+      "Manta",
+      "Merlin",
+      "Mode",
+      "Pulse",
+      "EOS EVM"
+    ]
+  },
+  {
+    "name": "OTSea",
+    "tvl": 698124.2876199733,
+    "category": "Dexs",
+    "url": "https://otsea.io/",
+    "description": "OTSea is a leading OTC trading platform on web3 that provides users with a reliable and user friendl",
+    "chains": [
+      "Ethereum",
+      "Base",
+      "Blast"
+    ]
+  },
+  {
+    "name": "Cytonic Airdrop Campaign",
+    "tvl": 730872.6901775476,
+    "category": "Farm",
+    "url": "https://www.cytonic.com/",
+    "description": "The Cytonic airdrop campaign is designed to incentivize users and help bootstrap the initial blockch",
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Base",
+      "Solana",
+      "Binance",
+      "Optimism",
+      "Polygon",
+      "Manta",
+      "Blast",
+      "Avalanche",
+      "BSquared"
+    ]
+  },
+  {
+    "name": "Flex Perpetuals",
+    "tvl": 761049.7246044029,
+    "category": "Derivatives",
+    "url": "https://flex.trade",
+    "description": "Flex Perpetuals is a next-gen decentralized perpetual protocol with cross-margin and multi-asset col",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Apostro",
+    "tvl": 773766.2304377808,
+    "category": "Risk Curators",
+    "url": "https://www.apostro.xyz/",
+    "description": "Money markets for professional & institutional traders. Specialized vaults for BTCfi, stablecoins & ",
+    "chains": [
+      "Ethereum",
+      "Base",
+      "Binance"
+    ]
+  },
+  {
+    "name": "Levva",
+    "tvl": 785936.5594936506,
+    "category": "Liquidity manager",
+    "url": "https://levva.fi",
+    "description": "Levva is an optimized web3 protocol that offers universal yield and leverage in DeFi. Levva provides",
+    "chains": [
+      "Base",
+      "Ethereum",
+      "Arbitrum",
+      "Blast",
+      "Linea"
+    ]
+  },
+  {
+    "name": "RocketSwap Base",
+    "tvl": 802094.5252330882,
+    "category": "Dexs",
+    "url": "https://app.rocketswap.cc/exchange/swap",
+    "description": "RocketSwap is the first community initiated and driven decentralized exchange on Base Mainnet Networ",
+    "chains": [
+      "Base"
+    ]
+  },
+  {
+    "name": "Brink",
+    "tvl": 813268.7778028031,
+    "category": "Onchain Capital Allocator",
+    "url": "https://brink.money/",
+    "description": "Brink is a yield optimization platform that uses predictive algorithms to allocate and compound user",
+    "chains": [
+      "Mantle",
+      "Base"
+    ]
+  },
+  {
+    "name": "TermFinance Lend",
+    "tvl": 830447.4595149464,
+    "category": "Lending",
+    "url": "https://term.finance",
+    "description": "TermFinance is a fixed rate borrow/lend protocol pioneering an auction model to originate fixed rate",
+    "chains": [
+      "Ethereum",
+      "Avalanche",
+      "Base",
+      "Plasma"
+    ]
+  },
+  {
+    "name": "Sablier Flow",
+    "tvl": 847685.9121259233,
+    "category": "Payments",
+    "url": "https://app.sablier.com/payments/",
+    "description": "Pay at a constant rate. Top up over time",
+    "chains": [
+      "Ethereum",
+      "Arbitrum",
+      "Base",
+      "Polygon",
+      "Linea",
+      "Mode",
+      "Binance",
+      "zkSync Era",
+      "Morph",
+      "xDai",
+      "Avalanche",
+      "Scroll",
+      "Optimism",
+      "Abstract",
+      "Chiliz",
+      "Berachain",
+      "Form Network",
+      "CORE",
+      "LightLink",
+      "Hyperliquid L1",
+      "Sophon",
+      "Superseed",
+      "Unichain",
+      "Sonic",
+      "XDC",
+      "Sei",
+      "Blast"
+    ]
+  },
+  {
+    "name": "Tarot",
+    "tvl": 853724.7081989342,
+    "category": "Lending",
+    "url": "https://www.tarot.to",
+    "description": "Protocol users can deposit LP tokens in Tarot Vaults and receive Vault Tokens. The deposited LP toke",
+    "chains": [
+      "Base",
+      "Optimism",
+      "Fantom",
+      "Binance",
+      "Avalanche",
+      "Linea",
+      "Arbitrum",
+      "zkSync Era",
+      "Kava",
+      "Scroll",
+      "Canto",
+      "Ethereum",
+      "Polygon"
+    ]
+  },
+  {
+    "name": "BMX Classic Perps",
+    "tvl": 854822.7702464231,
+    "category": "Derivatives",
+    "url": "https://bmx.morphex.trade",
+    "description": "BMX by Morphex is a decentralized perpetual exchange focused on bringing the highest capital efficie",
+    "chains": [
+      "Base",
+      "Sonic",
+      "Mode"
+    ]
+  },
+  {
+    "name": "GoPlus Locker V2",
+    "tvl": 859212.231735258,
+    "category": "Token Locker",
+    "url": "https://gopluslabs.io",
+    "description": "A multi-chain token and liquidity locker by GoPlus Security.",
+    "chains": [
+      "Base",
+      "Binance",
+      "Ethereum",
+      "Arbitrum"
+    ]
+  },
+  {
+    "name": "DefiEdge",
+    "tvl": 878329.8333478232,
+    "category": "Liquidity manager",
+    "url": "",
+    "description": "Permissionless Liquidity Management on Uniswap V3. DefiEdge provides the smartest solution to deploy",
+    "chains": [
+      "Binance",
+      "Polygon",
+      "Arbitrum",
+      "Linea",
+      "Base",
+      "Optimism",
+      "Avalanche",
+      "Ethereum",
+      "X Layer",
+      "zkSync Era",
+      "Polygon zkEVM",
+      "Astar zkEVM",
+      "Moonbeam",
+      "Mantle"
+    ]
+  },
+  {
+    "name": "Ploutos Money",
+    "tvl": 911820.3901878658,
+    "category": "Lending",
+    "url": "https://ploutos.money/",
+    "description": "Ploutos is a non-custodial money market and leveraged farming platform.",
+    "chains": [
+      "Hemi",
+      "Plasma",
+      "Polygon",
+      "Arbitrum",
+      "Katana",
+      "Base"
+    ]
+  },
+  {
+    "name": "Nabla Finance",
+    "tvl": 919101.4870481128,
+    "category": "Dexs",
+    "url": "https://nabla.fi",
+    "description": "Nabla Finance is a yield protocol where the yield is generated by the hyper-efficient Nabla AMM.",
+    "chains": [
+      "Arbitrum",
+      "Hyperliquid L1",
+      "Berachain",
+      "Base",
+      "Monad"
+    ]
+  },
+  {
+    "name": "BabyDoge Bridge",
+    "tvl": 926546.7165758641,
+    "category": "Bridge",
+    "url": "https://bridge.babydoge.com/",
+    "description": "Move BabyDoge instantly across BNB Chain, Base, TON and Solana",
+    "chains": [
+      "Binance",
+      "TON",
+      "Base",
+      "Solana"
+    ]
+  },
+  {
+    "name": "Rezerve Money",
+    "tvl": 936403.6057637575,
+    "category": "Reserve Currency",
+    "url": "https://rezerve.money/",
+    "description": "RZR is a decentralized treasury accumulation protocol with one mission to accumulate 1 million ETH. ",
+    "chains": [
+      "Ethereum",
+      "Sonic",
+      "Binance",
+      "Hyperliquid L1",
+      "Base"
+    ]
+  },
+  {
+    "name": "Clipper",
+    "tvl": 992615.8115461537,
+    "category": "Dexs",
+    "url": "https://clipper.exchange",
+    "description": "Clipper is the decentralized exchange (DEX) built to give the self-made crypto trader the best possi",
+    "chains": [
+      "Ethereum",
+      "Optimism",
+      "Base",
+      "Polygon",
+      "Arbitrum",
+      "Moonbeam",
+      "Mantle",
+      "Polygon zkEVM"
+    ]
+  },
+  {
+    "name": "Whales Market",
+    "tvl": 997761.5966652497,
+    "category": "OTC Marketplace",
+    "url": "https://whales.market/",
+    "description": "Trade like a pro with advanced tools and features at your fingertips",
+    "chains": [
+      "Ethereum",
+      "Solana",
+      "Base",
+      "Arbitrum",
+      "Blast",
+      "Binance",
+      "Linea",
+      "Merlin",
+      "Mode",
+      "Starknet",
+      "Manta"
+    ]
+  }
+]

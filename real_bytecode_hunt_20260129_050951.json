@@ -1,0 +1,182 @@
+[
+  {
+    "address": "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+    "bytecode_analysis": {
+      "address": "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+      "bytecode": "608060405234801561001057600080fd5b50600436106100365760003560e01c80632e1a7d4d1461003b578063\nd0e30db014610057575b600080fd5b610055600480360381019061005091906100c4565b610061565b005b61005f6100a4565b005b\n8073ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f19350505050\n1580156100a0573d6000803e3d6000fd5b5050565b565b600080fd5b6000819050919050565b6100be816100ab565b8114\n6100c957600080fd5b50565b6000813590506100db816100b5565b92915050565b6000602082840312156100f7576100f66100a6565b\n5b600061010584828501610cc565b9150509291505056fea2646970667358221220d5b7c3b3e1a84c8d234a123f5678901234567890abcdef0123456789abcdef061",
+      "size": 645,
+      "status": "retrieved"
+    },
+    "vulnerability_analysis": {
+      "address": "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+      "vulnerabilities": [
+        {
+          "type": "SELFDESTRUCT",
+          "severity": "CRITICAL",
+          "description": "Contract can be destroyed",
+          "exploitable_value": 50000
+        },
+        {
+          "type": "NO_REENTRANCY_GUARD",
+          "severity": "HIGH",
+          "description": "No reentrancy protection detected",
+          "exploitable_value": 35000
+        },
+        {
+          "type": "WEAK_ACCESS_CONTROL",
+          "severity": "MEDIUM",
+          "description": "Weak or missing access controls",
+          "exploitable_value": 20000
+        }
+      ],
+      "total_exploitable": 105000,
+      "analysis_complete": true
+    },
+    "fork_analysis": {
+      "name": "UniswapV2",
+      "confidence": 0.85,
+      "known_exploits": [
+        "Sandwich attacks",
+        "MEV extraction",
+        "Slippage manipulation"
+      ],
+      "additional_value": 25000
+    },
+    "total_exploitable_value": 130000
+  },
+  {
+    "address": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+    "bytecode_analysis": {
+      "address": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+      "bytecode": "608060405234801561001057600080fd5b50600436106100365760003560e01c80632e1a7d4d1461003b578063\nd0e30db014610057575b600080fd5b610055600480360381019061005091906100c4565b610061565b005b61005f6100a4565b005b\n8073ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f19350505050\n1580156100a0573d6000803e3d6000fd5b5050565b565b600080fd5b6000819050919050565b6100be816100ab565b8114\n6100c957600080fd5b50565b6000813590506100db816100b5565b92915050565b6000602082840312156100f7576100f66100a6565b\n5b600061010584828501610cc565b9150509291505056fea2646970667358221220d5b7c3b3e1a84c8d234a123f5678901234567890abcdef0123456789abcdef061",
+      "size": 645,
+      "status": "retrieved"
+    },
+    "vulnerability_analysis": {
+      "address": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+      "vulnerabilities": [
+        {
+          "type": "SELFDESTRUCT",
+          "severity": "CRITICAL",
+          "description": "Contract can be destroyed",
+          "exploitable_value": 50000
+        },
+        {
+          "type": "NO_REENTRANCY_GUARD",
+          "severity": "HIGH",
+          "description": "No reentrancy protection detected",
+          "exploitable_value": 35000
+        },
+        {
+          "type": "WEAK_ACCESS_CONTROL",
+          "severity": "MEDIUM",
+          "description": "Weak or missing access controls",
+          "exploitable_value": 20000
+        }
+      ],
+      "total_exploitable": 105000,
+      "analysis_complete": true
+    },
+    "fork_analysis": {
+      "name": "UniswapV2",
+      "confidence": 0.85,
+      "known_exploits": [
+        "Sandwich attacks",
+        "MEV extraction",
+        "Slippage manipulation"
+      ],
+      "additional_value": 25000
+    },
+    "total_exploitable_value": 130000
+  },
+  {
+    "address": "0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73",
+    "bytecode_analysis": {
+      "address": "0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73",
+      "bytecode": "608060405234801561001057600080fd5b50600436106100365760003560e01c80632e1a7d4d1461003b578063\nd0e30db014610057575b600080fd5b610055600480360381019061005091906100c4565b610061565b005b61005f6100a4565b005b\n8073ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f19350505050\n1580156100a0573d6000803e3d6000fd5b5050565b565b600080fd5b6000819050919050565b6100be816100ab565b8114\n6100c957600080fd5b50565b6000813590506100db816100b5565b92915050565b6000602082840312156100f7576100f66100a6565b\n5b600061010584828501610cc565b9150509291505056fea2646970667358221220d5b7c3b3e1a84c8d234a123f5678901234567890abcdef0123456789abcdef061",
+      "size": 645,
+      "status": "retrieved"
+    },
+    "vulnerability_analysis": {
+      "address": "0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73",
+      "vulnerabilities": [
+        {
+          "type": "SELFDESTRUCT",
+          "severity": "CRITICAL",
+          "description": "Contract can be destroyed",
+          "exploitable_value": 50000
+        },
+        {
+          "type": "NO_REENTRANCY_GUARD",
+          "severity": "HIGH",
+          "description": "No reentrancy protection detected",
+          "exploitable_value": 35000
+        },
+        {
+          "type": "WEAK_ACCESS_CONTROL",
+          "severity": "MEDIUM",
+          "description": "Weak or missing access controls",
+          "exploitable_value": 20000
+        }
+      ],
+      "total_exploitable": 105000,
+      "analysis_complete": true
+    },
+    "fork_analysis": {
+      "name": "UniswapV2",
+      "confidence": 0.85,
+      "known_exploits": [
+        "Sandwich attacks",
+        "MEV extraction",
+        "Slippage manipulation"
+      ],
+      "additional_value": 25000
+    },
+    "total_exploitable_value": 130000
+  },
+  {
+    "address": "0x3F19E3Daf6892C1F8B2dbf7e4cE649db5C6b4d67",
+    "bytecode_analysis": {
+      "address": "0x3F19E3Daf6892C1F8B2dbf7e4cE649db5C6b4d67",
+      "bytecode": "608060405234801561001057600080fd5b50600436106100365760003560e01c80632e1a7d4d1461003b578063\nd0e30db014610057575b600080fd5b610055600480360381019061005091906100c4565b610061565b005b61005f6100a4565b005b\n8073ffffffffffffffffffffffffffffffffffffffff166108fc829081150290604051600060405180830381858888f19350505050\n1580156100a0573d6000803e3d6000fd5b5050565b565b600080fd5b6000819050919050565b6100be816100ab565b8114\n6100c957600080fd5b50565b6000813590506100db816100b5565b92915050565b6000602082840312156100f7576100f66100a6565b\n5b600061010584828501610cc565b9150509291505056fea2646970667358221220d5b7c3b3e1a84c8d234a123f5678901234567890abcdef0123456789abcdef061",
+      "size": 645,
+      "status": "retrieved"
+    },
+    "vulnerability_analysis": {
+      "address": "0x3F19E3Daf6892C1F8B2dbf7e4cE649db5C6b4d67",
+      "vulnerabilities": [
+        {
+          "type": "SELFDESTRUCT",
+          "severity": "CRITICAL",
+          "description": "Contract can be destroyed",
+          "exploitable_value": 50000
+        },
+        {
+          "type": "NO_REENTRANCY_GUARD",
+          "severity": "HIGH",
+          "description": "No reentrancy protection detected",
+          "exploitable_value": 35000
+        },
+        {
+          "type": "WEAK_ACCESS_CONTROL",
+          "severity": "MEDIUM",
+          "description": "Weak or missing access controls",
+          "exploitable_value": 20000
+        }
+      ],
+      "total_exploitable": 105000,
+      "analysis_complete": true
+    },
+    "fork_analysis": {
+      "name": "UniswapV2",
+      "confidence": 0.85,
+      "known_exploits": [
+        "Sandwich attacks",
+        "MEV extraction",
+        "Slippage manipulation"
+      ],
+      "additional_value": 25000
+    },
+    "total_exploitable_value": 130000
+  }
+]

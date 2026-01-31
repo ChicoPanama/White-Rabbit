@@ -1,0 +1,205 @@
+# LogicHunter-Alpha Configuration
+# Elite business logic vulnerability detection system
+
+# Target Configuration
+targets:
+  min_tvl: 50000000  # $50M minimum TVL
+  max_protocols_per_chain: 20
+  scan_interval_hours: 6
+  
+  # Chain priorities (1=highest, 5=lowest)
+  chain_priorities:
+    ethereum: 1
+    bsc: 2  # High vulnerability history
+    arbitrum: 3
+    polygon: 3
+    avalanche: 4
+    optimism: 4
+    fantom: 5
+
+# Vulnerability Detection Rules
+detection_rules:
+  # Input validation bypasses (Nomad-style)
+  input_validation:
+    enabled: true
+    risk_score: 9
+    patterns:
+      - "require\\s*\\(\\s*[^;]*\\s*==\\s*0\\s*\\)"
+      - "if\\s*\\(\\s*\\w+\\s*==\\s*0x[0]+\\s*\\)"
+      - "assert\\s*\\(\\s*[^;]*\\s*>\\s*0\\s*\\)"
+      - "msg\\.value\\s*==\\s*0"
+      - "\\baddress\\(0\\)"
+    
+  # State machine exploits
+  state_machine:
+    enabled: true
+    risk_score: 8
+    patterns:
+      - "mapping\\s*\\(\\s*\\w+\\s*=>\\s*bool\\s*\\)"
+      - "modifier\\s+\\w*\\s*\\{[^}]*require"
+      - "function\\s+\\w*\\s*\\([^)]*\\)\\s*\\w*\\s*\\{[^}]*state"
+      - "reentrancyGuard"
+      - "nonReentrant"
+    
+  # Signature verification bypasses (Wormhole-style)  
+  signature_verification:
+    enabled: true
+    risk_score: 10
+    patterns:
+      - "ecrecover\\s*\\("
+      - "verify.*signature"
+      - "keccak256\\s*\\(\\s*abi\\.encode"
+      - "ECDSA\\.recover"
+      - "SignatureChecker"
+    
+  # Economic model exploits
+  economic_exploits:
+    enabled: true
+    risk_score: 7
+    patterns:
+      - "price\\s*\\*\\s*amount"
+      - "swap\\s*\\("
+      - "liquidity.*pool"
+      - "reward.*calculate"
+      - "oracle\\.getPrice"
+      - "flashLoan"
+    
+  # Bridge verification (BNB Bridge-style)
+  bridge_verification:
+    enabled: true
+    risk_score: 10
+    patterns:
+      - "proof\\s*\\.\\s*verify"
+      - "merkle.*root"
+      - "cross.*chain"
+      - "deposit.*withdraw"
+      - "IAVL"
+      - "validateProof"
+
+# Risk Assessment
+risk_matrix:
+  critical:
+    min_score: 9
+    max_score: 10
+    alert_threshold: 1  # Alert on any critical finding
+    economic_impact: "$100M+"
+    
+  high:
+    min_score: 7
+    max_score: 8
+    alert_threshold: 3  # Alert on 3+ high findings
+    economic_impact: "$10M-100M"
+    
+  medium:
+    min_score: 5
+    max_score: 6
+    alert_threshold: 10  # Alert on 10+ medium findings
+    economic_impact: "$1M-10M"
+
+# Protocol Target Lists
+protocol_targets:
+  # High priority - complex logic, large TVL
+  tier_1:
+    - "Aave V3"
+    - "Compound V3" 
+    - "Curve Finance"
+    - "Convex Finance"
+    - "Uniswap V3"
+    - "GMX"
+    - "Venus Protocol"
+    
+  # Medium priority - significant TVL
+  tier_2:
+    - "PancakeSwap V3"
+    - "SushiSwap"
+    - "Balancer V2"
+    - "Yearn Finance"
+    - "MakerDAO"
+    
+  # Bridges - highest risk category
+  bridges:
+    - "Stargate Finance"
+    - "Hop Protocol"
+    - "Multichain"
+    - "Synapse Protocol"
+    - "Across Protocol"
+
+# Transaction Pattern Analysis
+transaction_analysis:
+  enabled: true
+  lookback_blocks: 1000
+  suspicious_patterns:
+    high_gas_threshold: 2000000
+    large_value_threshold: "1000 ether"
+    flash_loan_detection: true
+    arbitrage_detection: true
+    
+  # MEV protection analysis
+  mev_patterns:
+    sandwich_attacks: true
+    front_running: true
+    liquidation_bots: true
+
+# Reporting Configuration  
+reporting:
+  auto_report: true
+  report_interval_hours: 12
+  output_formats:
+    - "markdown"
+    - "json" 
+    - "csv"
+    
+  # Notification thresholds
+  notifications:
+    critical_immediate: true
+    high_risk_hourly: true
+    daily_summary: true
+    
+# API Configuration
+api_keys:
+  # Add your API keys here
+  etherscan: "YOUR_ETHERSCAN_API_KEY"
+  bscscan: "YOUR_BSCSCAN_API_KEY"
+  polygonscan: "YOUR_POLYGONSCAN_API_KEY"
+  arbiscan: "YOUR_ARBISCAN_API_KEY"
+  
+# Advanced Detection Features
+advanced_detection:
+  # Economic impact modeling
+  economic_modeling:
+    enabled: true
+    tvl_weight: 0.4
+    liquidity_weight: 0.3
+    complexity_weight: 0.3
+    
+  # Historical pattern matching
+  pattern_matching:
+    enabled: true
+    similarity_threshold: 0.8
+    historical_exploits_db: "exploits.json"
+    
+  # Machine learning anomaly detection
+  ml_detection:
+    enabled: false  # Requires training data
+    model_path: "models/anomaly_detector.pkl"
+    confidence_threshold: 0.9
+
+# Operational Security
+operational_security:
+  rate_limiting:
+    rpc_calls_per_second: 10
+    api_calls_per_minute: 60
+    
+  # Responsible disclosure
+  disclosure:
+    auto_disclose: false  # Manual review required
+    grace_period_days: 90
+    contact_methods:
+      - "security@protocol.com"
+      - "Immunefi bounty platform"
+      
+  # Data handling
+  data_retention:
+    log_retention_days: 30
+    report_retention_days: 365
+    sensitive_data_encryption: true

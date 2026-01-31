@@ -1,0 +1,41 @@
+# Nested git repositories (to be handled as submodules)
+SSV-Exploits/
+optimism/
+ssv/
+ssv-contracts/
+ssv-exploit-lab/
+ssv-network/
+ssv-spec/
+ssv-verification/
+memory/ssv-verified/
+
+# Temporary files
+*.tmp
+*.cache
+.DS_Store
+
+# Build artifacts
+out/
+cache/
+node_modules/
+
+# Environment files
+.env
+.env.local
+
+# Virtual environments
+*-venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Logs
+*.log

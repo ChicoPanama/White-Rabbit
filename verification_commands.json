@@ -1,0 +1,75 @@
+{
+  "setup": [
+    {
+      "step": "Create Project Directory",
+      "command": "mkdir immunify_verification && cd immunify_verification",
+      "description": "Set up clean testing environment"
+    },
+    {
+      "step": "Initialize Foundry Project",
+      "command": "forge init --no-git .",
+      "description": "Create Foundry project structure"
+    },
+    {
+      "step": "Start Base Fork",
+      "command": "anvil --fork-url https://mainnet.base.org --port 8545 &",
+      "description": "Fork Base mainnet for safe testing"
+    }
+  ],
+  "static_analysis": [
+    {
+      "step": "Get FWX DEX Bytecode",
+      "command": "cast code 0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73 --rpc-url https://mainnet.base.org > fwx_bytecode.txt",
+      "description": "Fetch contract bytecode for analysis"
+    },
+    {
+      "step": "Get Soswap Bytecode",
+      "command": "cast code 0x9E8F7A6B5C4D3E2F1023456789ABCDEFabcdef12 --rpc-url https://mainnet.base.org > soswap_bytecode.txt",
+      "description": "Fetch contract bytecode for analysis"
+    },
+    {
+      "step": "Get Graphene Bytecode",
+      "command": "cast code 0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6 --rpc-url https://mainnet.base.org > graphene_bytecode.txt",
+      "description": "Fetch contract bytecode for analysis"
+    },
+    {
+      "step": "Check for Vulnerability Patterns",
+      "command": "grep -E \"(ff|f4|7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff)\" *.txt",
+      "description": "Search for vulnerability patterns in bytecode"
+    }
+  ],
+  "contract_testing": [
+    {
+      "step": "Test Contract Interface",
+      "command": "cast interface 0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73 --rpc-url https://mainnet.base.org",
+      "description": "Extract function signatures from contract"
+    },
+    {
+      "step": "Check Reentrancy Protection",
+      "command": "forge test --match-test testReentrancy --rpc-url http://127.0.0.1:8545",
+      "description": "Test reentrancy protection on fork"
+    },
+    {
+      "step": "Test Approval Mechanisms",
+      "command": "cast call 0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73 \"allowance(address,address)\" [USER] [SPENDER] --rpc-url http://127.0.0.1:8545",
+      "description": "Check approval mechanisms safely"
+    }
+  ],
+  "economic_analysis": [
+    {
+      "step": "Get Contract Balance",
+      "command": "cast balance 0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73 --rpc-url https://mainnet.base.org",
+      "description": "Check contract ETH balance"
+    },
+    {
+      "step": "Simulate Flash Loan Impact",
+      "command": "forge test --match-test testFlashLoanImpact --rpc-url http://127.0.0.1:8545",
+      "description": "Calculate potential flash loan manipulation"
+    },
+    {
+      "step": "Calculate Total Value at Risk",
+      "command": "cast call [TOKEN_ADDRESS] \"balanceOf(address)\" 0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73 --rpc-url https://mainnet.base.org",
+      "description": "Check token balances at risk"
+    }
+  ]
+}

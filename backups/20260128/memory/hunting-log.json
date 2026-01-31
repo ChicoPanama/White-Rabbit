@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-01-28T00:00:00Z",
+  "stats": {
+    "totalScans": 0,
+    "totalContracts": 0,
+    "totalFindings": 0,
+    "verifiedExploits": 0,
+    "likelyReal": 0,
+    "falsePositives": 0,
+    "totalExploitableValue": 0,
+    "forkMatches": 0,
+    "patternsLearned": 0
+  },
+  "chainPriorities": {
+    "ethereum": 1.0,
+    "bsc": 0.9,
+    "arbitrum": 0.9,
+    "base": 0.85,
+    "polygon": 0.85,
+    "optimism": 0.8,
+    "avalanche": 0.75,
+    "blast": 0.7,
+    "linea": 0.7,
+    "scroll": 0.65,
+    "fantom": 0.6,
+    "cronos": 0.55,
+    "gnosis": 0.5
+  },
+  "scanQueue": [],
+  "recentHacks": [],
+  "findings": [],
+  "patterns": [],
+  "lastScanByChain": {}
+}

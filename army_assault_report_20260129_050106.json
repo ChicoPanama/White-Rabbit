@@ -1,0 +1,314 @@
+[
+  {
+    "target": "Graphene by Velocimeter",
+    "tvl": 10148,
+    "risk_score": 55,
+    "contract_discovery": {
+      "target": "Graphene by Velocimeter",
+      "potential_contracts": [
+        "GrapheneFactory",
+        "GrapheneRouter",
+        "GraphenePair",
+        "GrapheneToken",
+        "GrapheneLP",
+        "GrapheneVault",
+        "GrapheneSwap",
+        "GraphenePool",
+        "UniswapV2Factory",
+        "UniswapV2Router02",
+        "SushiSwapFactory",
+        "PancakeFactory"
+      ],
+      "discovery_status": "patterns_identified",
+      "next_step": "basescan_lookup"
+    },
+    "vulnerability_analysis": {
+      "target": "Graphene by Velocimeter",
+      "vulnerabilities": [
+        "SwapNet unlimited approval pattern",
+        "Price manipulation via low liquidity",
+        "Flash loan sandwich attacks",
+        "Reentrancy in swap functions",
+        "Integer overflow in calculations",
+        "Access control bypass in admin functions",
+        "Very low TVL - likely unaudited"
+      ],
+      "attack_vectors": [
+        "Flash loan + price manipulation",
+        "Approval phishing via frontend",
+        "MEV extraction through slippage",
+        "Liquidity drain via reentrancy",
+        "Economic attack feasibility high"
+      ],
+      "risk_assessment": "high_probability_exploitable"
+    },
+    "value_estimation": {
+      "target": "Graphene by Velocimeter",
+      "estimates": {
+        "liquidity_drain": 1674,
+        "approval_exploit": 2790,
+        "flash_loan_manipulation": 3906,
+        "combined_attack": 4465
+      },
+      "max_exploitable": 4465,
+      "alert_worthy": false
+    },
+    "attack_plan": {
+      "target": "Graphene by Velocimeter",
+      "priority": "HIGH",
+      "phases": [
+        {
+          "phase": 1,
+          "name": "Reconnaissance",
+          "actions": [
+            "Contract address discovery via BaseScan",
+            "Source code verification check",
+            "Frontend analysis for approval patterns",
+            "Liquidity pool identification"
+          ]
+        },
+        {
+          "phase": 2,
+          "name": "Vulnerability Analysis",
+          "actions": [
+            "Slither static analysis execution",
+            "Manual code review for DEX patterns",
+            "Approval mechanism assessment",
+            "Price manipulation vector analysis"
+          ]
+        },
+        {
+          "phase": 3,
+          "name": "Exploit Development",
+          "actions": [
+            "Flash loan PoC development",
+            "Approval exploit script creation",
+            "Price manipulation simulation",
+            "Combined attack vector testing"
+          ]
+        },
+        {
+          "phase": 4,
+          "name": "Verification",
+          "actions": [
+            "Testnet deployment and testing",
+            "Value extraction calculation",
+            "Risk assessment confirmation",
+            "Alert preparation if threshold met"
+          ]
+        }
+      ],
+      "estimated_timeline": "2-4 hours per target",
+      "resource_requirements": "High - full vulnerability analysis suite"
+    },
+    "assault_timestamp": "2026-01-29T05:01:06.329847"
+  },
+  {
+    "target": "Soswap",
+    "tvl": 11230,
+    "risk_score": 65,
+    "contract_discovery": {
+      "target": "Soswap",
+      "potential_contracts": [
+        "SoswapFactory",
+        "SoswapRouter",
+        "SoswapPair",
+        "SoswapToken",
+        "SoswapLP",
+        "SoswapVault",
+        "SoswapSwap",
+        "SoswapPool",
+        "UniswapV2Factory",
+        "UniswapV2Router02",
+        "SushiSwapFactory",
+        "PancakeFactory"
+      ],
+      "discovery_status": "patterns_identified",
+      "next_step": "basescan_lookup"
+    },
+    "vulnerability_analysis": {
+      "target": "Soswap",
+      "vulnerabilities": [
+        "SwapNet unlimited approval pattern",
+        "Price manipulation via low liquidity",
+        "Flash loan sandwich attacks",
+        "Reentrancy in swap functions",
+        "Integer overflow in calculations",
+        "Access control bypass in admin functions",
+        "Very low TVL - likely unaudited"
+      ],
+      "attack_vectors": [
+        "Flash loan + price manipulation",
+        "Approval phishing via frontend",
+        "MEV extraction through slippage",
+        "Liquidity drain via reentrancy",
+        "Economic attack feasibility high"
+      ],
+      "risk_assessment": "high_probability_exploitable"
+    },
+    "value_estimation": {
+      "target": "Soswap",
+      "estimates": {
+        "liquidity_drain": 2189,
+        "approval_exploit": 3649,
+        "flash_loan_manipulation": 5109,
+        "combined_attack": 5839
+      },
+      "max_exploitable": 5839,
+      "alert_worthy": false
+    },
+    "attack_plan": {
+      "target": "Soswap",
+      "priority": "HIGH",
+      "phases": [
+        {
+          "phase": 1,
+          "name": "Reconnaissance",
+          "actions": [
+            "Contract address discovery via BaseScan",
+            "Source code verification check",
+            "Frontend analysis for approval patterns",
+            "Liquidity pool identification"
+          ]
+        },
+        {
+          "phase": 2,
+          "name": "Vulnerability Analysis",
+          "actions": [
+            "Slither static analysis execution",
+            "Manual code review for DEX patterns",
+            "Approval mechanism assessment",
+            "Price manipulation vector analysis"
+          ]
+        },
+        {
+          "phase": 3,
+          "name": "Exploit Development",
+          "actions": [
+            "Flash loan PoC development",
+            "Approval exploit script creation",
+            "Price manipulation simulation",
+            "Combined attack vector testing"
+          ]
+        },
+        {
+          "phase": 4,
+          "name": "Verification",
+          "actions": [
+            "Testnet deployment and testing",
+            "Value extraction calculation",
+            "Risk assessment confirmation",
+            "Alert preparation if threshold met"
+          ]
+        }
+      ],
+      "estimated_timeline": "2-4 hours per target",
+      "resource_requirements": "High - full vulnerability analysis suite"
+    },
+    "assault_timestamp": "2026-01-29T05:01:06.329923"
+  },
+  {
+    "target": "FWX DEX",
+    "tvl": 12874,
+    "risk_score": 65,
+    "contract_discovery": {
+      "target": "FWX DEX",
+      "potential_contracts": [
+        "FWXFactory",
+        "FWXRouter",
+        "FWXPair",
+        "FWXToken",
+        "FWXLP",
+        "FWXVault",
+        "FWXSwap",
+        "FWXPool",
+        "UniswapV2Factory",
+        "UniswapV2Router02",
+        "SushiSwapFactory",
+        "PancakeFactory"
+      ],
+      "discovery_status": "patterns_identified",
+      "next_step": "basescan_lookup"
+    },
+    "vulnerability_analysis": {
+      "target": "FWX DEX",
+      "vulnerabilities": [
+        "SwapNet unlimited approval pattern",
+        "Price manipulation via low liquidity",
+        "Flash loan sandwich attacks",
+        "Reentrancy in swap functions",
+        "Integer overflow in calculations",
+        "Access control bypass in admin functions",
+        "Very low TVL - likely unaudited"
+      ],
+      "attack_vectors": [
+        "Flash loan + price manipulation",
+        "Approval phishing via frontend",
+        "MEV extraction through slippage",
+        "Liquidity drain via reentrancy",
+        "Economic attack feasibility high"
+      ],
+      "risk_assessment": "high_probability_exploitable"
+    },
+    "value_estimation": {
+      "target": "FWX DEX",
+      "estimates": {
+        "liquidity_drain": 2510,
+        "approval_exploit": 4184,
+        "flash_loan_manipulation": 5857,
+        "combined_attack": 6694
+      },
+      "max_exploitable": 6694,
+      "alert_worthy": false
+    },
+    "attack_plan": {
+      "target": "FWX DEX",
+      "priority": "HIGH",
+      "phases": [
+        {
+          "phase": 1,
+          "name": "Reconnaissance",
+          "actions": [
+            "Contract address discovery via BaseScan",
+            "Source code verification check",
+            "Frontend analysis for approval patterns",
+            "Liquidity pool identification"
+          ]
+        },
+        {
+          "phase": 2,
+          "name": "Vulnerability Analysis",
+          "actions": [
+            "Slither static analysis execution",
+            "Manual code review for DEX patterns",
+            "Approval mechanism assessment",
+            "Price manipulation vector analysis"
+          ]
+        },
+        {
+          "phase": 3,
+          "name": "Exploit Development",
+          "actions": [
+            "Flash loan PoC development",
+            "Approval exploit script creation",
+            "Price manipulation simulation",
+            "Combined attack vector testing"
+          ]
+        },
+        {
+          "phase": 4,
+          "name": "Verification",
+          "actions": [
+            "Testnet deployment and testing",
+            "Value extraction calculation",
+            "Risk assessment confirmation",
+            "Alert preparation if threshold met"
+          ]
+        }
+      ],
+      "estimated_timeline": "2-4 hours per target",
+      "resource_requirements": "High - full vulnerability analysis suite"
+    },
+    "assault_timestamp": "2026-01-29T05:01:06.329987"
+  }
+]

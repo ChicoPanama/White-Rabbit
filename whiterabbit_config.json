@@ -1,0 +1,273 @@
+{
+  "detection_engine": {
+    "version": "1.0.0",
+    "name": "WhiteRabbit Exploit Pattern Detection Engine",
+    "description": "Comprehensive DeFi exploit detection based on $23.47B analysis",
+    
+    "risk_thresholds": {
+      "critical": 90,
+      "high": 75,
+      "medium": 50,
+      "low": 25
+    },
+    
+    "monitoring": {
+      "realtime_enabled": true,
+      "batch_analysis_enabled": true,
+      "transaction_monitoring_enabled": true,
+      "alert_destinations": ["telegram", "email", "webhook"]
+    },
+    
+    "pattern_weights": {
+      "LOGIC_PRECISION_LOSS": 0.85,
+      "LOGIC_OVERFLOW_UNCHECKED": 0.90,
+      "LOGIC_INVARIANT_VIOLATION": 0.80,
+      "BRIDGE_WEAK_CONSENSUS": 0.95,
+      "BRIDGE_UNRESTRICTED_CALL": 0.95,
+      "BRIDGE_MESSAGE_VALIDATION": 0.85,
+      "ACCESS_MISSING_MODIFIER": 0.90,
+      "ACCESS_DELEGATECALL_UNRESTRICTED": 0.95,
+      "REENTRANCY_CLASSIC": 0.80,
+      "REENTRANCY_CROSS_FUNCTION": 0.70,
+      "SIGNATURE_MISSING_NONCE": 0.75,
+      "SIGNATURE_CHAIN_REPLAY": 0.80,
+      "UPGRADE_UNPROTECTED": 0.88,
+      "UPGRADE_STORAGE_COLLISION": 0.75,
+      "COMPILER_ABI_ENCODER_V2": 0.70,
+      "COMPILER_OPTIMIZER_LOOP": 0.65,
+      "DONATION_BALANCE_PRICE": 0.82,
+      "DONATION_VIRTUAL_PRICE": 0.70
+    },
+    
+    "financial_impact_categories": {
+      "logic_errors": {
+        "total_losses": "$12.5B",
+        "percentage": "53.3%",
+        "typical_range": "$10M-$500M",
+        "max_single_exploit": "$3B"
+      },
+      "bridge_exploits": {
+        "total_losses": "$4.7B", 
+        "percentage": "20.0%",
+        "typical_range": "$50M-$600M",
+        "max_single_exploit": "$624M"
+      },
+      "access_control": {
+        "total_losses": "$4.4B",
+        "percentage": "18.7%", 
+        "typical_range": "$1M-$200M",
+        "max_single_exploit": "$400M"
+      },
+      "reentrancy": {
+        "total_losses": "$419M",
+        "percentage": "1.8%",
+        "typical_range": "$1M-$150M", 
+        "max_single_exploit": "$60M"
+      },
+      "signature_replay": {
+        "total_losses": "$407M",
+        "percentage": "1.7%",
+        "typical_range": "$1M-$50M",
+        "max_single_exploit": "$100M"
+      },
+      "upgrade_vulnerabilities": {
+        "total_losses": "$328M",
+        "percentage": "1.4%",
+        "typical_range": "$5M-$100M", 
+        "max_single_exploit": "$200M"
+      },
+      "compiler_bugs": {
+        "total_losses": "$201M",
+        "percentage": "0.9%",
+        "typical_range": "$1M-$50M",
+        "max_single_exploit": "$100M"
+      },
+      "donation_attacks": {
+        "total_losses": "$197M", 
+        "percentage": "0.8%",
+        "typical_range": "$1M-$50M",
+        "max_single_exploit": "$80M"
+      }
+    },
+    
+    "top_50_exploits": {
+      "critical_tier": [
+        {
+          "name": "Ronin Bridge Validator Compromise",
+          "loss": "$624M",
+          "category": "bridge_exploit",
+          "pattern": "BRIDGE_WEAK_CONSENSUS",
+          "date": "2022-03-23"
+        },
+        {
+          "name": "Poly Network Cross-Chain Exploit", 
+          "loss": "$611M",
+          "category": "bridge_exploit",
+          "pattern": "BRIDGE_MESSAGE_VALIDATION",
+          "date": "2021-08-10"
+        },
+        {
+          "name": "Wormhole Bridge Signature Bypass",
+          "loss": "$326M", 
+          "category": "bridge_exploit",
+          "pattern": "BRIDGE_MESSAGE_VALIDATION",
+          "date": "2022-02-02"
+        },
+        {
+          "name": "UST/Luna Algorithmic Stablecoin Collapse",
+          "loss": "$3000M",
+          "category": "logic_error", 
+          "pattern": "LOGIC_INVARIANT_VIOLATION",
+          "date": "2022-05-09"
+        },
+        {
+          "name": "FTX Exchange Logic Errors",
+          "loss": "$8000M",
+          "category": "access_control",
+          "pattern": "ACCESS_MISSING_MODIFIER", 
+          "date": "2022-11-11"
+        }
+      ],
+      "high_tier": [
+        {
+          "name": "Nomad Bridge Merkle Root Misconfiguration",
+          "loss": "$190M",
+          "category": "bridge_exploit",
+          "pattern": "BRIDGE_MESSAGE_VALIDATION"
+        },
+        {
+          "name": "Harmony Bridge Private Key Compromise", 
+          "loss": "$100M",
+          "category": "bridge_exploit",
+          "pattern": "BRIDGE_WEAK_CONSENSUS"
+        },
+        {
+          "name": "Cream Finance Reentrancy",
+          "loss": "$130M",
+          "category": "reentrancy",
+          "pattern": "REENTRANCY_CLASSIC"
+        },
+        {
+          "name": "Compound Logic Error",
+          "loss": "$80M",
+          "category": "logic_error", 
+          "pattern": "LOGIC_PRECISION_LOSS"
+        },
+        {
+          "name": "Bancor Logic Flaw",
+          "loss": "$135M",
+          "category": "logic_error",
+          "pattern": "LOGIC_INVARIANT_VIOLATION"
+        }
+      ]
+    },
+    
+    "monitoring_rules": {
+      "transaction_patterns": {
+        "precision_exploit": {
+          "pattern": "repeated_small_deposits",
+          "threshold": "> 100 transactions < 0.001 ETH in 1 hour",
+          "alert_level": "HIGH"
+        },
+        "bridge_manipulation": {
+          "pattern": "consensus_threshold_reached_quickly", 
+          "threshold": "validator signatures gathered in < 60 seconds",
+          "alert_level": "CRITICAL"
+        },
+        "flash_loan_reentrancy": {
+          "pattern": "external_call_during_loan",
+          "threshold": "flash loan + external call + state change",
+          "alert_level": "HIGH"
+        },
+        "signature_replay": {
+          "pattern": "identical_signature_multiple_chains",
+          "threshold": "same signature hash on >1 chain in 24h", 
+          "alert_level": "MEDIUM"
+        },
+        "donation_manipulation": {
+          "pattern": "large_direct_transfer_before_price_query",
+          "threshold": "> $100k direct transfer + price query in same block",
+          "alert_level": "HIGH"
+        }
+      },
+      
+      "code_patterns": {
+        "deployment_analysis": true,
+        "upgrade_monitoring": true,
+        "governance_proposal_analysis": true,
+        "validator_set_changes": true
+      }
+    },
+    
+    "alerting": {
+      "channels": {
+        "telegram": {
+          "enabled": true,
+          "critical_only": false,
+          "chat_id": "whiterabbit_alerts"
+        },
+        "email": {
+          "enabled": true,
+          "critical_only": true,
+          "recipients": ["security@whiterabbit.com"]
+        },
+        "webhook": {
+          "enabled": true,
+          "url": "https://api.whiterabbit.com/alerts",
+          "auth_header": "Bearer ${WEBHOOK_TOKEN}"
+        }
+      },
+      
+      "rate_limiting": {
+        "max_alerts_per_hour": 50,
+        "duplicate_suppression_minutes": 30,
+        "escalation_threshold": 5
+      }
+    },
+    
+    "integration": {
+      "supported_chains": [
+        "ethereum", "bsc", "polygon", "arbitrum", "optimism", 
+        "avalanche", "fantom", "solana", "near", "cosmos"
+      ],
+      
+      "data_sources": {
+        "rpc_endpoints": true,
+        "graph_protocol": true,
+        "mempool_monitoring": true,
+        "social_sentiment": true
+      },
+      
+      "output_formats": {
+        "json_reports": true,
+        "pdf_analysis": true,
+        "api_endpoints": true,
+        "real_time_dashboard": true
+      }
+    },
+    
+    "machine_learning": {
+      "enabled": true,
+      "models": {
+        "anomaly_detection": {
+          "type": "isolation_forest",
+          "features": ["transaction_patterns", "value_distributions", "timing_analysis"]
+        },
+        "exploit_prediction": {
+          "type": "gradient_boosting",
+          "features": ["code_complexity", "pattern_combinations", "historical_context"]
+        },
+        "false_positive_reduction": {
+          "type": "neural_network",
+          "features": ["context_analysis", "developer_reputation", "audit_status"]
+        }
+      },
+      
+      "training_data": {
+        "exploit_database": "403_hack_comprehensive",
+        "safe_contracts": "audited_protocols_database",
+        "update_frequency": "weekly"
+      }
+    }
+  }
+}

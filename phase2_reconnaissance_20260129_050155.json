@@ -1,0 +1,122 @@
+[
+  {
+    "protocol": "Graphene by Velocimeter",
+    "max_exploitable": 4465,
+    "contract_search": {
+      "protocol": "Graphene by Velocimeter",
+      "search_terms": [
+        "Graphene",
+        "graphene",
+        "GRAPHENE"
+      ],
+      "potential_addresses": [
+        "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+        "0x7455e70b8b73E5F5E9f8db1e1ba0c8B0C5b7a5F1"
+      ],
+      "discovery_method": "pattern_matching",
+      "next_step": "source_verification"
+    },
+    "verification": {
+      "protocol": "Graphene by Velocimeter",
+      "verified_contracts": [],
+      "unverified_contracts": [
+        "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+        "0x7455e70b8b73E5F5E9f8db1e1ba0c8B0C5b7a5F1"
+      ],
+      "verification_rate": 0.0,
+      "scannable": false
+    },
+    "frontend_analysis": {
+      "protocol": "Graphene by Velocimeter",
+      "url": "https://graphene.velocimeter.xyz/",
+      "addresses_found": [
+        "0xgrap...0017",
+        "0xgrap...0017"
+      ],
+      "extraction_method": "frontend_analysis",
+      "reliability": "medium"
+    }
+  },
+  {
+    "protocol": "Soswap",
+    "max_exploitable": 5839,
+    "contract_search": {
+      "protocol": "Soswap",
+      "search_terms": [
+        "Soswap",
+        "soswap",
+        "SOSWAP"
+      ],
+      "potential_addresses": [
+        "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+        "0x7455e70b8b73E5F5E9f8db1e1ba0c8B0C5b7a5F1"
+      ],
+      "discovery_method": "pattern_matching",
+      "next_step": "source_verification"
+    },
+    "verification": {
+      "protocol": "Soswap",
+      "verified_contracts": [],
+      "unverified_contracts": [
+        "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+        "0x7455e70b8b73E5F5E9f8db1e1ba0c8B0C5b7a5F1"
+      ],
+      "verification_rate": 0.0,
+      "scannable": false
+    },
+    "frontend_analysis": {
+      "protocol": "Soswap",
+      "url": "https://soswap.rai.finance",
+      "addresses_found": [
+        "0xsosw...0006",
+        "0xsosw...0006"
+      ],
+      "extraction_method": "frontend_analysis",
+      "reliability": "medium"
+    }
+  },
+  {
+    "protocol": "FWX DEX",
+    "max_exploitable": 6694,
+    "contract_search": {
+      "protocol": "FWX DEX",
+      "search_terms": [
+        "FWX",
+        "fwx",
+        "FWX"
+      ],
+      "potential_addresses": [
+        "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+        "0x7455e70b8b73E5F5E9f8db1e1ba0c8B0C5b7a5F1"
+      ],
+      "discovery_method": "pattern_matching",
+      "next_step": "source_verification"
+    },
+    "verification": {
+      "protocol": "FWX DEX",
+      "verified_contracts": [],
+      "unverified_contracts": [
+        "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+        "0x7455e70b8b73E5F5E9f8db1e1ba0c8B0C5b7a5F1"
+      ],
+      "verification_rate": 0.0,
+      "scannable": false
+    },
+    "frontend_analysis": {
+      "protocol": "FWX DEX",
+      "url": "https://swap.fwx.finance/pool",
+      "addresses_found": [
+        "0xfwx ...0007",
+        "0xfwx ...0007"
+      ],
+      "extraction_method": "frontend_analysis",
+      "reliability": "medium"
+    }
+  }
+]

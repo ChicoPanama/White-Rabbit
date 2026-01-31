@@ -1,0 +1,133 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.1.24-3",
+    "lastTouchedAt": "2026-01-28T06:01:01.232Z"
+  },
+  "wizard": {
+    "lastRunAt": "2026-01-28T06:01:01.221Z",
+    "lastRunVersion": "2026.1.24-3",
+    "lastRunCommand": "doctor",
+    "lastRunMode": "local"
+  },
+  "logging": {
+    "level": "info",
+    "consoleLevel": "info",
+    "redactSensitive": "tools"
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic/claude-sonnet-4-20250514",
+        "fallbacks": [
+          "anthropic/claude-haiku-4-5-20251001"
+        ]
+      },
+      "workspace": "/home/ubuntu/clawd",
+      "envelopeTimezone": "utc",
+      "envelopeTimestamp": "on",
+      "contextTokens": 120000,
+      "heartbeat": {
+        "every": "30m",
+        "activeHours": {
+          "start": "00:00",
+          "end": "23:59",
+          "timezone": "UTC"
+        },
+        "target": "telegram"
+      },
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8
+      }
+    },
+    "list": [
+      {
+        "id": "white-rabbit",
+        "identity": {
+          "name": "White Rabbit",
+          "emoji": "🐇"
+        }
+      }
+    ]
+  },
+  "tools": {
+    "web": {
+      "search": {
+        "enabled": true,
+        "maxResults": 10,
+        "timeoutSeconds": 10
+      },
+      "fetch": {
+        "enabled": true,
+        "maxChars": 50000,
+        "timeoutSeconds": 30
+      }
+    },
+    "links": {
+      "enabled": true,
+      "maxLinks": 5,
+      "timeoutSeconds": 30
+    },
+    "exec": {
+      "host": "gateway",
+      "security": "full"
+    }
+  },
+  "bindings": [
+    {
+      "agentId": "white-rabbit",
+      "match": {
+        "channel": "telegram"
+      }
+    }
+  ],
+  "messages": {
+    "ackReactionScope": "group-mentions"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true
+  },
+  "session": {
+    "dmScope": "per-peer"
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "commands": {
+        "native": true,
+        "nativeSkills": true
+      },
+      "dmPolicy": "pairing",
+      "botToken": "8159984038:AAF40MHQpF68UzoF_VHebofpec10X6YS8qc",
+      "allowFrom": [
+        "1309504379"
+      ],
+      "groupPolicy": "allowlist",
+      "streamMode": "partial"
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback",
+    "auth": {
+      "mode": "token",
+      "token": "60a156118bfdab9e4b4251bf40e3cb141717d9770d2cea11"
+    }
+  },
+  "skills": {
+    "load": {
+      "watch": true,
+      "watchDebounceMs": 500
+    }
+  },
+  "plugins": {
+    "entries": {
+      "telegram": {
+        "enabled": true
+      }
+    }
+  }
+}

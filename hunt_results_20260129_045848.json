@@ -1,0 +1,124 @@
+{
+  "timestamp": "2026-01-29T04:58:48.233876",
+  "hunt_cycle": "base_chain_systematic",
+  "protocols_analyzed": 10,
+  "results": [
+    {
+      "protocol": "Graphene by Velocimeter",
+      "risk_score": 55,
+      "risk_level": "\ud83d\udfe0 HIGH",
+      "vulnerabilities": [
+        "\ud83d\udd34 SwapNet unlimited approval pattern risk",
+        "\ud83d\udfe0 Price manipulation vulnerability potential",
+        "\ud83d\udd34 Very low TVL - likely unaudited"
+      ],
+      "tvl": 10147.721895530765
+    },
+    {
+      "protocol": "Hedgey",
+      "risk_score": 25,
+      "risk_level": "\u2705 LOW",
+      "vulnerabilities": [
+        "\ud83d\udd34 Very low TVL - likely unaudited"
+      ],
+      "tvl": 10191.27625754197
+    },
+    {
+      "protocol": "Alkimiya",
+      "risk_score": 45,
+      "risk_level": "\ud83d\udfe1 MEDIUM",
+      "vulnerabilities": [
+        "\ud83d\udfe0 Oracle manipulation risk",
+        "\ud83d\udfe1 Liquidation logic vulnerabilities",
+        "\ud83d\udd34 Very low TVL - likely unaudited"
+      ],
+      "tvl": 10637.84572083358
+    },
+    {
+      "protocol": "Soswap",
+      "risk_score": 65,
+      "risk_level": "\ud83d\udfe0 HIGH",
+      "vulnerabilities": [
+        "\ud83d\udd34 SwapNet unlimited approval pattern risk",
+        "\ud83d\udfe0 Price manipulation vulnerability potential",
+        "\ud83d\udd34 Very low TVL - likely unaudited",
+        "\ud83d\udfe1 DEX naming pattern - approval vulnerabilities"
+      ],
+      "tvl": 11230.17049668055
+    },
+    {
+      "protocol": "GullNetwork Service",
+      "risk_score": 25,
+      "risk_level": "\u2705 LOW",
+      "vulnerabilities": [
+        "\ud83d\udd34 Very low TVL - likely unaudited"
+      ],
+      "tvl": 11464.73614871988
+    },
+    {
+      "protocol": "SharesGram",
+      "risk_score": 25,
+      "risk_level": "\u2705 LOW",
+      "vulnerabilities": [
+        "\ud83d\udd34 Very low TVL - likely unaudited"
+      ],
+      "tvl": 12062.647327391844
+    },
+    {
+      "protocol": "Precog Market",
+      "risk_score": 25,
+      "risk_level": "\u2705 LOW",
+      "vulnerabilities": [
+        "\ud83d\udd34 Very low TVL - likely unaudited"
+      ],
+      "tvl": 12103.749580282623
+    },
+    {
+      "protocol": "Burve Protocol",
+      "risk_score": 75,
+      "risk_level": "\ud83d\udd34 CRITICAL",
+      "vulnerabilities": [
+        "\ud83d\udd34 SwapNet unlimited approval pattern risk",
+        "\ud83d\udfe0 Price manipulation vulnerability potential",
+        "\ud83d\udd34 Bonding curve manipulation risk (Truebit pattern)",
+        "\ud83d\udd34 Very low TVL - likely unaudited"
+      ],
+      "tvl": 12178.218219091055
+    },
+    {
+      "protocol": "FWX DEX",
+      "risk_score": 65,
+      "risk_level": "\ud83d\udfe0 HIGH",
+      "vulnerabilities": [
+        "\ud83d\udd34 SwapNet unlimited approval pattern risk",
+        "\ud83d\udfe0 Price manipulation vulnerability potential",
+        "\ud83d\udd34 Very low TVL - likely unaudited",
+        "\ud83d\udfe1 DEX naming pattern - approval vulnerabilities"
+      ],
+      "tvl": 12874.016339642765
+    },
+    {
+      "protocol": "toupee.tech",
+      "risk_score": 25,
+      "risk_level": "\u2705 LOW",
+      "vulnerabilities": [
+        "\ud83d\udd34 Very low TVL - likely unaudited"
+      ],
+      "tvl": 13291.895793246573
+    }
+  ],
+  "critical_findings": [
+    {
+      "protocol": "Burve Protocol",
+      "risk_score": 75,
+      "risk_level": "\ud83d\udd34 CRITICAL",
+      "vulnerabilities": [
+        "\ud83d\udd34 SwapNet unlimited approval pattern risk",
+        "\ud83d\udfe0 Price manipulation vulnerability potential",
+        "\ud83d\udd34 Bonding curve manipulation risk (Truebit pattern)",
+        "\ud83d\udd34 Very low TVL - likely unaudited"
+      ],
+      "tvl": 12178.218219091055
+    }
+  ]
+}

@@ -1,0 +1,212 @@
+{
+  "confirmed_contracts": {
+    "AERO_TOKEN": {
+      "address": "0x940181a94a35a4569e4529a3cdfb74e38fd98631",
+      "type": "UNKNOWN",
+      "confidence": 0,
+      "functions_found": [],
+      "vulnerability_patterns": {
+        "SELFDESTRUCT": true,
+        "DELEGATECALL": true,
+        "CREATE2": true,
+        "PROXY_PATTERN": false,
+        "LARGE_CONTRACT": false
+      },
+      "bytecode_size": 9474
+    },
+    "POOL_FACTORY": {
+      "address": "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+      "type": "UNKNOWN",
+      "confidence": 0,
+      "functions_found": [],
+      "vulnerability_patterns": {
+        "SELFDESTRUCT": true,
+        "DELEGATECALL": true,
+        "CREATE2": true,
+        "PROXY_PATTERN": false,
+        "LARGE_CONTRACT": false
+      },
+      "bytecode_size": 7034
+    },
+    "SUSPECTED_FACTORY": {
+      "address": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+      "type": "UNKNOWN",
+      "confidence": 0,
+      "functions_found": [],
+      "vulnerability_patterns": {
+        "SELFDESTRUCT": true,
+        "DELEGATECALL": true,
+        "CREATE2": true,
+        "PROXY_PATTERN": false,
+        "LARGE_CONTRACT": false
+      },
+      "bytecode_size": 27720
+    }
+  },
+  "candidate_contracts": {
+    "ROUTER_CANDIDATE": {
+      "address": "0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43",
+      "type": "UNKNOWN",
+      "confidence": 0,
+      "functions_found": [],
+      "vulnerability_patterns": {
+        "SELFDESTRUCT": true,
+        "DELEGATECALL": true,
+        "CREATE2": true,
+        "PROXY_PATTERN": false,
+        "LARGE_CONTRACT": false
+      },
+      "bytecode_size": 47164
+    },
+    "VOTER_CANDIDATE": {
+      "address": "0x16613524e02ad97eDfeF371bC883F2F5d6C480A5",
+      "type": "UNKNOWN",
+      "confidence": 0,
+      "functions_found": [],
+      "vulnerability_patterns": {
+        "SELFDESTRUCT": true,
+        "DELEGATECALL": true,
+        "CREATE2": true,
+        "PROXY_PATTERN": false,
+        "LARGE_CONTRACT": false
+      },
+      "bytecode_size": 33826
+    },
+    "VEAERO_CANDIDATE": {
+      "address": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+      "type": "NO_CODE",
+      "confidence": 0,
+      "functions_found": [],
+      "vulnerability_patterns": {},
+      "bytecode_size": 2
+    },
+    "GAUGE_FACTORY": {
+      "address": "0x5C43B1eD97e52d009611D89b74fA829FE4ac56b1",
+      "type": "NO_CODE",
+      "confidence": 0,
+      "functions_found": [],
+      "vulnerability_patterns": {},
+      "bytecode_size": 2
+    },
+    "BRIBE_FACTORY": {
+      "address": "0x24C4F6bBb6E8Dbf21B1a1ad7a1C06c9B8BC1E6AB",
+      "type": "NO_CODE",
+      "confidence": 0,
+      "functions_found": [],
+      "vulnerability_patterns": {},
+      "bytecode_size": 2
+    }
+  },
+  "ecosystem_summary": {
+    "contract_types": {
+      "UNKNOWN": [
+        {
+          "name": "AERO_TOKEN",
+          "address": "0x940181a94a35a4569e4529a3cdfb74e38fd98631",
+          "confidence": 0
+        },
+        {
+          "name": "POOL_FACTORY",
+          "address": "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+          "confidence": 0
+        },
+        {
+          "name": "SUSPECTED_FACTORY",
+          "address": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+          "confidence": 0
+        },
+        {
+          "name": "ROUTER_CANDIDATE",
+          "address": "0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43",
+          "confidence": 0
+        },
+        {
+          "name": "VOTER_CANDIDATE",
+          "address": "0x16613524e02ad97eDfeF371bC883F2F5d6C480A5",
+          "confidence": 0
+        }
+      ],
+      "NO_CODE": [
+        {
+          "name": "VEAERO_CANDIDATE",
+          "address": "0x7f39C581F595B53c5cb19bD0b3f8dA6c935E2Ca0",
+          "confidence": 0
+        },
+        {
+          "name": "GAUGE_FACTORY",
+          "address": "0x5C43B1eD97e52d009611D89b74fA829FE4ac56b1",
+          "confidence": 0
+        },
+        {
+          "name": "BRIBE_FACTORY",
+          "address": "0x24C4F6bBb6E8Dbf21B1a1ad7a1C06c9B8BC1E6AB",
+          "confidence": 0
+        }
+      ]
+    },
+    "total_contracts": 8,
+    "active_contracts": 0
+  },
+  "vulnerability_summary": {
+    "total_vulnerabilities": 15,
+    "vulnerable_contracts": 5,
+    "vulnerability_types": {
+      "SELFDESTRUCT": 5,
+      "DELEGATECALL": 5,
+      "CREATE2": 5
+    },
+    "critical_contracts": [
+      {
+        "name": "AERO_TOKEN",
+        "address": "0x940181a94a35a4569e4529a3cdfb74e38fd98631",
+        "type": "UNKNOWN",
+        "vulnerabilities": [
+          "SELFDESTRUCT",
+          "DELEGATECALL",
+          "CREATE2"
+        ]
+      },
+      {
+        "name": "POOL_FACTORY",
+        "address": "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+        "type": "UNKNOWN",
+        "vulnerabilities": [
+          "SELFDESTRUCT",
+          "DELEGATECALL",
+          "CREATE2"
+        ]
+      },
+      {
+        "name": "SUSPECTED_FACTORY",
+        "address": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        "type": "UNKNOWN",
+        "vulnerabilities": [
+          "SELFDESTRUCT",
+          "DELEGATECALL",
+          "CREATE2"
+        ]
+      },
+      {
+        "name": "ROUTER_CANDIDATE",
+        "address": "0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43",
+        "type": "UNKNOWN",
+        "vulnerabilities": [
+          "SELFDESTRUCT",
+          "DELEGATECALL",
+          "CREATE2"
+        ]
+      },
+      {
+        "name": "VOTER_CANDIDATE",
+        "address": "0x16613524e02ad97eDfeF371bC883F2F5d6C480A5",
+        "type": "UNKNOWN",
+        "vulnerabilities": [
+          "SELFDESTRUCT",
+          "DELEGATECALL",
+          "CREATE2"
+        ]
+      }
+    ]
+  },
+  "timestamp": 1769819667
+}

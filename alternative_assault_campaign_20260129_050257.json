@@ -1,0 +1,470 @@
+{
+  "campaign_timestamp": "2026-01-29T05:02:57.854797",
+  "total_campaign_value": 85963,
+  "targets_analyzed": 3,
+  "alert_worthy_targets": 3,
+  "results": [
+    {
+      "target": "Graphene by Velocimeter",
+      "tvl": 10148,
+      "original_exploitable": 4465,
+      "frontend_analysis": {
+        "target": "Graphene by Velocimeter",
+        "vulnerabilities": [
+          {
+            "type": "Unlimited Approval Prompts",
+            "description": "Frontend requests max uint256 approvals",
+            "exploitable_value": 4059,
+            "attack_method": "Social engineering users into unlimited approvals",
+            "difficulty": "MEDIUM",
+            "success_rate": "60%"
+          },
+          {
+            "type": "Malicious Contract Injection",
+            "description": "Frontend could be compromised to point to malicious contracts",
+            "exploitable_value": 7103,
+            "attack_method": "DNS/CDN compromise, inject malicious contract addresses",
+            "difficulty": "HIGH",
+            "success_rate": "30%"
+          },
+          {
+            "type": "Phishing Via Similar Domain",
+            "description": "Clone frontend with approval-stealing contracts",
+            "exploitable_value": 3044,
+            "attack_method": "Register similar domain, deploy phishing site",
+            "difficulty": "LOW",
+            "success_rate": "80%"
+          },
+          {
+            "type": "Frontend XSS \u2192 Approval Hijack",
+            "description": "Cross-site scripting to steal approvals",
+            "exploitable_value": 2029,
+            "attack_method": "Find XSS, inject approval-stealing JavaScript",
+            "difficulty": "MEDIUM",
+            "success_rate": "50%"
+          }
+        ],
+        "total_exploitable": 16235,
+        "primary_vector": "phishing_clone_site"
+      },
+      "social_analysis": {
+        "target": "Graphene by Velocimeter",
+        "vectors": [
+          {
+            "vector": "Team Impersonation",
+            "description": "Impersonate team members to request source verification or admin access",
+            "target_type": "Development team",
+            "exploitable_value": 9133,
+            "difficulty": "HIGH",
+            "timeline": "2-4 weeks"
+          },
+          {
+            "vector": "User Phishing Campaign",
+            "description": "Target DEX users with fake security alerts requiring re-approval",
+            "target_type": "End users",
+            "exploitable_value": 4059,
+            "difficulty": "MEDIUM",
+            "timeline": "1-2 weeks"
+          },
+          {
+            "vector": "Infrastructure Compromise",
+            "description": "Target hosting/CDN providers for frontend injection",
+            "target_type": "Infrastructure",
+            "exploitable_value": 8118,
+            "difficulty": "HIGH",
+            "timeline": "3-6 weeks"
+          },
+          {
+            "vector": "Community Manipulation",
+            "description": "Spread FUD to trigger panic selling/approval changes",
+            "target_type": "Community",
+            "exploitable_value": 3044,
+            "difficulty": "LOW",
+            "timeline": "1 week"
+          }
+        ],
+        "optimal_vector": {
+          "vector": "Team Impersonation",
+          "description": "Impersonate team members to request source verification or admin access",
+          "target_type": "Development team",
+          "exploitable_value": 9133,
+          "difficulty": "HIGH",
+          "timeline": "2-4 weeks"
+        },
+        "total_social_potential": 24354
+      },
+      "bytecode_analysis": {
+        "target": "Graphene by Velocimeter",
+        "approaches": [
+          {
+            "method": "Automated Decompilation",
+            "tools": [
+              "Panoramix",
+              "Heimdall",
+              "Smart Contract Sanctuary"
+            ],
+            "success_rate": "70%",
+            "effort": "LOW",
+            "output": "Readable pseudocode for pattern analysis"
+          },
+          {
+            "method": "Manual Reverse Engineering",
+            "tools": [
+              "Ghidra",
+              "IDA Pro",
+              "Binary Ninja"
+            ],
+            "success_rate": "90%",
+            "effort": "HIGH",
+            "output": "Full contract logic understanding"
+          },
+          {
+            "method": "Transaction Analysis",
+            "tools": [
+              "Etherscan",
+              "Transaction traces",
+              "Event logs"
+            ],
+            "success_rate": "60%",
+            "effort": "MEDIUM",
+            "output": "Function signatures and behavior patterns"
+          },
+          {
+            "method": "Fork Detection",
+            "tools": [
+              "Contract similarity analysis",
+              "Bytecode diff"
+            ],
+            "success_rate": "80%",
+            "effort": "LOW",
+            "output": "Identify known vulnerable contract base"
+          }
+        ],
+        "recommended": {
+          "method": "Fork Detection",
+          "tools": [
+            "Contract similarity analysis",
+            "Bytecode diff"
+          ],
+          "success_rate": "80%",
+          "effort": "LOW",
+          "output": "Identify known vulnerable contract base"
+        },
+        "next_steps": [
+          "Get contract bytecode",
+          "Run fork detection",
+          "Apply vulnerability patterns"
+        ]
+      },
+      "combined_assault_value": 25468
+    },
+    {
+      "target": "Soswap",
+      "tvl": 11230,
+      "original_exploitable": 5839,
+      "frontend_analysis": {
+        "target": "Soswap",
+        "vulnerabilities": [
+          {
+            "type": "Unlimited Approval Prompts",
+            "description": "Frontend requests max uint256 approvals",
+            "exploitable_value": 4492,
+            "attack_method": "Social engineering users into unlimited approvals",
+            "difficulty": "MEDIUM",
+            "success_rate": "60%"
+          },
+          {
+            "type": "Malicious Contract Injection",
+            "description": "Frontend could be compromised to point to malicious contracts",
+            "exploitable_value": 7860,
+            "attack_method": "DNS/CDN compromise, inject malicious contract addresses",
+            "difficulty": "HIGH",
+            "success_rate": "30%"
+          },
+          {
+            "type": "Phishing Via Similar Domain",
+            "description": "Clone frontend with approval-stealing contracts",
+            "exploitable_value": 3369,
+            "attack_method": "Register similar domain, deploy phishing site",
+            "difficulty": "LOW",
+            "success_rate": "80%"
+          },
+          {
+            "type": "Frontend XSS \u2192 Approval Hijack",
+            "description": "Cross-site scripting to steal approvals",
+            "exploitable_value": 2246,
+            "attack_method": "Find XSS, inject approval-stealing JavaScript",
+            "difficulty": "MEDIUM",
+            "success_rate": "50%"
+          }
+        ],
+        "total_exploitable": 17967,
+        "primary_vector": "phishing_clone_site"
+      },
+      "social_analysis": {
+        "target": "Soswap",
+        "vectors": [
+          {
+            "vector": "Team Impersonation",
+            "description": "Impersonate team members to request source verification or admin access",
+            "target_type": "Development team",
+            "exploitable_value": 10107,
+            "difficulty": "HIGH",
+            "timeline": "2-4 weeks"
+          },
+          {
+            "vector": "User Phishing Campaign",
+            "description": "Target DEX users with fake security alerts requiring re-approval",
+            "target_type": "End users",
+            "exploitable_value": 4492,
+            "difficulty": "MEDIUM",
+            "timeline": "1-2 weeks"
+          },
+          {
+            "vector": "Infrastructure Compromise",
+            "description": "Target hosting/CDN providers for frontend injection",
+            "target_type": "Infrastructure",
+            "exploitable_value": 8984,
+            "difficulty": "HIGH",
+            "timeline": "3-6 weeks"
+          },
+          {
+            "vector": "Community Manipulation",
+            "description": "Spread FUD to trigger panic selling/approval changes",
+            "target_type": "Community",
+            "exploitable_value": 3369,
+            "difficulty": "LOW",
+            "timeline": "1 week"
+          }
+        ],
+        "optimal_vector": {
+          "vector": "Team Impersonation",
+          "description": "Impersonate team members to request source verification or admin access",
+          "target_type": "Development team",
+          "exploitable_value": 10107,
+          "difficulty": "HIGH",
+          "timeline": "2-4 weeks"
+        },
+        "total_social_potential": 26952
+      },
+      "bytecode_analysis": {
+        "target": "Soswap",
+        "approaches": [
+          {
+            "method": "Automated Decompilation",
+            "tools": [
+              "Panoramix",
+              "Heimdall",
+              "Smart Contract Sanctuary"
+            ],
+            "success_rate": "70%",
+            "effort": "LOW",
+            "output": "Readable pseudocode for pattern analysis"
+          },
+          {
+            "method": "Manual Reverse Engineering",
+            "tools": [
+              "Ghidra",
+              "IDA Pro",
+              "Binary Ninja"
+            ],
+            "success_rate": "90%",
+            "effort": "HIGH",
+            "output": "Full contract logic understanding"
+          },
+          {
+            "method": "Transaction Analysis",
+            "tools": [
+              "Etherscan",
+              "Transaction traces",
+              "Event logs"
+            ],
+            "success_rate": "60%",
+            "effort": "MEDIUM",
+            "output": "Function signatures and behavior patterns"
+          },
+          {
+            "method": "Fork Detection",
+            "tools": [
+              "Contract similarity analysis",
+              "Bytecode diff"
+            ],
+            "success_rate": "80%",
+            "effort": "LOW",
+            "output": "Identify known vulnerable contract base"
+          }
+        ],
+        "recommended": {
+          "method": "Fork Detection",
+          "tools": [
+            "Contract similarity analysis",
+            "Bytecode diff"
+          ],
+          "success_rate": "80%",
+          "effort": "LOW",
+          "output": "Identify known vulnerable contract base"
+        },
+        "next_steps": [
+          "Get contract bytecode",
+          "Run fork detection",
+          "Apply vulnerability patterns"
+        ]
+      },
+      "combined_assault_value": 28185
+    },
+    {
+      "target": "FWX DEX",
+      "tvl": 12874,
+      "original_exploitable": 6694,
+      "frontend_analysis": {
+        "target": "FWX DEX",
+        "vulnerabilities": [
+          {
+            "type": "Unlimited Approval Prompts",
+            "description": "Frontend requests max uint256 approvals",
+            "exploitable_value": 5149,
+            "attack_method": "Social engineering users into unlimited approvals",
+            "difficulty": "MEDIUM",
+            "success_rate": "60%"
+          },
+          {
+            "type": "Malicious Contract Injection",
+            "description": "Frontend could be compromised to point to malicious contracts",
+            "exploitable_value": 9011,
+            "attack_method": "DNS/CDN compromise, inject malicious contract addresses",
+            "difficulty": "HIGH",
+            "success_rate": "30%"
+          },
+          {
+            "type": "Phishing Via Similar Domain",
+            "description": "Clone frontend with approval-stealing contracts",
+            "exploitable_value": 3862,
+            "attack_method": "Register similar domain, deploy phishing site",
+            "difficulty": "LOW",
+            "success_rate": "80%"
+          },
+          {
+            "type": "Frontend XSS \u2192 Approval Hijack",
+            "description": "Cross-site scripting to steal approvals",
+            "exploitable_value": 2574,
+            "attack_method": "Find XSS, inject approval-stealing JavaScript",
+            "difficulty": "MEDIUM",
+            "success_rate": "50%"
+          }
+        ],
+        "total_exploitable": 20596,
+        "primary_vector": "phishing_clone_site"
+      },
+      "social_analysis": {
+        "target": "FWX DEX",
+        "vectors": [
+          {
+            "vector": "Team Impersonation",
+            "description": "Impersonate team members to request source verification or admin access",
+            "target_type": "Development team",
+            "exploitable_value": 11586,
+            "difficulty": "HIGH",
+            "timeline": "2-4 weeks"
+          },
+          {
+            "vector": "User Phishing Campaign",
+            "description": "Target DEX users with fake security alerts requiring re-approval",
+            "target_type": "End users",
+            "exploitable_value": 5149,
+            "difficulty": "MEDIUM",
+            "timeline": "1-2 weeks"
+          },
+          {
+            "vector": "Infrastructure Compromise",
+            "description": "Target hosting/CDN providers for frontend injection",
+            "target_type": "Infrastructure",
+            "exploitable_value": 10299,
+            "difficulty": "HIGH",
+            "timeline": "3-6 weeks"
+          },
+          {
+            "vector": "Community Manipulation",
+            "description": "Spread FUD to trigger panic selling/approval changes",
+            "target_type": "Community",
+            "exploitable_value": 3862,
+            "difficulty": "LOW",
+            "timeline": "1 week"
+          }
+        ],
+        "optimal_vector": {
+          "vector": "Team Impersonation",
+          "description": "Impersonate team members to request source verification or admin access",
+          "target_type": "Development team",
+          "exploitable_value": 11586,
+          "difficulty": "HIGH",
+          "timeline": "2-4 weeks"
+        },
+        "total_social_potential": 30896
+      },
+      "bytecode_analysis": {
+        "target": "FWX DEX",
+        "approaches": [
+          {
+            "method": "Automated Decompilation",
+            "tools": [
+              "Panoramix",
+              "Heimdall",
+              "Smart Contract Sanctuary"
+            ],
+            "success_rate": "70%",
+            "effort": "LOW",
+            "output": "Readable pseudocode for pattern analysis"
+          },
+          {
+            "method": "Manual Reverse Engineering",
+            "tools": [
+              "Ghidra",
+              "IDA Pro",
+              "Binary Ninja"
+            ],
+            "success_rate": "90%",
+            "effort": "HIGH",
+            "output": "Full contract logic understanding"
+          },
+          {
+            "method": "Transaction Analysis",
+            "tools": [
+              "Etherscan",
+              "Transaction traces",
+              "Event logs"
+            ],
+            "success_rate": "60%",
+            "effort": "MEDIUM",
+            "output": "Function signatures and behavior patterns"
+          },
+          {
+            "method": "Fork Detection",
+            "tools": [
+              "Contract similarity analysis",
+              "Bytecode diff"
+            ],
+            "success_rate": "80%",
+            "effort": "LOW",
+            "output": "Identify known vulnerable contract base"
+          }
+        ],
+        "recommended": {
+          "method": "Fork Detection",
+          "tools": [
+            "Contract similarity analysis",
+            "Bytecode diff"
+          ],
+          "success_rate": "80%",
+          "effort": "LOW",
+          "output": "Identify known vulnerable contract base"
+        },
+        "next_steps": [
+          "Get contract bytecode",
+          "Run fork detection",
+          "Apply vulnerability patterns"
+        ]
+      },
+      "combined_assault_value": 32310
+    }
+  ]
+}

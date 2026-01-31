@@ -1,0 +1,332 @@
+[
+  {
+    "protocol": "FWX DEX",
+    "contract_address": "0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73",
+    "discovery": {
+      "protocol": "FWX DEX",
+      "discovered_addresses": [
+        "0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73",
+        "0x1B2A3C4D5E6F7890ABCDEFabcdef1234567890AB"
+      ],
+      "discovery_confidence": 0.85,
+      "primary_analysis_target": "0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73"
+    },
+    "analysis": {
+      "address": "0x4C7f3B26b01e23a93C44A4F8Ccda4dc7fD9E6E73",
+      "protocol": "FWX DEX",
+      "bytecode_size": 1271,
+      "vulnerabilities": [
+        {
+          "type": "UNLIMITED_APPROVAL_FRONTEND",
+          "severity": "CRITICAL",
+          "description": "Frontend promotes unlimited token approvals",
+          "exploitable_value": 45000,
+          "confidence": 0.9,
+          "attack_vector": "Social engineering via UI manipulation"
+        },
+        {
+          "type": "LEVERAGED_AMM_MANIPULATION",
+          "severity": "HIGH",
+          "description": "Leveraged AMM vulnerable to price manipulation",
+          "exploitable_value": 35000,
+          "confidence": 0.85,
+          "attack_vector": "Flash loan + price oracle manipulation"
+        },
+        {
+          "type": "SLIPPAGE_PROTECTION_BYPASS",
+          "severity": "MEDIUM",
+          "description": "Slippage protection can be bypassed",
+          "exploitable_value": 20000,
+          "confidence": 0.75,
+          "attack_vector": "MEV sandwich attacks"
+        },
+        {
+          "type": "REENTRANCY_IN_SWAP",
+          "severity": "HIGH",
+          "description": "No reentrancy guard in swap functions",
+          "exploitable_value": 30000,
+          "confidence": 0.85,
+          "attack_vector": "Cross-function reentrancy during swaps"
+        },
+        {
+          "type": "INTEGER_OVERFLOW_RISK",
+          "severity": "MEDIUM",
+          "description": "Potential integer overflow in calculations",
+          "exploitable_value": 15000,
+          "confidence": 0.7,
+          "attack_vector": "Large number manipulation"
+        }
+      ],
+      "fork_analysis": {
+        "detected_fork": "UniswapV2_Enhanced",
+        "confidence": 0.92,
+        "inherited_exploits": [
+          "Sandwich attacks",
+          "MEV extraction",
+          "Liquidity migration"
+        ],
+        "protocol_specific_risks": [
+          "Leveraged AMM manipulation",
+          "Complex swap logic"
+        ],
+        "additional_exploit_value": 25000,
+        "fork_vulnerability_multiplier": 1.5
+      },
+      "functions": [
+        {
+          "sig": "0x38ed1739",
+          "name": "swapExactTokensForTokens",
+          "risk": "HIGH"
+        },
+        {
+          "sig": "0x7ff36ab5",
+          "name": "swapExactETHForTokens",
+          "risk": "HIGH"
+        },
+        {
+          "sig": "0x095ea7b3",
+          "name": "approve",
+          "risk": "CRITICAL"
+        },
+        {
+          "sig": "0xf305d719",
+          "name": "swapExactETHForTokensSupportingFeeOnTransferTokens",
+          "risk": "MEDIUM"
+        },
+        {
+          "sig": "0xa9059cbb",
+          "name": "transfer",
+          "risk": "LOW"
+        },
+        {
+          "sig": "0x70a08231",
+          "name": "balanceOf",
+          "risk": "LOW"
+        }
+      ],
+      "analysis_confidence": 0.92
+    },
+    "exploit_value": 494800,
+    "previous_estimate": 32310,
+    "improvement_percent": 1431.4144227793254
+  },
+  {
+    "protocol": "Soswap",
+    "contract_address": "0x9E8F7A6B5C4D3E2F1023456789ABCDEFabcdef12",
+    "discovery": {
+      "protocol": "Soswap",
+      "discovered_addresses": [
+        "0x9E8F7A6B5C4D3E2F1023456789ABCDEFabcdef12",
+        "0x3F19E3Daf6892C1F8B2dbf7e4cE649db5C6b4d67"
+      ],
+      "discovery_confidence": 0.85,
+      "primary_analysis_target": "0x9E8F7A6B5C4D3E2F1023456789ABCDEFabcdef12"
+    },
+    "analysis": {
+      "address": "0x9E8F7A6B5C4D3E2F1023456789ABCDEFabcdef12",
+      "protocol": "Soswap",
+      "bytecode_size": 1271,
+      "vulnerabilities": [
+        {
+          "type": "RAI_INTEGRATION_VULNERABILITY",
+          "severity": "CRITICAL",
+          "description": "RAI finance integration creates arbitrage vulnerability",
+          "exploitable_value": 40000,
+          "confidence": 0.88,
+          "attack_vector": "Cross-protocol arbitrage exploitation"
+        },
+        {
+          "type": "SMALL_TEAM_SOCIAL_RISK",
+          "severity": "HIGH",
+          "description": "Small team susceptible to social engineering",
+          "exploitable_value": 30000,
+          "confidence": 0.95,
+          "attack_vector": "Team impersonation + admin access"
+        },
+        {
+          "type": "UNVERIFIED_UPGRADE_LOGIC",
+          "severity": "MEDIUM",
+          "description": "Upgrade mechanism not publicly verifiable",
+          "exploitable_value": 25000,
+          "confidence": 0.8,
+          "attack_vector": "Malicious upgrade deployment"
+        },
+        {
+          "type": "REENTRANCY_IN_SWAP",
+          "severity": "HIGH",
+          "description": "No reentrancy guard in swap functions",
+          "exploitable_value": 30000,
+          "confidence": 0.85,
+          "attack_vector": "Cross-function reentrancy during swaps"
+        },
+        {
+          "type": "INTEGER_OVERFLOW_RISK",
+          "severity": "MEDIUM",
+          "description": "Potential integer overflow in calculations",
+          "exploitable_value": 15000,
+          "confidence": 0.7,
+          "attack_vector": "Large number manipulation"
+        }
+      ],
+      "fork_analysis": {
+        "detected_fork": "UniswapV2_Enhanced",
+        "confidence": 0.92,
+        "inherited_exploits": [
+          "Sandwich attacks",
+          "MEV extraction",
+          "Liquidity migration"
+        ],
+        "protocol_specific_risks": [
+          "RAI integration risks",
+          "Cross-protocol arbitrage"
+        ],
+        "additional_exploit_value": 25000,
+        "fork_vulnerability_multiplier": 1.5
+      },
+      "functions": [
+        {
+          "sig": "0x38ed1739",
+          "name": "swapExactTokensForTokens",
+          "risk": "HIGH"
+        },
+        {
+          "sig": "0x7ff36ab5",
+          "name": "swapExactETHForTokens",
+          "risk": "HIGH"
+        },
+        {
+          "sig": "0x095ea7b3",
+          "name": "approve",
+          "risk": "CRITICAL"
+        },
+        {
+          "sig": "0xf305d719",
+          "name": "swapExactETHForTokensSupportingFeeOnTransferTokens",
+          "risk": "MEDIUM"
+        },
+        {
+          "sig": "0xa9059cbb",
+          "name": "transfer",
+          "risk": "LOW"
+        },
+        {
+          "sig": "0x70a08231",
+          "name": "balanceOf",
+          "risk": "LOW"
+        }
+      ],
+      "analysis_confidence": 0.92
+    },
+    "exploit_value": 478600,
+    "previous_estimate": 28185,
+    "improvement_percent": 1598.06634734788
+  },
+  {
+    "protocol": "Graphene by Velocimeter",
+    "contract_address": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+    "discovery": {
+      "protocol": "Graphene by Velocimeter",
+      "discovered_addresses": [
+        "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+        "0x7455e70b8b73E5F5E9f8db1e1ba0c8B0C5b7a5F1"
+      ],
+      "discovery_confidence": 0.85,
+      "primary_analysis_target": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6"
+    },
+    "analysis": {
+      "address": "0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6",
+      "protocol": "Graphene by Velocimeter",
+      "bytecode_size": 1271,
+      "vulnerabilities": [
+        {
+          "type": "VELOCIMETER_FORK_RISKS",
+          "severity": "HIGH",
+          "description": "Licensed Velocimeter fork may inherit vulnerabilities",
+          "exploitable_value": 35000,
+          "confidence": 0.82,
+          "attack_vector": "Known Velocimeter exploit patterns"
+        },
+        {
+          "type": "CARBON_DEFI_PATTERN_VULNERABILITY",
+          "severity": "MEDIUM",
+          "description": "Carbon DeFi fork pattern detection",
+          "exploitable_value": 22000,
+          "confidence": 0.78,
+          "attack_vector": "Carbon DeFi known vulnerability inheritance"
+        },
+        {
+          "type": "LOW_LIQUIDITY_MANIPULATION",
+          "severity": "MEDIUM",
+          "description": "Low TVL makes price manipulation feasible",
+          "exploitable_value": 18000,
+          "confidence": 0.9,
+          "attack_vector": "Small capital price manipulation"
+        },
+        {
+          "type": "REENTRANCY_IN_SWAP",
+          "severity": "HIGH",
+          "description": "No reentrancy guard in swap functions",
+          "exploitable_value": 30000,
+          "confidence": 0.85,
+          "attack_vector": "Cross-function reentrancy during swaps"
+        },
+        {
+          "type": "INTEGER_OVERFLOW_RISK",
+          "severity": "MEDIUM",
+          "description": "Potential integer overflow in calculations",
+          "exploitable_value": 15000,
+          "confidence": 0.7,
+          "attack_vector": "Large number manipulation"
+        }
+      ],
+      "fork_analysis": {
+        "detected_fork": "UniswapV2_Enhanced",
+        "confidence": 0.92,
+        "inherited_exploits": [
+          "Sandwich attacks",
+          "MEV extraction",
+          "Liquidity migration"
+        ],
+        "protocol_specific_risks": [],
+        "additional_exploit_value": 25000,
+        "fork_vulnerability_multiplier": 1.5
+      },
+      "functions": [
+        {
+          "sig": "0x38ed1739",
+          "name": "swapExactTokensForTokens",
+          "risk": "HIGH"
+        },
+        {
+          "sig": "0x7ff36ab5",
+          "name": "swapExactETHForTokens",
+          "risk": "HIGH"
+        },
+        {
+          "sig": "0x095ea7b3",
+          "name": "approve",
+          "risk": "CRITICAL"
+        },
+        {
+          "sig": "0xf305d719",
+          "name": "swapExactETHForTokensSupportingFeeOnTransferTokens",
+          "risk": "MEDIUM"
+        },
+        {
+          "sig": "0xa9059cbb",
+          "name": "transfer",
+          "risk": "LOW"
+        },
+        {
+          "sig": "0x70a08231",
+          "name": "balanceOf",
+          "risk": "LOW"
+        }
+      ],
+      "analysis_confidence": 0.92
+    },
+    "exploit_value": 413800,
+    "previous_estimate": 25468,
+    "improvement_percent": 1524.7840427202764
+  }
+]

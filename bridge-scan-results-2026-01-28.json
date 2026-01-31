@@ -1,0 +1,127 @@
+[
+  {
+    "chain": "ethereum",
+    "bridge": "Arbitrum L1 Gateway Router",
+    "address": "0x72Ce9c846789fdB6fC1f34aC4AD25Dd9ef7031ef",
+    "tvl": 2900000000,
+    "type": "optimistic_rollup",
+    "risk_level": "high",
+    "vulnerabilities": [
+      {
+        "type": "fraud_proof_bypass",
+        "severity": "CRITICAL",
+        "description": "Potential fraud proof validation bypass in withdrawal system",
+        "estimated_value_at_risk": 290000000
+      }
+    ],
+    "scan_timestamp": "2026-01-28T07:05:11.688Z"
+  },
+  {
+    "chain": "ethereum",
+    "bridge": "Optimism L1 Standard Bridge",
+    "address": "0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1",
+    "tvl": 1800000000,
+    "type": "optimistic_rollup",
+    "risk_level": "high",
+    "vulnerabilities": [],
+    "scan_timestamp": "2026-01-28T07:05:12.690Z"
+  },
+  {
+    "chain": "ethereum",
+    "bridge": "Polygon PoS Bridge",
+    "address": "0xA0c68C638235ee32657e8f720a23ceC1bFc77C77",
+    "tvl": 1200000000,
+    "type": "validator_based",
+    "risk_level": "medium",
+    "vulnerabilities": [],
+    "scan_timestamp": "2026-01-28T07:05:13.691Z"
+  },
+  {
+    "chain": "ethereum",
+    "bridge": "Stargate Router (LayerZero)",
+    "address": "0x8731d54E9D02c286767d56ac03e8037C07e01e98",
+    "tvl": 1100000000,
+    "type": "omnichain",
+    "risk_level": "high",
+    "vulnerabilities": [],
+    "scan_timestamp": "2026-01-28T07:05:14.692Z"
+  },
+  {
+    "chain": "ethereum",
+    "bridge": "Multichain Router",
+    "address": "0x6b7a87899490EcE95443e979cA9485CBE7E71522",
+    "tvl": 800000000,
+    "type": "mpc_validator",
+    "risk_level": "high",
+    "vulnerabilities": [],
+    "scan_timestamp": "2026-01-28T07:05:15.693Z"
+  },
+  {
+    "chain": "arbitrum",
+    "bridge": "Arbitrum L2 Gateway Router",
+    "address": "0x5288c571Fd7aD117beA99bF60FE0846C4E84F933",
+    "tvl": 2900000000,
+    "type": "optimistic_rollup",
+    "risk_level": "high",
+    "vulnerabilities": [
+      {
+        "type": "fraud_proof_bypass",
+        "severity": "CRITICAL",
+        "description": "Potential fraud proof validation bypass in withdrawal system",
+        "estimated_value_at_risk": 290000000
+      }
+    ],
+    "scan_timestamp": "2026-01-28T07:05:16.695Z"
+  },
+  {
+    "chain": "arbitrum",
+    "bridge": "Stargate Arbitrum Router",
+    "address": "0x53Bf833A5d6c4ddA888F69c22C88C9f356a41614",
+    "tvl": 200000000,
+    "type": "omnichain",
+    "risk_level": "medium",
+    "vulnerabilities": [
+      {
+        "type": "cross_chain_replay",
+        "severity": "HIGH",
+        "description": "Cross-chain message replay attack possible",
+        "estimated_value_at_risk": 16000000
+      }
+    ],
+    "scan_timestamp": "2026-01-28T07:05:17.697Z"
+  },
+  {
+    "chain": "base",
+    "bridge": "Base L1 Standard Bridge",
+    "address": "0x3154Cf16ccdb4C6d922629664174b904d80F2C35",
+    "tvl": 900000000,
+    "type": "optimistic_rollup",
+    "risk_level": "medium",
+    "vulnerabilities": [
+      {
+        "type": "fraud_proof_bypass",
+        "severity": "CRITICAL",
+        "description": "Potential fraud proof validation bypass in withdrawal system",
+        "estimated_value_at_risk": 90000000
+      }
+    ],
+    "scan_timestamp": "2026-01-28T07:05:18.698Z"
+  },
+  {
+    "chain": "polygon",
+    "bridge": "Polygon L2 PoS Portal",
+    "address": "0xA0c68C638235ee32657e8f720a23ceC1bFc77C77",
+    "tvl": 1200000000,
+    "type": "validator_based",
+    "risk_level": "medium",
+    "vulnerabilities": [
+      {
+        "type": "validator_threshold_manipulation",
+        "severity": "HIGH",
+        "description": "Validator threshold may be insufficient for security",
+        "estimated_value_at_risk": 60000000
+      }
+    ],
+    "scan_timestamp": "2026-01-28T07:05:19.699Z"
+  }
+]

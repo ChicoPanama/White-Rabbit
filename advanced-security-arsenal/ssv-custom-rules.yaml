@@ -1,0 +1,255 @@
+rules:
+  - id: ssv-operator-unauthorized-state-change
+    pattern-either:
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            require(msg.sender == operator, ...);
+            ...
+            $STATE_VAR = $VALUE;
+            ...
+          }
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            if (msg.sender != operator) revert();
+            ...
+            $STATE_VAR = $VALUE;
+            ...
+          }
+    message: Potential unauthorized state change by operator - verify proper access controls
+    languages: [solidity]
+    severity: WARNING
+
+  - id: ssv-cluster-manipulation-attack
+    pattern-either:
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            cluster.$FIELD = $VALUE;
+            ...
+          }
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            clusters[$KEY].$FIELD = $VALUE;
+            ...
+          }
+    message: Direct cluster state manipulation detected - check for proper validation
+    languages: [solidity]
+    severity: ERROR
+
+  - id: ssv-share-poisoning-vulnerability
+    pattern-either:
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            shares[$KEY] = $MALICIOUS_SHARE;
+            ...
+          }
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            $VALIDATOR_SHARES[$INDEX] = $VALUE;
+            ...
+          }
+    message: Potential share poisoning attack vector - validate share authenticity
+    languages: [solidity]
+    severity: ERROR
+
+  - id: ssv-signature-reuse-attack
+    pattern-either:
+      - pattern: |
+          mapping(bytes32 => bool) $USED_SIGNATURES;
+          function $FUNC(...) {
+            ...
+            require(!$USED_SIGNATURES[$SIG_HASH], ...);
+            $USED_SIGNATURES[$SIG_HASH] = true;
+            ...
+          }
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            bytes32 sigHash = keccak256($SIGNATURE);
+            ...
+          }
+    message: Signature handling detected - verify replay protection mechanisms
+    languages: [solidity]
+    severity: INFO
+
+  - id: ssv-fee-manipulation-vector
+    pattern-either:
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            fees = $NEW_FEE;
+            ...
+          }
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            operatorFees[$OPERATOR] = $FEE;
+            ...
+          }
+    message: Fee manipulation detected - ensure proper authorization and bounds checking
+    languages: [solidity]
+    severity: WARNING
+
+  - id: ssv-consensus-bypass-attempt
+    pattern-either:
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            if ($CONDITION) {
+              // Direct state change without consensus
+              $STATE = $VALUE;
+            }
+            ...
+          }
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            require($OPERATORS_COUNT < $THRESHOLD, ...);
+            ...
+          }
+    message: Potential consensus bypass - verify threshold requirements are enforced
+    languages: [solidity]
+    severity: ERROR
+
+  - id: ssv-slashing-condition-bypass
+    pattern-either:
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            if (!$SLASHING_CONDITION) {
+              return;
+            }
+            ...
+          }
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            require($SLASHING_CHECK == false, ...);
+            ...
+          }
+    message: Slashing condition bypass detected - verify proper penalty enforcement
+    languages: [solidity]
+    severity: CRITICAL
+
+  - id: ssv-timestamp-manipulation
+    pattern-either:
+      - pattern: block.timestamp
+      - pattern: now
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            uint256 $TIME = block.timestamp;
+            ...
+            require($TIME $OP $THRESHOLD, ...);
+            ...
+          }
+    message: Timestamp dependency detected - vulnerable to miner manipulation
+    languages: [solidity]
+    severity: WARNING
+
+  - id: ssv-unchecked-external-call
+    pattern-either:
+      - pattern: |
+          $TARGET.call($DATA);
+      - pattern: |
+          $TARGET.delegatecall($DATA);
+      - pattern: |
+          address($TARGET).call($DATA);
+    message: Unchecked external call detected - verify return value handling
+    languages: [solidity]
+    severity: ERROR
+
+  - id: ssv-reentrancy-vulnerability
+    pattern-either:
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            $BALANCE = balances[msg.sender];
+            ...
+            balances[msg.sender] = 0;
+            ...
+            $TARGET.call{value: $BALANCE}("");
+            ...
+          }
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            $EXTERNAL_CALL();
+            ...
+            $STATE_CHANGE = $VALUE;
+            ...
+          }
+    message: Potential reentrancy vulnerability - use checks-effects-interactions pattern
+    languages: [solidity]
+    severity: CRITICAL
+
+  - id: ssv-integer-overflow-underflow
+    pattern-either:
+      - pattern: |
+          $VAR + $VALUE
+      - pattern: |
+          $VAR - $VALUE
+      - pattern: |
+          $VAR * $VALUE
+      - pattern: |
+          $VAR / $VALUE
+    where:
+      - metavariable-pattern:
+          metavariable: $VAR
+          pattern: |
+            uint256 $X
+    message: Unchecked arithmetic operation - use SafeMath or Solidity 0.8+ checked arithmetic
+    languages: [solidity]
+    severity: WARNING
+
+  - id: ssv-access-control-bypass
+    pattern-either:
+      - pattern: |
+          modifier $MODIFIER() {
+            require(msg.sender == owner || msg.sender == operator, ...);
+            _;
+          }
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            if (msg.sender == owner || $OTHER_CONDITION) {
+              ...
+            }
+            ...
+          }
+    message: Multiple access control conditions - verify logical operator precedence
+    languages: [solidity]
+    severity: WARNING
+
+  - id: ssv-validator-key-exposure
+    pattern-either:
+      - pattern: |
+          event ValidatorAdded(bytes $PUBLIC_KEY, ...);
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            emit $EVENT($VALIDATOR_KEY, ...);
+            ...
+          }
+    message: Validator key potentially exposed in events - verify privacy requirements
+    languages: [solidity]
+    severity: INFO
+
+  - id: ssv-withdrawal-credential-manipulation
+    pattern-either:
+      - pattern: |
+          withdrawalCredentials = $NEW_CREDS;
+      - pattern: |
+          function $FUNC(...) {
+            ...
+            $VALIDATOR.withdrawalCredentials = $VALUE;
+            ...
+          }
+    message: Withdrawal credentials modification - ensure proper authorization
+    languages: [solidity]
+    severity: ERROR
