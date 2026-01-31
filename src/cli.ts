@@ -15,6 +15,17 @@ import { getProtocolContracts } from './data/protocol-contracts.js';
 import { ethers } from 'ethers';
 import { Database } from './database.js';
 import { initRedisCache } from './services/redis-cache.js';
+// Research Pipeline imports
+import {
+  isAuditOrResearchTask,
+  isAuditPipelineEnabled,
+  parseTaskContext,
+  getClassificationReason,
+} from './utils/task_classifier.js';
+import {
+  runAuditPipeline,
+  AuditContext,
+} from './pipelines/audit_pipeline.js';
 
 const HELP = `
 White-Rabbit: Autonomous Smart Contract Vulnerability Scanner
@@ -54,6 +65,7 @@ Commands:
   knowledge        Show learning statistics and evolution history
   evolve           Run self-evolution cycle (refine patterns, analyze FPs)
   debrief          Run post-hunt debrief analysis
+  research         Deep research pipeline (6-stage verification, requires OPENCLAW_AUDIT_PIPELINE_ENABLED=true)
 
 Options:
   --chain <name>       Chain name (default: ethereum, micro default: base)
@@ -130,6 +142,12 @@ async function main() {
     return;
   }
 
+  // Research Pipeline: explicit /research command
+  if (command === 'research') {
+    await runResearchPipeline(args.slice(1));
+    return;
+  }
+
   const config = loadConfig();
   
   // Initialize wallet manager if wallet exists and password available
@@ -167,7 +185,13 @@ async function main() {
   try {
     switch (command) {
       case 'audit':
-        await runAudit(scanner, args.slice(1));
+        // Research pipeline ONLY with explicit --research or --deep-audit flag
+        // Normal audit flow is NEVER auto-routed to pipeline
+        if (hasExplicitResearchFlag(args.slice(1))) {
+          await runAuditWithPipeline(scanner, args.slice(1));
+        } else {
+          await runAudit(scanner, args.slice(1));
+        }
         break;
       case 'scan':
         await runScan(scanner, args.slice(1), config);
@@ -213,6 +237,187 @@ async function runChains(args: string[]) {
   const scannable = chains.filter(c => c.scannable).length;
   console.log(`\n${scannable} of ${Math.min(topN, chains.length)} chains are scannable.`);
   console.log('Run "scan top10" to scan all supported chains.');
+}
+
+// ── research pipeline helpers ──
+
+/**
+ * Check for EXPLICIT --research or --deep-audit flag only.
+ * NO automatic classification - pipeline is opt-in only.
+ * Normal audit flow is NEVER altered unless user explicitly requests it.
+ */
+function hasExplicitResearchFlag(args: string[]): boolean {
+  // Feature flag must be enabled
+  if (!isAuditPipelineEnabled()) {
+    return false;
+  }
+
+  // ONLY explicit flags trigger the pipeline - no auto-classification
+  return args.includes('--research') || args.includes('--deep-audit');
+}
+
+/**
+ * Run audit with the research pipeline
+ */
+async function runAuditWithPipeline(scanner: Scanner, args: string[]) {
+  const address = args[0];
+  if (!address) {
+    console.error('Error: contract address required');
+    console.error('Usage: audit <address> [--chain <name>] [--research]');
+    process.exit(1);
+  }
+  if (!isValidEthAddress(address)) {
+    console.error('Error: invalid Ethereum address (expected 0x + 40 hex characters)');
+    process.exit(1);
+  }
+
+  const chainName = getFlag(args, '--chain') ?? getFlag(args, '-n') ?? 'ethereum';
+  const depth = getFlag(args, '--depth') as 'quick' | 'standard' | 'deep' ?? 'standard';
+
+  // Get chain ID
+  let chainId: number;
+  const staticChain = CHAINS[chainName.toLowerCase()];
+  if (staticChain) {
+    chainId = staticChain.chainId;
+  } else {
+    const dynChain = scanner.chainDiscovery.getChainConfig(chainName);
+    if (!dynChain) {
+      console.error(`Unknown chain: ${chainName}`);
+      process.exit(1);
+    }
+    chainId = dynChain.chainId;
+  }
+
+  console.log('🔬 Running Research Pipeline...');
+  console.log(`Target: ${address} on ${chainName} (chain ID: ${chainId})`);
+
+  const context: AuditContext = {
+    target: {
+      address,
+      chainId,
+      chainName,
+    },
+    mode: 'audit',
+    depth,
+    tags: ['audit', 'contract'],
+  };
+
+  try {
+    const result = await runAuditPipeline(context, scanner);
+
+    if (result.success) {
+      console.log('\n' + '='.repeat(60));
+      console.log('✅ Research Pipeline Complete');
+      console.log('='.repeat(60));
+      console.log(result.summary);
+    } else {
+      console.error('\n❌ Research Pipeline Failed');
+      console.error(`See report: ${result.reportPath}`);
+
+      // Graceful fallback to standard audit
+      console.log('\n📋 Falling back to standard audit...');
+      await runAudit(scanner, args.filter(a => a !== '--research' && a !== '--deep-audit'));
+    }
+  } catch (error) {
+    console.error('[Pipeline] Error:', error);
+
+    // Graceful fallback
+    console.log('\n📋 Falling back to standard audit...');
+    await runAudit(scanner, args.filter(a => a !== '--research' && a !== '--deep-audit'));
+  }
+}
+
+/**
+ * Run explicit research pipeline command
+ */
+async function runResearchPipeline(args: string[]) {
+  // Check feature flag
+  if (!isAuditPipelineEnabled()) {
+    console.error('❌ Research Pipeline is disabled.');
+    console.error('Enable with: export OPENCLAW_AUDIT_PIPELINE_ENABLED=true');
+    process.exit(1);
+  }
+
+  const target = args[0];
+  if (!target) {
+    console.error('Error: target required (address, repo URL, or audit PDF path)');
+    console.error('Usage: research <target> [--depth quick|standard|deep]');
+    process.exit(1);
+  }
+
+  const depth = getFlag(args, '--depth') as 'quick' | 'standard' | 'deep' ?? 'standard';
+  const chainName = getFlag(args, '--chain') ?? 'ethereum';
+
+  // Determine target type
+  const isAddress = isValidEthAddress(target);
+  const isRepo = target.startsWith('http') && (target.includes('github') || target.includes('gitlab'));
+  const isPdf = target.endsWith('.pdf');
+
+  let context: AuditContext;
+
+  if (isAddress) {
+    const staticChain = CHAINS[chainName.toLowerCase()];
+    const chainId = staticChain?.chainId ?? 1;
+
+    context = {
+      target: {
+        address: target,
+        chainId,
+        chainName,
+      },
+      mode: 'research',
+      depth,
+      tags: ['research', 'deep-dive'],
+    };
+  } else if (isRepo) {
+    context = {
+      target: {
+        repoUrl: target,
+      },
+      mode: 'research',
+      depth,
+      tags: ['research', 'repository'],
+    };
+  } else if (isPdf) {
+    context = {
+      target: {
+        auditPdf: target,
+      },
+      mode: 'research',
+      depth,
+      tags: ['research', 'audit-review'],
+    };
+  } else {
+    // Generic target (protocol name, etc.)
+    context = {
+      target: {
+        protocol: target,
+      },
+      mode: 'research',
+      depth,
+      tags: ['research'],
+    };
+  }
+
+  console.log('🔬 Starting Research Pipeline...');
+  console.log(`Target: ${target}`);
+  console.log(`Mode: research, Depth: ${depth}`);
+
+  try {
+    const result = await runAuditPipeline(context);
+
+    console.log('\n' + '='.repeat(60));
+    if (result.success) {
+      console.log('✅ Research Complete');
+    } else {
+      console.log('⚠️ Research Completed with Issues');
+    }
+    console.log('='.repeat(60));
+    console.log(result.summary);
+  } catch (error) {
+    console.error('❌ Research Pipeline Failed:', error);
+    process.exit(1);
+  }
 }
 
 // ── audit ──
