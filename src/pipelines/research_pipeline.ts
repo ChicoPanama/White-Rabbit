@@ -107,6 +107,43 @@ const REPORTS_DIR = path.join(process.cwd(), 'reports');
 const AUDIT_CARDS_DIR = path.join(process.cwd(), 'memory', 'audit_cards');
 const MAX_TELEGRAM_LINES = 20;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DRY RUN MODE - For smoke tests and self-checks
+// Skips: Slither, Foundry, chain RPC calls
+// Still produces: report file, pattern card stubs, summary
+// ─────────────────────────────────────────────────────────────────────────────
+export function isDryRunMode(): boolean {
+  return process.env.OPENCLAW_AUDIT_PIPELINE_DRY_RUN === 'true';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLAIM GATING - Enforced in code, not just prompts
+// Only verified findings can be labeled as "vulnerability"
+// Unverified findings are "hypotheses" with capped confidence
+// ─────────────────────────────────────────────────────────────────────────────
+const MAX_UNVERIFIED_CONFIDENCE = 60; // Cap for unverified findings
+
+/**
+ * CLAIM GATING: Can this finding be called a vulnerability?
+ * Returns true ONLY if verified with high confidence.
+ */
+export function canLabelAsVulnerability(finding: AuditFinding): boolean {
+  return finding.verified === true && finding.confidence >= 70;
+}
+
+/**
+ * Apply claim gating to a finding - caps confidence if unverified
+ */
+export function applyClaimGating(finding: AuditFinding): AuditFinding {
+  if (!finding.verified) {
+    return {
+      ...finding,
+      confidence: Math.min(finding.confidence, MAX_UNVERIFIED_CONFIDENCE),
+    };
+  }
+  return finding;
+}
+
 /**
  * Main entry point for the audit pipeline
  */
@@ -290,17 +327,30 @@ async function runStage2StaticAnalysis(
   console.log('[Stage 2] Running static analysis...');
 
   try {
-    // Check if Slither is available
+    // DRY RUN: Skip all external tools, return empty findings
+    if (isDryRunMode()) {
+      console.log('[Stage 2] DRY RUN mode - skipping Slither');
+      return {
+        stage: 2,
+        name: 'STATIC ANALYSIS',
+        status: 'skipped',
+        duration: Date.now() - startTime,
+        data: { findings: [], dryRun: true },
+      };
+    }
+
+    // Check if Slither is available - graceful degradation if missing
     const slitherAvailable = await checkToolAvailable('slither');
 
     if (!slitherAvailable) {
-      console.log('[Stage 2] Slither not installed, using analysis-only mode');
+      console.log('[Stage 2] Slither not installed - continuing without static analysis');
+      // Non-fatal: return partial success, not failure
       return {
         stage: 2,
         name: 'STATIC ANALYSIS',
         status: 'partial',
         duration: Date.now() - startTime,
-        data: { findings: [], toolMissing: 'slither' },
+        data: { findings: [], toolMissing: 'slither', warning: 'Install Slither for better analysis' },
       };
     }
 
@@ -417,24 +467,43 @@ async function runStage4Verification(
   console.log('[Stage 4] Generating verification plans...');
 
   try {
-    // Check if Foundry is available for PoC generation
+    // DRY RUN: Skip Foundry check, produce stub hypotheses
+    if (isDryRunMode()) {
+      console.log('[Stage 4] DRY RUN mode - skipping Foundry verification');
+      const hypotheses = findings.map(f => convertToHypothesis(f));
+      return {
+        stage: 4,
+        name: 'VERIFICATION',
+        status: 'skipped',
+        duration: Date.now() - startTime,
+        data: { verified: [], hypotheses, dryRun: true },
+      };
+    }
+
+    // Check if Foundry is available - graceful degradation if missing
     const foundryAvailable = await checkToolAvailable('forge');
+    if (!foundryAvailable) {
+      console.log('[Stage 4] Foundry not installed - verification plans only, no PoC execution');
+    }
 
     const verified: AuditFinding[] = [];
     const hypotheses: Hypothesis[] = [];
 
     for (const finding of findings) {
       // High confidence findings with clear indicators can be marked as verified
-      if (finding.confidence === 'high' &&
+      // BUT only if we have actual verification capability (Foundry)
+      if (foundryAvailable &&
+          finding.confidence === 'high' &&
           (finding.severity === 'high' || finding.severity === 'critical')) {
 
-        // Convert to AuditFinding with safety constraints
-        const auditFinding = convertToAuditFinding(finding, true, foundryAvailable);
+        // Convert to AuditFinding with safety constraints + claim gating
+        let auditFinding = convertToAuditFinding(finding, true, foundryAvailable);
         if (auditFinding) {
+          auditFinding = applyClaimGating(auditFinding);
           verified.push(auditFinding);
         }
       } else {
-        // Lower confidence findings become hypotheses
+        // Lower confidence or no Foundry = hypotheses only
         const hypothesis = convertToHypothesis(finding);
         hypotheses.push(hypothesis);
       }

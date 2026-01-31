@@ -23,9 +23,9 @@ import {
   getClassificationReason,
 } from './utils/task_classifier.js';
 import {
-  runAuditPipeline,
+  runAuditPipeline,  // Keep original name as alias for API compatibility
   AuditContext,
-} from './pipelines/audit_pipeline.js';
+} from './pipelines/research_pipeline.js';
 
 const HELP = `
 White-Rabbit: Autonomous Smart Contract Vulnerability Scanner
