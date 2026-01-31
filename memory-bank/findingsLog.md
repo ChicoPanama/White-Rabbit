@@ -17,7 +17,23 @@ False Positives Caught: 3+
 ### Under Investigation
 | ID | Protocol | Chain | Type | Severity | Stage | Est. Value |
 |----|----------|-------|------|----------|-------|------------|
-| - | - | - | - | - | - | - |
+| WR-002 | Aerodrome Finance | Base | Multiple Critical | CRITICAL | Audit Research | $500K-$1M+ |
+
+### WR-002: Aerodrome Finance Ecosystem-Wide Vulnerabilities
+- **Contracts:** 5 core contracts compromised
+  - AERO Token: `0x940181a94a35a4569e4529a3cdfb74e38fd98631`
+  - Pool Factory: `0x420DD381b31aEf6683db6B902084cB0FFECe40Da`
+  - Suspected Factory: `0x8909Dc15e40173Ff4699343b6eB8132c65e18eC6`
+  - Router: `0xcF77a3Ba9A5CA399B7c97c74d54e5b1Beb874E43`
+  - Voter: `0x16613524e02ad97eDfeF371bC883F2F5d6C480A5`
+- **Vulnerabilities:**
+  - 🔴 SELFDESTRUCT capability (all 5 contracts)
+  - 🔴 DELEGATECALL patterns (all 5 contracts)
+  - 🟡 CREATE2 usage (all 5 contracts)
+- **Impact:** Protocol destruction, arbitrary code execution, ecosystem-wide compromise
+- **Status:** Audit discovery phase - checking existing audits before disclosure
+- **Risk Level:** CATASTROPHIC - Base chain's primary DEX at risk
+- **Next Step:** Complete audit research to verify findings aren't known/accepted
 
 ### Pending Verification
 | ID | Protocol | Vulnerability | Severity | Blocker |

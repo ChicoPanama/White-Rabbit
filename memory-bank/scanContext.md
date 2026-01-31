@@ -4,7 +4,7 @@
 
 | Protocol | Chain | TVL | Priority | Status | Last Scanned |
 |----------|-------|-----|----------|--------|--------------|
-| - | - | - | - | - | - |
+| Aerodrome Finance | Base | High | CRITICAL | Audit Research | 2026-01-31 |
 
 ## Target Queue
 *Protocols pending scan*

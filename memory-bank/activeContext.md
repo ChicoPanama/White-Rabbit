@@ -1,7 +1,10 @@
 # Active Context
 
 ## Current Focus
-[Session start - reading Memory Bank to restore context]
+**Aerodrome Finance (Base) - Comprehensive Vulnerability Assessment**
+- 5 contracts with SELFDESTRUCT + DELEGATECALL vulnerabilities identified
+- Audit discovery phase: Researching existing audits before disclosure
+- Next: Manual verification of audit status across major firms
 
 ## Session State
 - **Started:** 2026-01-30T22:04:12+00:00
