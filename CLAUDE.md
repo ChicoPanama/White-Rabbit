@@ -532,14 +532,14 @@ pm2 restart white-rabbit-scanner
 pm2 restart all
 pm2 save
 
-# Clawdbot
+# OpenClaw (formerly Clawdbot)
 systemctl --user status clawdbot-gateway
 systemctl --user restart clawdbot-gateway
-clawdbot cron list
-clawdbot cron runs --id <JOB_ID>
-clawdbot doctor
-clawdbot models
-clawdbot skills
+openclaw cron list
+openclaw cron runs --id <JOB_ID>
+openclaw doctor
+openclaw models
+openclaw skills
 
 # PostgreSQL
 sudo -u postgres psql -d whiterabbit
@@ -618,10 +618,10 @@ Current working model names:
 - Sonnet: `claude-sonnet-4-20250514`
 - Opus: `claude-opus-4-5-20251101`
 
-**Gateway timeout on `clawdbot cron list`**
+**Gateway timeout on `openclaw cron list`**
 Gateway may be busy processing an agent turn. Wait and retry, or increase timeout:
 ```bash
-clawdbot cron list --timeout 30000
+openclaw cron list --timeout 30000
 ```
 
 ### Log Locations
@@ -631,8 +631,8 @@ clawdbot cron list --timeout 30000
 | PM2 scanner | `~/.pm2/logs/white-rabbit-scanner-out.log` |
 | PM2 scanner errors | `~/.pm2/logs/white-rabbit-scanner-error.log` |
 | PM2 worker | `~/.pm2/logs/white-rabbit-worker-out.log` |
-| Clawdbot gateway | `journalctl --user -u clawdbot-gateway` |
-| Clawdbot log file | `~/.clawdbot/clawdbot.log` |
+| OpenClaw gateway | `journalctl --user -u clawdbot-gateway` |
+| OpenClaw log file | `~/.clawdbot/clawdbot.log` |
 | Scanner state | `~/.etherscan-auditor/state.json` |
 | Pattern cache | `~/.etherscan-auditor/patterns.db` |
 | Clawd memory | `~/clawd/memory/` |

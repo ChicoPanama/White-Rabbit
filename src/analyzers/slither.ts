@@ -31,13 +31,17 @@ export class SlitherAnalyzer {
       }
     }
     
-    const contractDir = await this.writeContractSource(contractAddress, chainId, sourceCode);
-    const solFile = path.join(contractDir, 'contract.sol');
+    const { dir: contractDir, mainFile: solFile } = await this.writeContractSource(contractAddress, chainId, sourceCode);
 
     // Debug: verify file exists
     if (!fs.existsSync(solFile)) {
       console.error(`[Slither] Contract file does not exist: ${solFile}`);
-      console.error(`[Slither] Directory contents:`, fs.readdirSync(contractDir, { withFileTypes: true }).map(d => `${d.name}${d.isDirectory() ? '/' : ''}`));
+      const listDir = (d: string) => {
+        try {
+          return fs.readdirSync(d, { withFileTypes: true }).map(e => `${e.name}${e.isDirectory() ? '/' : ''}`);
+        } catch { return []; }
+      };
+      console.error(`[Slither] Directory contents:`, listDir(contractDir));
       this.cleanupDir(contractDir);
       return [];
     }
@@ -164,7 +168,7 @@ export class SlitherAnalyzer {
     address: string,
     chainId: number,
     sourceCode: string,
-  ): Promise<string> {
+  ): Promise<{ dir: string; mainFile: string }> {
     const hash = crypto.createHash('sha256').update(`${chainId}:${address}`).digest('hex').slice(0, 12);
     const contractDir = path.join(CONTRACTS_DIR, hash);
     fs.mkdirSync(contractDir, { recursive: true });
@@ -172,7 +176,7 @@ export class SlitherAnalyzer {
     // Handle Etherscan's multi-file JSON format
     let parsedMulti = false;
     let mainContractFile: string | null = null;
-    
+
     try {
       // Etherscan wraps multi-file sources in double braces: {{...}}
       const trimmed = sourceCode.startsWith('{{') ? sourceCode.slice(1, -1) : sourceCode;
@@ -180,10 +184,18 @@ export class SlitherAnalyzer {
       if (parsed.sources && typeof parsed.sources === 'object') {
         const resolvedContractDir = path.resolve(contractDir) + path.sep;
         const filePaths = Object.keys(parsed.sources);
-        
-        // Find the main contract file (usually the first one or one with contract name)
-        mainContractFile = filePaths.find(fp => fp.includes('contract') || fp.includes(address.slice(2, 8))) || filePaths[0];
-        
+
+        // Find the main contract file - prioritize by common naming patterns
+        // Look for: the contract name, 'main', or files not in subdirectories
+        const topLevelFiles = filePaths.filter(fp => !fp.includes('/') || fp.split('/').length <= 2);
+        const contractFiles = filePaths.filter(fp =>
+          fp.toLowerCase().includes('contract') ||
+          fp.includes(address.slice(2, 8).toLowerCase())
+        );
+        mainContractFile = contractFiles[0] || topLevelFiles[0] || filePaths[0];
+
+        console.log(`[Slither] Multi-file source with ${filePaths.length} files, main: ${mainContractFile}`);
+
         for (const [filePath, fileData] of Object.entries(parsed.sources)) {
           const fullPath = path.resolve(contractDir, filePath);
           if (!fullPath.startsWith(resolvedContractDir)) {
@@ -204,17 +216,17 @@ export class SlitherAnalyzer {
     }
 
     if (!parsedMulti) {
-      fs.writeFileSync(path.join(contractDir, 'contract.sol'), sourceCode, 'utf8');
-    } else if (mainContractFile) {
-      // For multi-file sources, also copy the main contract to contract.sol for Slither
-      const mainContractPath = path.join(contractDir, mainContractFile);
-      if (fs.existsSync(mainContractPath)) {
-        const mainContent = fs.readFileSync(mainContractPath, 'utf8');
-        fs.writeFileSync(path.join(contractDir, 'contract.sol'), mainContent, 'utf8');
-      }
+      const singleFile = path.join(contractDir, 'contract.sol');
+      fs.writeFileSync(singleFile, sourceCode, 'utf8');
+      return { dir: contractDir, mainFile: singleFile };
     }
 
-    return contractDir;
+    // For multi-file sources, return the actual main contract path
+    const mainFile = mainContractFile
+      ? path.join(contractDir, mainContractFile)
+      : path.join(contractDir, 'contract.sol');
+
+    return { dir: contractDir, mainFile };
   }
 
   private runSlither(contractPath: string, solcPath?: string | null): Promise<SlitherOutput> {
@@ -223,16 +235,78 @@ export class SlitherAnalyzer {
       
       // Create remappings for common dependencies
       const contractDir = path.dirname(contractPath);
-      const remappingsFile = path.join(contractDir, 'remappings.txt');
-      const remappings = [
-        '@openzeppelin/contracts/=../node_modules/@openzeppelin/contracts/',
-        '@openzeppelin/=../node_modules/@openzeppelin/',
-        '@nomad-xyz/src/=../node_modules/@nomad-xyz/excessively-safe-call/src/',
-        'forge-std/=../node_modules/forge-std/src/',
-        'ds-test/=../node_modules/ds-test/src/',
-        './=./',
-        '../=../',
-      ];
+      const nodeModules = path.join(process.cwd(), 'node_modules');
+
+      // Find the root contract directory (the hash directory, not subdirectories)
+      // This handles multi-file contracts with nested paths like contracts/core/CLFactory.sol
+      const contractsBase = path.join(process.cwd(), 'contracts');
+      const pathParts = contractDir.replace(contractsBase + path.sep, '').split(path.sep);
+      const hashDir = pathParts[0]; // e.g., "3a3208ec5a75"
+      const contractRootDir = path.join(contractsBase, hashDir);
+
+      // Build remappings - only use node_modules fallback if the path doesn't exist locally
+      // This ensures multi-file contracts use their bundled dependencies (correct versions)
+      const remappings: string[] = [];
+
+      // Helper to check if a directory exists in the contract root
+      const hasLocalDir = (dir: string) => fs.existsSync(path.join(contractRootDir, dir));
+
+      // List top-level directories for debugging
+      try {
+        const topDirs = fs.readdirSync(contractRootDir, { withFileTypes: true })
+          .filter(d => d.isDirectory())
+          .map(d => d.name);
+        if (topDirs.length > 0) {
+          console.log(`[Slither] Contract dirs: ${topDirs.join(', ')}`);
+        }
+      } catch { /* ignore */ }
+
+      // Detect solc version to choose correct OpenZeppelin version
+      // OZ 4.x requires ^0.8.0, OZ 3.x supports 0.6.x-0.7.x
+      let solcVersion = '0.8.0';
+      if (solcPath) {
+        const versionMatch = solcPath.match(/solc-(\d+\.\d+\.\d+)/);
+        if (versionMatch) solcVersion = versionMatch[1];
+      }
+      const [major, minor] = solcVersion.split('.').map(Number);
+      const needsOzV3 = major === 0 && minor < 8;
+
+      // External dependency remappings (only if not bundled in source)
+      if (!hasLocalDir('@openzeppelin') && !hasLocalDir('node_modules/@openzeppelin')) {
+        // Use OZ 3.x for solc < 0.8.0, OZ 4.x otherwise
+        const ozDir = needsOzV3 ? '@openzeppelin/contracts-v3' : '@openzeppelin/contracts';
+        remappings.push(`@openzeppelin/contracts/=${nodeModules}/${ozDir}/`);
+        remappings.push(`@openzeppelin/=${nodeModules}/${needsOzV3 ? '@openzeppelin/contracts-v3' : '@openzeppelin'}/`);
+        if (needsOzV3) {
+          console.log(`[Slither] Using OpenZeppelin 3.x for solc ${solcVersion}`);
+        }
+      }
+      if (!hasLocalDir('@nomad-xyz')) {
+        remappings.push(`@nomad-xyz/src/=${nodeModules}/@nomad-xyz/excessively-safe-call/src/`);
+      }
+      if (!hasLocalDir('forge-std')) {
+        remappings.push(`forge-std/=${nodeModules}/forge-std/src/`);
+      }
+      if (!hasLocalDir('ds-test')) {
+        remappings.push(`ds-test/=${nodeModules}/ds-test/src/`);
+      }
+
+      // Map absolute-style imports to contract root (if those directories exist locally)
+      if (hasLocalDir('contracts')) {
+        remappings.push(`contracts/=${contractRootDir}/contracts/`);
+      }
+      if (hasLocalDir('src')) {
+        remappings.push(`src/=${contractRootDir}/src/`);
+      }
+      if (hasLocalDir('lib')) {
+        remappings.push(`lib/=${contractRootDir}/lib/`);
+      }
+
+      // Always include relative path remappings
+      remappings.push('./=./');
+      remappings.push('../=../');
+
+      const remappingsFile = path.join(contractRootDir, 'remappings.txt');
       
       try {
         fs.writeFileSync(remappingsFile, remappings.join('\n'));
@@ -248,20 +322,21 @@ export class SlitherAnalyzer {
         '--ignore-compile',  // Skip compilation errors for missing dependencies
         '--disable-color',   // Cleaner output
         '--solc-remaps', remappings.join(' '),
+        // Allow solc to find files in contract directories and node_modules
+        '--solc-args', `--allow-paths ${contractRootDir},${contractDir},${nodeModules},${process.cwd()}`,
       ];
       if (solcPath) {
         args.push('--solc', solcPath);
       }
-      
-      // Add foundry config if exists
-      const foundryToml = path.join(process.cwd(), 'foundry.toml');
-      if (fs.existsSync(foundryToml)) {
-        args.push('--foundry-out-dir', './out');
-      }
+
+      // Force direct solc compilation mode - skip Foundry detection
+      // (Foundry is not installed, so --foundry-out-dir causes crytic-compile failures)
+      args.push('--compile-force-framework', 'solc');
 
       const proc = spawn('slither', args, {
         timeout: 120_000,
         stdio: ['ignore', 'pipe', 'pipe'],
+        cwd: contractRootDir,  // Run from contract root directory so all imports resolve
         env: { ...process.env, PATH: `${os.homedir()}/.local/bin:${process.env.PATH}` },
       });
 

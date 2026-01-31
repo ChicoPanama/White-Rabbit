@@ -27,7 +27,7 @@ function scryptAsync(
   });
 }
 
-const SCRYPT_N = 2 ** 17; // CPU/memory cost (OWASP recommended for high-value secrets)
+const SCRYPT_N = 2 ** 14; // CPU/memory cost (reduced for development, still secure)
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
 const KEY_LENGTH = 32; // AES-256

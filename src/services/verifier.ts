@@ -311,10 +311,24 @@ export class PoCVerifier {
       const result = require('child_process').execSync('forge --version 2>/dev/null', {
         timeout: 5000,
         stdio: ['ignore', 'pipe', 'ignore'],
+        env: { 
+          ...process.env, 
+          PATH: `${process.env.HOME}/.foundry/bin:${process.env.PATH}` 
+        }
       });
       return true;
     } catch {
-      return false;
+      // Try with explicit path
+      try {
+        const explicitResult = require('child_process').execSync(`${process.env.HOME}/.foundry/bin/forge --version`, {
+          timeout: 5000,
+          stdio: ['ignore', 'pipe', 'ignore'],
+        });
+        return true;
+      } catch {
+        console.log('[PoCVerifier] Foundry not found in PATH or ~/.foundry/bin');
+        return false;
+      }
     }
   }
 

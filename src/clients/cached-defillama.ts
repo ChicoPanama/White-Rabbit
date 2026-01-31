@@ -1,16 +1,17 @@
 import type { DeFiLlamaProtocol } from '../types/index.js';
 import { DeFiLlamaClient } from './defillama.js';
-import CacheManager from '../../cache/CacheManager.js';
+import { CacheManager } from '../../cache/CacheManager.js';
 
 /**
  * Enhanced DeFiLlama client with SQLite caching
  * Provides 90%+ faster protocol discovery by caching responses
  */
 export class CachedDeFiLlamaClient extends DeFiLlamaClient {
-  private cache = CacheManager;
+  private cache: CacheManager;
 
   constructor(cacheTtlMs = 5 * 60 * 1000) {
     super(cacheTtlMs);
+    this.cache = new CacheManager();
   }
 
   /**
