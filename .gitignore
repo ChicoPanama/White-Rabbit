@@ -1,14 +1,65 @@
+# Dependencies
 node_modules/
+.npm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
 dist/
-.env
-.env.*
-!.env.example
+*.js
 *.js.map
 *.d.ts
-!src/**/*.d.ts
-/tmp/
-/contracts/
-postgres_data/
-redis_data/
+*.d.ts.map
+!src/**/*.ts
+
+# Cache & temp files
+cache/
+decompiled/
+*.db-shm
+*.db-wal
+*.db
+
+# Foundry
+cache_forge/
+out/
+foundry.toml.disabled
+remappings.txt
+
+# Environment
+.env
+.env.local
+
+# Logs
+logs/
 *.log
+CONVERSATION_LOG.md
+
+# Binaries
+bin/
+heimdall/
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+*.test.ts.snap
+
+# Runtime data
+hunting-log*.json
+hunt-cycle-*.json
+optimized-hunt.js
+enhanced-scan*.js
+scan-micro-base.js
+hunt-direct-targets.js
+test-*.js
+fix-*.js
+setup-*.sh
