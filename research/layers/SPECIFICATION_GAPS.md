@@ -230,6 +230,77 @@ SPECIFICATION GAP IDENTIFIED
 
 ---
 
+## Pattern Cross-Reference
+
+This artifact maps to the 8 Recurring Failure Patterns as follows:
+
+### Pattern 1: Trust But Don't Verify
+- **Unclear Trust Boundaries:** Specification doesn't define who is trusted for what
+- **External Dependency Trust:** Assumes external contracts behave correctly
+- **Oracle Trust:** Implicit trust in price feed accuracy
+- **Real-World:** Wormhole (signature verification bypass), Nomad (0x00 root trust)
+
+### Pattern 2: State Update Order Matters
+- **Implicit State Assumptions:** Specification assumes state transitions in specific order
+- **Undefined Edge Cases:** Edge case handling not specified
+- **Multi-Step Flows:** Order requirements not enforced
+- **Real-World:** Reentrancy attacks, state machine violations
+
+### Pattern 3: Single Point of Failure
+- **Centralized Oracles:** Specification assumes single oracle is sufficient
+- **Upgrade Authority:** Single entity controls contract logic
+- **Privileged Roles:** Concentration of power not addressed
+- **Real-World:** Ronin (5 validators), Compound (governance centralization)
+
+### Pattern 4: Economic Assumptions Don't Hold
+- **Unstated Economic Assumptions:** Economic properties never explicitly defined
+- **Implicit System Properties:** Assumes properties that aren't enforced
+- **Rational Actor Assumptions:** Assumes users act rationally
+- **Real-World:** Beanstalk (governance economics), Mango Markets (oracle economics)
+
+### Pattern 5: Complexity Hides Bugs
+- **Cross-Contract Interactions:** Specification focuses on individual contracts
+- **Integration Complexity:** Complex interactions not fully specified
+- **Upgrade Path Risks:** Future changes not considered
+- **Real-World:** Nomad (upgrade bug), various cross-contract reentrancy
+
+### Pattern 6: Integration Blindness
+- **Cross-Contract Interactions:** Specification ignores contract interactions
+- **External Dependency Behavior:** Assumes external contracts behave correctly
+- **Cross-Contract Reentrancy:** Not specified in individual contract specs
+- **Real-World:** LUKSO (cross-contract reentrancy), Compound forks
+
+### Pattern 7: Audit Theater
+- **Specification Not Audited:** Audits check code, not specification
+- **Assumption Validation:** Assumptions go unchallenged
+- **Scope Limitations:** Specification gaps outside audit scope
+- **Evidence:** API3, LUKSO, multiple post-audit exploits
+
+### Pattern 8: Governance Capture
+- **Emergency Procedure Gaps:** Emergency powers not fully specified
+- **Upgrade Path Risks:** Governance can change specification
+- **Privileged Function Gaps:** Admin functions underspecified
+- **Real-World:** Beanstalk, Build Finance, emergency power abuse
+
+---
+
+## Audit Gap Analysis
+
+| Specification Gap | Typically Audited? | Why Missed | Detection Difficulty |
+|------------------|-------------------|------------|---------------------|
+| **Undefined Edge Cases** | 🟡 Partial | Assumed obvious | Medium - requires thoroughness |
+| **Implicit State Assumptions** | ❌ Rare | Not considered | High - requires state machine analysis |
+| **Unclear Trust Boundaries** | 🟡 Partial | Assumed from context | Medium - obvious in review |
+| **Unstated Economic Assumptions** | ❌ Rare | Out of scope | Very High - requires economic modeling |
+| **Cross-Contract Interactions** | ❌ Rare | Per-contract scope | Very High - requires system view |
+| **External Dependency Behavior** | ❌ Rare | Outside audit scope | High - requires adversarial thinking |
+| **Upgrade Path Risks** | 🟡 Partial | Future changes out of scope | High - requires foresight |
+| **Emergency Procedures** | ❌ Rare | "Administrative" deprioritized | Medium - obvious if checked |
+
+**Key Insight:** Audits verify "code matches spec" not "spec is correct." Specification gaps are invisible to code audits — the code implements a flawed design perfectly.
+
+---
+
 ## Sources
 
 Specification gap analysis derived from:

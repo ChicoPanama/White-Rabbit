@@ -231,6 +231,81 @@ Previously audited protocols with acknowledged issues are prime targets.
 
 ---
 
+## Pattern Cross-Reference
+
+This artifact maps to the 8 Recurring Failure Patterns as follows:
+
+### Pattern 1: Trust But Don't Verify
+- **Trust Assumptions:** Audits assume trust boundaries are correct
+- **Oracle Trust:** Audits assume oracles are reliable
+- **External Call Trust:** Assumes external contracts behave honestly
+- **Audit Evidence:** Most oracle manipulation attacks in "audited" protocols
+
+### Pattern 2: State Update Order Matters
+- **Static Analysis Limits:** Tools can't reason about state ordering
+- **Temporal Assumptions:** Audits analyze static code, not dynamic behavior
+- **Reentrancy Detection:** Checklist fatigue misses novel reentrancy patterns
+- **Audit Evidence:** Compound forks repeatedly exploited despite audits
+
+### Pattern 3: Single Point of Failure
+- **Centralization Acknowledged:** Often flagged but marked "informational"
+- **Validator Sets:** Bridge audits miss low validator counts
+- **Upgrade Authority:** Concentrated power not treated as vulnerability
+- **Audit Evidence:** Ronin, Harmony, other bridge exploits with "audited" status
+
+### Pattern 4: Economic Assumptions Don't Hold
+- **Economic Modeling:** Explicitly out of scope for most audits
+- **Rational Actor Assumptions:** Audits assume users act rationally
+- **Flash Loan Feasibility:** Not assessed in standard audits
+- **Audit Evidence:** API3 OEVA-4 acknowledged but not fixed; most DeFi exploits are economic
+
+### Pattern 5: Complexity Hides Bugs
+- **Novel Standard Complexity:** New standards lack established patterns
+- **Tool Reliance:** Automated tools miss logical errors
+- **Confirmation Bias:** Auditors expect code to work as specified
+- **Audit Evidence:** LUKSO (14 issues, 7 acknowledged) — novel LSP complexity
+
+### Pattern 6: Integration Blindness
+- **Per-Contract Scope:** Cross-contract interactions not fully assessed
+- **Composability Risk:** Integration testing limited or absent
+- **Dependency Blindness:** External protocols not in scope
+- **Audit Evidence:** Cross-contract reentrancy consistently missed
+
+### Pattern 7: Audit Theater
+- **Core Pattern:** This artifact IS the Audit Theater pattern
+- **Time Constraints:** 2-4 weeks insufficient for complex protocols
+- **Acknowledged ≠ Fixed:** 43% of findings acknowledged, not fixed
+- **Severity Downgrade:** Client pressure reduces severity ratings
+- **Checklist Fatigue:** Repetitive patterns lead to automatic processing
+- **Audit Evidence:** Multiple post-audit exploits despite clean reports
+
+### Pattern 8: Governance Capture
+- **Governance Not Audited:** "Administrative" functions deprioritized
+- **Emergency Powers:** Emergency procedures underspecified
+- **Acknowledged Governance Risks:** Flagged but treated as "business decision"
+- **Audit Evidence:** Beanstalk, Build Finance — governance attacks post-audit
+
+---
+
+## Audit Gap Analysis
+
+| Audit Limitation | Pattern(s) Affected | Why Missed | Exploitation Opportunity |
+|-----------------|-------------------|------------|------------------------|
+| **Time Constraints** | All | Deep analysis impossible | Complex logic errors |
+| **Scope Exclusions** | 4, 6, 8 | Economic/governance out of scope | Economic manipulation |
+| **Tool Reliance** | 2, 5, 7 | Tools miss logical errors | Novel attack patterns |
+| **Novel Standards** | 5, 7 | No established patterns | First-mover advantage |
+| **Confirmation Bias** | 1, 4, 7 | Assumes correctness | Spec/implementation gaps |
+| **Checklist Fatigue** | 2, 6 | Automatic processing | Pattern variations |
+| **Economic Blind Spot** | 4 | Explicitly out of scope | Flash loans, MEV, oracles |
+| **Composability Blindness** | 6 | Per-contract scope | Cross-contract attacks |
+| **Acknowledged Issues** | All | Not fixed despite validity | Pre-identified vulnerabilities |
+| **Governance Blind Spot** | 8 | "Administrative" deprioritized | Governance capture |
+
+**Key Insight:** Audits catch implementation errors. They consistently miss specification flaws, economic vulnerabilities, integration risks, and governance attacks — which cause the majority of high-impact exploits.
+
+---
+
 ## Sources
 
 Audit methodology analysis derived from:

@@ -305,6 +305,77 @@
 
 ---
 
+## Pattern Cross-Reference
+
+This artifact maps to the 8 Recurring Failure Patterns as follows:
+
+### Pattern 1: Trust But Don't Verify
+- **Oracle Failures:** Trusting price feeds without validation
+- **External Call Trust:** Assuming called contracts behave honestly
+- **Access Control Trust:** Assuming privileged actors are benign
+- **Real-World:** Black Thursday (oracle stale prices), Compound price feed failures
+
+### Pattern 2: State Update Order Matters
+- **Reentrancy:** External call before state update (classic violation)
+- **Cross-Function Reentrancy:** State inconsistent across function calls
+- **Read-Only Reentrancy:** View functions used with outdated state
+- **Real-World:** The DAO (2016), Curve (2023), multiple lending protocols
+
+### Pattern 3: Single Point of Failure
+- **Access Control Centralization:** Single owner/admin roles
+- **Oracle Centralization:** Single price source
+- **Upgrade Authority:** Single entity controls contract upgrades
+- **Real-World:** Parity Multisig (library suicide), numerous admin key compromises
+
+### Pattern 4: Economic Assumptions Don't Hold
+- **Price Manipulation:** Assumption that prices reflect true value
+- **Flash Loan Attacks:** Economic limits bypassed via flash loans
+- **Precision Loss:** Assumption that small rounding doesn't matter
+- **Real-World:** All oracle manipulation attacks, economic manipulation of DEX prices
+
+### Pattern 5: Complexity Hides Bugs
+- **Business Logic Bypass:** Complex conditional logic has hidden paths
+- **State Machine Violations:** Complex state transitions miss edge cases
+- **Upgrade Complexity:** Proxy patterns add attack surface
+- **Real-World:** Compound governance bug, various upgrade-related incidents
+
+### Pattern 6: Integration Blindness
+- **External Dependencies:** Assuming integrated protocols are safe
+- **Token Integration:** ERC20 behaviors vary (rebase, fee-on-transfer)
+- **Oracle Integration:** Protocols assume oracle correctness
+- **Real-World:** Cream Finance, multiple Compound forks with same vulnerability
+
+### Pattern 7: Audit Theater
+- **Post-Audit Exploits:** Invariants violated in "audited" code
+- **Tool Reliance:** Automated tools miss logical invariant violations
+- **Scope Limitations:** Invariants outside audit scope
+- **Evidence:** Multiple post-audit hacks despite clean reports
+
+### Pattern 8: Governance Capture
+- **Privileged Function Abuse:** Governance can violate any invariant
+- **Emergency Powers:** Bypass normal constraints
+- **Parameter Manipulation:** Change critical values to break invariants
+- **Real-World:** Beanstalk, Build Finance, various governance attacks
+
+---
+
+## Audit Gap Analysis
+
+| Invariant Category | Typically Audited? | Why Missed | Detection Difficulty |
+|-------------------|-------------------|------------|---------------------|
+| **Access Control** | ✅ Yes | Standard check | Low - obvious patterns |
+| **Reentrancy** | ✅ Yes | Tools + manual | Low - established patterns |
+| **Arithmetic** | ✅ Yes | Static analysis | Medium - overflow patterns |
+| **Business Logic** | 🟡 Partial | Requires domain expertise | High - protocol-specific |
+| **Economic Invariants** | ❌ Rare | Out of scope | Very High - requires modeling |
+| **Upgrade Safety** | 🟡 Partial | Complex analysis | High - state layout issues |
+| **Integration Invariants** | ❌ Rare | Other protocols not in scope | Very High - requires ecosystem view |
+| **Governance Invariants** | ❌ Rare | Governance not audited | Very High - political risk |
+
+**Key Insight:** Technical invariants (access control, reentrancy) are well-covered. Economic and integration invariants are consistently missed despite causing major exploits.
+
+---
+
 ## Sources
 
 Pattern catalog synthesized from:
