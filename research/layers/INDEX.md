@@ -291,6 +291,14 @@ Downloaded and processed. See individual layer reading lists:
 ### Extended Materials (v1.1)
 **Priority Queue:** See [EXTENDED_READING_LIST_v1.1.md](../EXTENDED_READING_LIST_v1.1.md)
 
+### Current Intelligence Feed (Q1 2026)
+**Active Threat Landscape:** See [INTELLIGENCE_FEED_Q1_2026.md](../INTELLIGENCE_FEED_Q1_2026.md)
+
+14 recent documents (2025-2026) catalogued:
+- 5 academic SoK/survey papers
+- 5 industry threat intelligence reports
+- 4 complementary context sources
+
 **Priority 1 (Read First):**
 - Security Engineering (Anderson) — Threat modeling
 - Thinking, Fast and Slow (Kahneman) — Cognitive bias

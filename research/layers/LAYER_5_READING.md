@@ -27,6 +27,23 @@
 
 ---
 
+## Intelligence Feed Q1 2026 (Current Threat Landscape)
+
+| Document | Source | Priority | Focus | Status |
+|----------|--------|----------|-------|--------|
+| **SoK: Security Analysis (2025)** | arXiv | HIGH | Pattern taxonomy, attacker rationales | ⬜ Pending |
+| **2026 Crypto Crime Report** | TRM Labs | HIGH | Illicit activity, sanctions, attribution | ⬜ Pending |
+| **2026 Crypto Crime Report** | Chainalysis | HIGH | DPRK thefts, major hacking patterns | ⬜ Pending |
+| **State of Blockchain Security 2025** | Hacken | HIGH | Attack breakdowns, AI-native failures | ⬜ Pending |
+| **2025 Security & AML Report** | SlowMist | HIGH | Incident summaries, AML intersection | ⬜ Pending |
+| **2025 Security Situation Report** | Lunaray | HIGH | Supply chain, AI-assisted threats | ⬜ Pending |
+| 2022 Blockchain Security Survey | ScienceDirect | MEDIUM | Historical taxonomy foundation | ⬜ Pending |
+| Crypto Theft Surge (DPRK 60%) | Chainalysis | MEDIUM | State actor concentration | ⬜ Pending |
+| $82B Money-Laundering Report | Reuters | MEDIUM | Laundering network complexity | ⬜ Pending |
+| AI Malware Targeting Devs | Check Point | MEDIUM | AI-assisted attack emergence | ⬜ Pending |
+
+---
+
 ## Ingestion Status
 
 **v1.0 Core:** ✅ Complete — All 5 resources downloaded and processed  
