@@ -221,4 +221,13 @@ When analyzing any protocol, document:
 
 ---
 
+## Sources
+
+Trust framework derived from:
+- **Mastering Bitcoin** - Economic security assumptions, mining incentives
+- **Mastering Ethereum** - Protocol and application layer trust models
+- **Bitcoin and Cryptocurrency Technologies** - Formal trust and security models
+
+---
+
 *Understanding trust assumptions is prerequisite to finding where they fail.*

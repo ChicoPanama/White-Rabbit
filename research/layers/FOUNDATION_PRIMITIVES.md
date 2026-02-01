@@ -144,4 +144,24 @@ Prevent spam and infinite loops by charging for computation.
 
 ---
 
+## Sources
+
+Content synthesized from:
+- **Mastering Bitcoin** (3rd Edition) - Antonopoulos & Harding
+  - Transaction structure and lifecycle
+  - Mining and consensus mechanisms
+  - Proof-of-Work security model
+  
+- **Mastering Ethereum** - Antonopoulos & Wood
+  - EVM architecture and state model
+  - Smart contract execution
+  - Gas and metering
+  
+- **Bitcoin and Cryptocurrency Technologies** - Narayanan et al. (Princeton)
+  - Distributed systems fundamentals
+  - Cryptographic primitives
+  - Formal security models
+
+---
+
 *This is Layer 0: No vulnerabilities, no attacks — only how things work.*
