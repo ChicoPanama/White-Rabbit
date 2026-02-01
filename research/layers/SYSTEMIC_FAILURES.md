@@ -574,7 +574,72 @@ During crisis, governance may be too slow to respond.
 
 ---
 
-## 8. Sources & References
+## 8. Pattern Cross-Reference
+
+This artifact maps to the 8 Recurring Failure Patterns as follows:
+
+### Pattern 1: Trust But Don't Verify
+- **Bridge Validators:** Trust in validator set without verification of individual behavior
+- **Oracle Updates:** Trust that prices are fresh and accurate
+- **Cross-Chain Messages:** Trust in message authenticity without independent verification
+- **Historical Context:** Ronin (validator compromise), Wormhole (signature bypass)
+
+### Pattern 3: Single Point of Failure
+- **Bridge Contracts:** Single contract holds massive TVL
+- **Validator Sets:** Small validator sets (5-9 nodes) with low threshold
+- **Oracle Feeds:** Single price source for multiple protocols
+- **Bridge Infrastructure:** Single relay or sequencer
+- **Historical Context:** Ronin (5 validators), Harmony (5 validators), Parity (single library)
+
+### Pattern 4: Economic Assumptions Don't Hold
+- **Liquidation Cascades:** Assumption that liquidations happen orderly
+- **Fire Sales:** Assumption that markets can absorb sell pressure
+- **Leverage Cycles:** Assumption that collateral values are stable
+- **Bridge Solvency:** Assumption that locked assets are safe
+- **Historical Context:** Black Thursday, Terra collapse, all bridge hacks
+
+### Pattern 5: Complexity Hides Bugs
+- **Bridge Architecture:** Complex multi-chain, multi-contract systems
+- **Composability Chains:** Long dependency chains hide risks
+- **Upgrade Mechanisms:** Proxy patterns with complex initialization
+- **Historical Context:** Nomad (upgrade bug), Multichain (complexity led to compromise)
+
+### Pattern 6: Integration Blindness
+- **Bridge Protocol Integration:** Each bridge component secure, combined system vulnerable
+- **Cross-Protocol Dependencies:** Lending protocols depending on same oracles
+- **Composability Stack:** Yield aggregators, lending, DEXs interact unpredictably
+- **Historical Context:** All cascade failures, stETH depeg affecting multiple protocols
+
+### Pattern 7: Audit Theater
+- **Bridge Audits:** Focus on smart contracts, miss operational/key management
+- **Systemic Risk:** Not in standard audit scope
+- **Upgrade Procedures:** Rarely audited in context of entire system
+- **Historical Gap:** Most bridge exploits were "audited" (Ronin, Wormhole, Nomad)
+
+### Pattern 8: Governance Capture
+- **Bridge Governance:** Emergency powers can be exploited
+- **Validator Set Changes:** Governance can add malicious validators
+- **Upgrade Authority:** Single entity can change bridge logic
+- **Historical Context:** Various bridge governance proposals to extract funds
+
+---
+
+## 9. Audit Gap Analysis
+
+| Systemic Element | Typically Audited? | Why Missed | Detection Difficulty |
+|------------------|-------------------|------------|---------------------|
+| **Bridge Key Management** | Rare | Off-chain, operational | Very High - requires opsec review |
+| **Systemic Risk Analysis** | No | Not in scope | Very High - requires macro modeling |
+| **Cascade Failure Scenarios** | Rare | Complex simulation | Very High - requires stress testing |
+| **Validator Decentralization** | Partial | Assumed from docs | Medium - requires on-chain analysis |
+| **Upgrade Impact Assessment** | Rare | Focus on code, not system | High - requires full-system review |
+| **Cross-Protocol Dependencies** | No | Unknown to auditors | Very High - requires ecosystem knowledge |
+
+**Key Insight:** Systemic failures emerge from interactions between components, not individual bugs. Standard audits examine components in isolation, missing systemic risks entirely.
+
+---
+
+## 10. Sources & References
 
 1. **Chainlink:** "7 Cross-Chain Bridge Vulnerabilities Explained" (2025)
 2. **Chainalysis:** "Cross-Chain Bridge Hacks Emerge as Top Security Risk" (2022)

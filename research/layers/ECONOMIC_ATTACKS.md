@@ -372,7 +372,62 @@ Attackers manipulate collateral prices to force premature or delayed liquidation
 
 ---
 
-## 8. Sources & References
+## 8. Pattern Cross-Reference
+
+This artifact maps to the 8 Recurring Failure Patterns as follows:
+
+### Pattern 1: Trust But Don't Verify
+- **Oracle Manipulation:** Protocols trust DEX spot prices without verification
+- **Cross-Exchange Price Discrepancies:** Trust in single exchange price feeds
+- **MEV Extraction:** Reliance on mempool ordering without protection
+- **Historical Context:** Wormhole (signature bypass), Nomad (0x00 root), Oracle lag (Black Thursday)
+
+### Pattern 2: State Update Order Matters
+- **Lending Liquidations:** State updates during market volatility
+- **Flash Loan Sequences:** Multi-step state changes in single transaction
+
+### Pattern 3: Single Point of Failure
+- **DEX-Based Oracles:** Single liquidity pool as price source
+- **Centralized Exchange Feeds:** Single entity controls price
+- **MEV Relays:** Centralized relay infrastructure
+
+### Pattern 4: Economic Assumptions Don't Hold
+- **Flash Loan Attacks:** Assumption that capital requirements limit manipulation
+- **MEV Extraction:** Assumption of efficient, fair markets
+- **Griefing Attacks:** Assumption of rational profit-seeking behavior
+- **Liquidation Cascades:** Assumption of orderly liquidations
+- **Historical Context:** Beanstalk (governance), Mango Markets (oracle), Black Thursday (liquidations)
+
+### Pattern 6: Integration Blindness
+- **Flash Loan Composability:** Unintended interactions between protocols
+- **DEX-Oracle Integration:** Price manipulation cascades through dependencies
+
+### Pattern 7: Audit Theater
+- **Economic Design:** Traditional audits rarely cover economic attack vectors
+- **MEV Vulnerabilities:** Not in standard audit checklists
+- **Historical Gap:** Most economic exploits in "audited" protocols
+
+### Pattern 8: Governance Capture
+- **Griefing via Governance:** Manipulation of time-delay mechanisms
+- **MEV Governance:** Potential for governance extraction via economic means
+
+---
+
+## 9. Audit Gap Analysis
+
+| Attack Type | Typically Audited? | Why Missed | Detection Difficulty |
+|-------------|-------------------|------------|---------------------|
+| **Oracle Manipulation** | Partial | Economic, not code | High - requires economic modeling |
+| **MEV Extraction** | Rare | Not considered vulnerability | Very High - "expected behavior" |
+| **Griefing** | Partial | Business logic, not exploit | Medium - obvious in review |
+| **Liquidation Cascades** | Rare | Economic design flaw | High - requires stress testing |
+| **Economic Drain** | No | Gradual, not immediate | Very High - looks like normal use |
+
+**Key Insight:** Traditional code audits catch <30% of economic vulnerabilities. Economic audits required but rarely performed.
+
+---
+
+## 10. Sources & References
 
 1. **Cyfrin Blog:** "The Full Guide to Price Oracle Manipulation Attacks" (2024)
 2. **Smart Contract Security Field Guide:** Griefing Attack Patterns

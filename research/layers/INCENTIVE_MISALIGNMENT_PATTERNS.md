@@ -470,7 +470,68 @@ Identify all stakeholders and their incentives:
 
 ---
 
-## 9. Sources & References
+## 9. Pattern Cross-Reference
+
+This artifact maps to the 8 Recurring Failure Patterns as follows:
+
+### Pattern 1: Trust But Don't Verify
+- **Stakeholder Trust:** Assumptions about team, investor, community alignment
+- **Governance Participation:** Trust that stakeholders will participate
+- **Oracle Trust:** Implicit trust in price feed accuracy without verification
+
+### Pattern 3: Single Point of Failure
+- **Team Token Concentration:** Single entity controls large supply
+- **Investor Unlock Coordination:** Concentrated sell pressure risk
+- **Delegation Centralization:** Few delegates control majority votes
+- **Yield Source Concentration:** Single protocol provides yield for many
+
+### Pattern 4: Economic Assumptions Don't Hold
+- **Unsustainable Emissions:** Assumption that high yields attract long-term users
+- **LP Incentive Misalignment:** Assumption that LPs stay for non-economic reasons
+- **Rational Apathy:** Assumption that voters participate in governance
+- **Team-Community Alignment:** Assumption that interests align
+- **Historical Context:** All "death spiral" protocols, low governance participation, vampire attacks
+
+### Pattern 5: Complexity Hides Bugs
+- **Tokenomics Complexity:** Multi-layer incentive schemes hide flaws
+- **Yield Aggregator Dependencies:** Complex routing hides true yield sources
+- **Governance Mechanisms:** Complex voting schemes hide capture risks
+
+### Pattern 6: Integration Blindness
+- **Yield Source Correlation:** Hidden dependencies between protocols
+- **Cross-Protocol LP Positions:** Unintended risk concentration
+- **Governance Cross-Contamination:** Shared infrastructure risks
+
+### Pattern 7: Audit Theater
+- **Economic Audits:** Rarely performed, often incomplete
+- **Tokenomics Reviews:** Not standard in security audits
+- **Incentive Alignment:** Subjective, hard to audit
+- **Historical Gap:** Most tokenomics failures in "audited" protocols
+
+### Pattern 8: Governance Capture
+- **Token Acquisition Attacks:** Economic incentive to buy governance power
+- **Delegation Manipulation:** Targeting apathetic voters
+- **Emergency Power Abuse:** Bypassing normal governance
+- **Flash Loan Governance:** Instant voting power acquisition
+- **Historical Context:** Beanstalk, Build Finance, various DAO takeovers
+
+---
+
+## 10. Audit Gap Analysis
+
+| Design Element | Typically Audited? | Why Missed | Detection Difficulty |
+|----------------|-------------------|------------|---------------------|
+| **Emission Schedules** | Rare | Economic, not security | High - requires modeling |
+| **LP Incentive Design** | No | Assumed to work | High - requires game theory |
+| **Governance Economics** | Partial | Complex, subjective | Very High - political, not technical |
+| **Stakeholder Alignment** | No | Human factors | Very High - requires behavior analysis |
+| **Tokenomics Sustainability** | Rare | Long-term analysis | High - requires stress testing |
+
+**Key Insight:** Traditional audits focus on "can this be hacked?" not "does the economics work?" Economic audits are separate, rarely performed, and often superficial.
+
+---
+
+## 11. Sources & References
 
 1. **ChainForce:** "The Incentive Misalignment Challenge in Tokenomics" (2025)
 2. **Fidelity Digital Assets:** "From Supply to Incentives: Turning Tokenomics into Strategy"
