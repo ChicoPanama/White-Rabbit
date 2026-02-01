@@ -1,337 +1,394 @@
-# Layer 3: Economic Attacks
+# Layer 3: Economic Attacks & Game-Theoretic Exploits
 
-**Layer Question:** "What if the code is correct but incentives are not?"
-
----
-
-## Core Principle
-
-Code can be bug-free but economically exploitable. The attacker doesn't hack the code — they hack the incentives.
+**Research Mode Artifact | OpenClawd WhiteRabbit**
+**Source Layer:** Economic & Game-Theoretic Failures  
+**Last Updated:** 2026-02-01  
+**Sources:** Cyfrin Oracle Research, Flashbots MEV-Boost, Smart Contract Security Field Guide, ArXiv Lending Theory
 
 ---
 
-## Category 1: Oracle Manipulation
+## Executive Summary
 
-### Pattern: Single-Source Oracle Exploitation
-**Mechanism:** Manipulate sole price feed to trigger unintended liquidations or price-based actions.
+Economic attacks exploit the financial incentives and game-theoretic mechanisms within DeFi protocols rather than technical code vulnerabilities. These attacks manipulate market conditions, oracle price feeds, or incentive structures to extract value or cause protocol insolvency. Unlike technical exploits, economic attacks often work exactly as the code intends—the vulnerability lies in the economic design itself.
 
-**Prerequisites:**
-- Protocol uses single DEX/AMM as price source
-- No staleness checks
-- No deviation detection
-- No circuit breakers
+**Key Insight:** "The code works as expected. The vulnerability is in the source of truth." — Oracle manipulation attacks demonstrate this principle perfectly.
 
-**Attack Path:**
-1. Flash loan to acquire capital
-2. Large swap to move price on source DEX
-3. Protocol reads manipulated price
-4. Liquidations/loans execute at wrong price
-5. Price returns to normal, attacker profits
+---
 
-**Example:**
-- Alpha Homora v2 (Quantstamp audit): Uniswap oracle manipulation
-- Fixed but pattern remains in unaudited forks
+## 1. Oracle Manipulation Archetypes
 
-**Detection:**
+### 1.1 Flash Loan Price Manipulation
+
+**Mechanism:**
+Attackers use flash loans to temporarily distort asset prices in liquidity pools, which then propagate to dependent protocols through oracle price feeds.
+
+**Attack Flow:**
+1. Borrow massive flash loan (no collateral required)
+2. Execute large trade in shallow liquidity pool to skew spot price
+3. Manipulated price propagates to oracle
+4. Exploit protocol logic (liquidations, borrowing, collateral valuation)
+5. Reverse position and repay flash loan within same block
+6. Keep extracted value
+
+**Historical Impact:**
+- 2022: $403.2M+ stolen across 40+ oracle manipulation attacks
+- Mango Markets: $117M extracted via MNGO price manipulation
+- Pattern: Attack low-liquidity tokens in DEX pools used as price oracles
+
+**Vulnerable Oracle Types (Risk Ranked):**
+
+| Oracle Type | Manipulation Risk | Why Vulnerable |
+|------------|-------------------|----------------|
+| DEX Liquidity Pool Spot Price | 99.9% | Single transaction can move price |
+| TWAP (Time-Weighted Avg) | Medium | Resistant to flash loans but lagging/less accurate |
+| Centralized Exchange API | High | Single point of failure, requires trust |
+| Chainlink (Decentralized) | Low | Requires 50%+1 node compromise |
+
+**Detection Patterns:**
 ```solidity
-// Vulnerable: Single source
-price = uniswapPair.getReserves();
+// VULNERABLE: Using spot price directly
+uint256 price = uniswapPair.getReserves();
 
-// Safer: TWAP + staleness check
-price = twapOracle.getPrice();
-require(block.timestamp - price.timestamp < MAX_AGE);
+// MITIGATION: Use TWAP or decentralized oracle
+uint256 price = twapOracle.consult(token, amount);
 ```
 
 ---
 
-### Pattern: TWAP Manipulation
-**Mechanism:** Manipulate time-weighted average price over multiple blocks.
+### 1.2 Cross-Exchange Price Discrepancy Exploitation
 
-**Prerequisites:**
-- Short TWAP window
-- Deep liquidity in target pool
-- Predictable arbitrage delays
+**Mechanism:**
+Attackers exploit price differences between exchanges where the protocol's oracle aggregates data from multiple sources.
 
-**Attack Path:**
-1. Manipulate price in Block N
-2. Maintain manipulation across N+1, N+2...
-3. TWAP reflects manipulated value
-4. Attack on Block N+M when TWAP is skewed
+**Mango Markets Case Study:**
+- Used FTX (centralized exchange) as price oracle
+- Attacker: Avraham Eisenberg
+- Strategy:
+  1. $10M USDC split across two accounts
+  2. Account A sold large MNGO amounts
+  3. Account B bought same MNGO (artificially inflating price 2,000%)
+  4. Used inflated MNGO as collateral to borrow protocol assets
+  5. Extracted nearly all valuable assets ($117M)
+  6. Price naturally collapsed but extraction complete
 
-**Example:**
-- Compound forks with short TWAP exploited repeatedly
+**Key Lesson:** Centralized exchange oracles create single points of failure. Volume manipulation on one exchange affects all dependent protocols.
 
-**Detection:**
+---
+
+## 2. MEV-Driven Failures
+
+### 2.1 Sandwich Attacks
+
+**Mechanism:**
+Combines frontrunning and backrunning to extract value from user transactions, particularly swaps.
+
+**Attack Flow:**
+1. Bot monitors mempool for large pending swaps
+2. **Frontrun:** Attacker places buy order before victim (pushes price up)
+3. Victim executes swap at worse price
+4. **Backrun:** Attacker sells immediately after (at higher price)
+5. Profit = Price difference × Position size − Gas costs
+
+**Optimization Problem for Attacker:**
+- Balance frontrun size (larger = more profit but higher capital requirement)
+- Gas price competition (higher = inclusion guarantee but lower profit)
+- Competition from other MEV bots
+
+**Impact Metrics:**
+- Most prevalent MEV attack type in DeFi
+- Affects every DEX user with non-trivial position sizes
+- Creates "invisible tax" on all trades
+
+---
+
+### 2.2 Frontrunning & Backrunning
+
+**Frontrunning:**
+Copying profitable transaction patterns and paying higher gas to execute first.
+- Target: Arbitrage opportunities
+- Target: Liquidation transactions
+- Target: NFT mints or limited token sales
+
+**Backrunning:**
+Executing transactions immediately after target transactions to capture value from resulting state changes.
+- Example: Executing opposite trade after large position closure
+
+---
+
+### 2.3 MEV-Boost & PBS (Proposer-Builder Separation)
+
+**Flashbots MEV-Boost Architecture:**
+- Validators outsource block building to competitive builder marketplace
+- Builders construct blocks with MEV-extracting transaction ordering
+- Relays verify and propose blocks to validators
+- Creates formalized MEV extraction rather than preventing it
+
+**Economic Implications:**
+- MEV is inevitable; PBS formalizes and distributes it
+- Reduces centralization (any builder can compete)
+- Creates timing games and relay competition
+- Protocol-level economic rent extraction
+
+---
+
+## 3. Griefing Vectors
+
+### 3.1 Timestamp Reset Griefing
+
+**Mechanism:**
+Attackers exploit time-delay mechanisms by resetting timers with minimal cost.
+
+**Example Pattern:**
 ```solidity
-// Vulnerable: Short window
-twapWindow = 1 hours;
+contract DelayedWithdrawal {
+    uint256 lastDeposit;
+    uint256 delay = 24 hours;
+    
+    function deposit() public payable {
+        require(msg.value != 0);
+        lastDeposit = block.timestamp; // RESETS TIMER
+    }
+    
+    function withdraw() public {
+        require(block.timestamp >= lastDeposit + delay);
+        // ... withdrawal logic
+    }
+}
+```
 
-// Safer: Longer window reduces manipulation impact
-twapWindow = 24 hours;
+**Attack:**
+1. Wait until beneficiary is about to withdraw (23:59:59 into delay)
+2. Send 1 wei via `deposit()`
+3. Timer resets to 0
+4. Beneficiary must wait another 24 hours
+5. Can be repeated indefinitely for ~$0.01 per attack
+
+**Sophisticated Variant:** Frontrunning beneficiary's withdraw transaction
+- Monitor mempool for withdraw() calls
+- Frontrun with minimal deposit
+- More efficient denial of service
+
+---
+
+### 3.2 Insufficient Gas Griefing (SWC-126)
+
+**Mechanism:**
+Supply just enough gas for top-level function success while causing external calls to fail.
+
+**Vulnerable Pattern:**
+```solidity
+function forward(bytes memory _data) public {
+    require(!executed[_data], "Replay protection");
+    executed[_data] = true; // Marked as executed
+    target.call(abi.encodeWithSignature("execute(bytes)", _data)); // May fail silently
+    // No success check!
+}
+```
+
+**Attack Flow:**
+1. User submits transaction with signature for execution
+2. Attacker (relayer) calls `forward()` with minimal gas
+3. Gas sufficient for: `executed[_data] = true`
+4. Gas insufficient for: `target.call()` (external call reverts)
+5. Transaction appears successful
+6. User's signature is now invalidated (marked executed)
+7. User cannot resubmit transaction
+8. Intended state change never occurred
+
+**Root Cause:** Ethereum's 63/64 rule for gas forwarding
+- Top-level contract gets to complete
+- Subcalls may run out of gas silently
+- No revert propagated if success not checked
+
+---
+
+### 3.3 General Griefing Characteristics
+
+**Definition:** Attacks causing disruption/sabotage without direct profit for attacker.
+
+**Common Targets:**
+- Time-delay mechanisms
+- Governance systems (vote manipulation)
+- Resource-intensive operations
+- Reputation systems
+- Access control systems
+
+**Economic Asymmetry:**
+- Cost to attacker: Minimal (gas for simple transaction)
+- Cost to victim: Significant (locked funds, missed opportunities, reputation damage)
+- ROI for attacker: Non-financial (competitor disruption, ideological reasons)
+
+---
+
+## 4. Lending Protocol Economic Attacks
+
+### 4.1 Liquidation Manipulation
+
+**Mechanism:**
+Attackers manipulate collateral prices to force premature or delayed liquidations.
+
+**Attack Types:**
+
+**Type A: Forced Liquidation**
+1. Borrow assets with Token X as collateral
+2. Manipulate Token X price downward via oracle manipulation
+3. Position becomes "undercollateralized"
+4. Liquidators seize collateral at discounted price
+5. Attacker benefits from borrowed assets > seized collateral value
+
+**Type B: Liquidation Blocking**
+1. Create conditions where liquidations are impossible or unprofitable
+2. Bad debt accumulates unchecked
+3. Protocol becomes insolvent
+4. Lenders cannot withdraw deposits
+
+**CertiK Analysis:** 39+ exploits against lending contracts analyzed, with liquidation manipulation being dominant vector.
+
+---
+
+### 4.2 Collateral Price Manipulation
+
+**Flash Loan Pattern:**
+```
+1. Flash borrow massive capital
+2. Crash collateral token price in DEX
+3. User positions now underwater
+4. Liquidation cascade begins
+5. Buy collateral at liquidation discount
+6. Repay flash loan
+7. Profit from liquidation bonus + price recovery
 ```
 
 ---
 
-## Category 2: Flash Loan Attacks
+## 5. Economic Drain vs. Theft Distinction
 
-### Pattern: Price Oracle Manipulation
-**Mechanism:** Use flash loan to temporarily move prices.
+### 5.1 Theft Attacks
 
-**Attack Flow:**
-1. Flash borrow $50M stablecoin
-2. Swap for $50M of Token A on DEX
-3. Token A price spikes 10x
-4. Use inflated Token A as collateral
-5. Borrow against inflated collateral
-6. Swap back, repay flash loan
-7. Protocol left with bad debt
+**Characteristics:**
+- Direct asset extraction from protocol/users
+- Attacker ends with more assets than started
+- Clear victim: protocol or specific users
+- Legal/regulatory clarity: theft/fraud
 
-**Real-World:**
-- Cream Finance, C.R.E.A.M. Iron Bank
-- Numerous lending protocol hacks
-
-**Prevention:**
-- Use manipulation-resistant oracles (Chainlink + TWAP)
-- Circuit breakers on large price moves
-- Cooldown periods for large positions
+**Examples:**
+- Oracle manipulation → Borrow assets against inflated collateral
+- Reentrancy → Drain contract balances
+- Access control bypass → Direct fund transfer
 
 ---
 
-### Pattern: Governance Token Accumulation
-**Mechanism:** Flash acquire governance tokens to pass proposals.
+### 5.2 Economic Drain Attacks
 
-**Prerequisites:**
-- Governance power based on token holdings
-- No delegation delay
-- No voting power snapshot delay
+**Characteristics:**
+- Depletes protocol reserves through "legitimate" economic mechanisms
+- Attacker may not directly profit
+- Systemic damage to protocol sustainability
+- Exploits incentive misalignment or design flaws
 
-**Attack Flow:**
-1. Flash loan acquire governance tokens
-2. Vote on malicious proposal
-3. Execute proposal
-4. Return tokens, repay loan
-
-**Real-World:**
-- Beanstalk: Flash loan governance attack ($180M)
-
-**Prevention:**
-- Delegation delays (e.g., Compound's 2-day delay)
-- Voting snapshots at proposal time
-- Timelock on governance actions
+**Examples:**
+- Governance attacks extracting value through parameter changes
+- Infinite minting through economic loopholes
+- Draining reward pools through gaming emission schedules
+- Insurance fund depletion through excessive claims
 
 ---
 
-## Category 3: MEV Extraction
+### 5.3 Key Distinctions
 
-### Pattern: Sandwich Attacks
-**Mechanism:** Frontrun large trades with same-direction trade, backrun with reverse.
-
-**Attack Flow:**
-1. Detect large pending swap in mempool
-2. Frontrun: Buy Token A (pushing price up)
-3. Victim's swap executes at worse price
-4. Backrun: Sell Token A (price returns)
-5. Attacker profits from price difference
-
-**Impact:**
-- User gets worse execution
-- Attacker extracts value without protocol risk
-- "Invisible tax" on large trades
-
-**Prevention:**
-- Slippage tolerance (user-defined)
-- Private mempools (Flashbots, MEV-Share)
-- Commit-reveal schemes
+| Aspect | Theft | Economic Drain |
+|--------|-------|----------------|
+| **Attacker Profit** | Direct extraction | May be zero or indirect |
+| **Code Behavior** | Often violates intended logic | Works as designed |
+| **Detection** | Obvious (missing funds) | Subtle (gradual depletion) |
+| **Legal Status** | Clear criminality | Gray area (market behavior) |
+| **Prevention** | Technical audits | Economic audits + design review |
+| **Examples** | Flash loan exploits | Unsustainable yield farming |
 
 ---
 
-### Pattern: Liquidation Front-Running
-**Mechanism:** Race to be first liquidator.
+## 6. Mitigation Strategies
 
-**Attack Flow:**
-1. Monitor for underwater positions
-2. When position becomes liquidatable:
-   a. Submit liquidation tx with higher gas
-   b. Or use Flashbots to guarantee inclusion
-3. Win the liquidation race
-4. Collect liquidation bonus
+### 6.1 Oracle Security
 
-**Impact:**
-- Honest liquidators can't compete
-- Centralization of liquidation profits
-- Positions may not get liquidated (bad debt)
+1. **Choose oracle carefully**
+   - Decentralized > Centralized
+   - Multiple data sources
+   - Statistical aggregation methods
+   - Dispute mechanisms
 
-**Prevention:**
-- Dutch auction liquidations (decreasing bonus)
-- Permissionless but competitive mechanisms
-- Back-running protection
+2. **Dual oracle system**
+   - Primary: Chainlink Price Feeds
+   - Backup: Uniswap V3 TWAP
+   - Automatic fallback on discrepancy
 
----
+3. **Circuit breakers**
+   - Pause protocol on suspicious price movements
+   - Maximum price deviation thresholds
+   - Time-delayed price updates for large moves
 
-## Category 4: Liquidity Exploitation
+### 6.2 MEV Mitigation
 
-### Pattern: Exchange Rate Manipulation
-**Mechanism:** Inflate share price via direct transfers.
+1. **Commit-reveal schemes** (hide transaction content)
+2. **Time-weighted average pricing** (smooth manipulation)
+3. **Slippage protection** (minimum output amounts)
+4. **Private mempools** (Flashbots Protect, MEV-Blocker)
+5. **Batch auctions** (CoW Protocol style)
 
-**Prerequisites:**
-- Share price = Total Assets / Total Shares
-- Protocol accepts direct token transfers
-- No tracking of "real" deposits vs. transfers
+### 6.3 Griefing Prevention
 
-**Attack Flow:**
-1. Deposit small amount, receive shares
-2. Directly transfer tokens to contract (not via deposit)
-3. Total Assets increases, Total Shares unchanged
-4. Share price inflates
-5. Withdraw at inflated rate
+1. **Minimum deposit thresholds** (increase attack cost)
+2. **Non-resettable timers** (per-address delays, not global)
+3. **Gas validation** (require sufficient gas for external calls)
+4. **Success checks** (verify all subcalls succeed)
+5. **Withdrawal delays** with no deposit reset capability
 
-**Real-World:**
-- Hundred Finance
-- Multiple Compound forks
-- First存款 + 1 wei donation + later withdrawal
+### 6.4 Lending Protocol Economic Safety
 
-**Prevention:**
-- Track deposits separately from transfers
-- Use virtual shares/offsets (OpenZeppelin's ERC-4626)
-- Minimum share minting thresholds
+1. **Collateral factor limits** (reduce over-leverage)
+2. **Liquidation incentives** (ensure liquidations always profitable)
+3. **Price manipulation thresholds** (pause on extreme moves)
+4. **Insurance funds** (absorb bad debt from edge cases)
+5. **Gradual parameter changes** (prevent governance extraction)
 
 ---
 
-### Pattern: Liquidity Draining
-**Mechanism:** Force protocol into illiquidity to extract value.
+## 7. Detection & Monitoring
 
-**Prerequisites:**
-- Withdrawal queues
-- Utilization caps
-- No withdrawal cooldowns
+**Red Flags for Economic Attacks:**
+- Sudden price deviations between exchanges
+- Large flash loan transactions
+- Repeated 1 wei deposits on time-locked contracts
+- Failed external calls in transaction traces
+- Unusual MEV extraction patterns
+- Governance parameter change proposals extracting value
 
-**Attack Flow:**
-1. Monitor for high utilization
-2. Flash borrow to push utilization to cap
-3. Other users can't withdraw
-4. Panic selling in secondary markets
-5. Buy at discount, repay flash loan
-
-**Example:**
-- Ensuro QSP-3: Utilization rate can exceed maximum
-- Acknowledged but not fixed
-
-**Prevention:**
-- Withdrawal reserves
-- Gradual utilization limits
-- Circuit breakers
+**Monitoring Tools:**
+- Flash loan transaction alerts
+- Oracle price deviation monitors
+- MEV extraction dashboards
+- Protocol TVL anomaly detection
+- Collateral ratio distribution analysis
 
 ---
 
-## Category 5: Griefing Attacks
+## 8. Sources & References
 
-### Pattern: Queue-Filling DoS
-**Mechanism:** Block legitimate operations by filling capacity.
-
-**Prerequisites:**
-- Fixed-size queues
-- No quality/priority ranking
-- No anti-spam mechanisms
-
-**Attack Flow:**
-1. Identify queue with limited capacity
-2. Submit lowest-quality entries to fill queue
-3. Legitimate high-quality entries blocked
-4. Protocol function degraded
-
-**Example:**
-- API3 A3M-1: Attacker can DoS queue with low-quality subscriptions
-- Acknowledged (5-slot queue)
-
-**Cost:**
-- May cost attacker more than gain
-- But can block competitor or force protocol changes
+1. **Cyfrin Blog:** "The Full Guide to Price Oracle Manipulation Attacks" (2024)
+2. **Smart Contract Security Field Guide:** Griefing Attack Patterns
+3. **Flashbots Documentation:** MEV-Boost Architecture
+4. **CoinMonks:** "Smart Contract Security: Griefing Attack Vectors"
+5. **ArXiv:** "A Theory of Lending Protocols in DeFi" (Bartoletti & Lipparini, 2025)
+6. **CertiK:** Oracle Wars Research & Lending Contract Exploits Analysis
+7. **CoinDesk:** "Flash Loans Aren't the Problem, Centralized Price Oracles Are"
 
 ---
 
-### Pattern: Sponsor Wallet Drain
-**Mechanism:** Drain funds intended for gas subsidies.
+**Related Layer 3 Artifacts:**
+- See `INCENTIVE_MISALIGNMENT_PATTERNS.md` for tokenomics and design-level failures
+- See `SPECIFICATION_GAPS.md` (Layer 2) for formal verification of economic properties
 
-**Prerequisites:**
-- Sponsor wallets funded for gas
-- No usage verification
-- Owner can withdraw
-
-**Attack Flow:**
-1. Sponsor wallet funded with >5 ETH
-2. Owner drains instead of using for gas
-3. Service becomes unusable
-
-**Example:**
-- API3 A3M-2: Sponsor wallet owner must be trusted
-- Acknowledged
-
----
-
-## Category 6: Incentive Misalignment
-
-### Pattern: Auctioneer Extraction
-**Mechanism:** Trusted party extracts value instead of allowing fair competition.
-
-**Prerequisites:**
-- Off-chain auctioneer
-- No on-chain enforcement
-- High-value MEV/OEV at stake
-
-**Attack Flow:**
-1. Auctioneer sees winning bid
-2. Instead of accepting, executes extraction themselves
-3. Users get less than fair value
-
-**Example:**
-- API3 OEVA-4: Auctioneer has no economic incentive to behave honestly
-- Acknowledged but not fixed
-
-**Economic Analysis:**
-- Reputation is only deterrent
-- No on-chain penalty for extraction
-- Rational actor would extract
-
----
-
-### Pattern: Stale Price Exploitation
-**Mechanism:** Use intentionally delayed prices for advantage.
-
-**Prerequisites:**
-- Oracle updates delayed (e.g., 15 seconds)
-- Liquidations based on oracle price
-- Attacker can predict delay
-
-**Attack Flow:**
-1. Price crashes on CEX/DEX
-2. Wait for protocol's delayed oracle update
-3. During delay window, take positions
-4. Oracle updates, liquidations trigger
-5. Profit from foreknowledge
-
-**Example:**
-- API3 OEVA-1: 15-second delay acknowledged as risk
-- OEV extraction happens in this window
-
----
-
-## Economic Attack Detection Framework
-
-### Red Flags:
-- Price-dependent logic with single oracle
-- Governance without delegation delay
-- Flash loan susceptibility in pricing
-- Liquidation bonuses without competitive mechanisms
-- Queues with fixed capacity
-- Trusted parties with extraction opportunities
-
-### Questions to Ask:
-1. What would a rational attacker do?
-2. Where is the MEV?
-3. What happens if prices move 50% in 1 block?
-4. Can someone profit from blocking others?
-5. Are trusted roles actually incentivized to be honest?
-
----
-
-*Economic attacks exploit incentives, not code. The code is correct — the game is rigged.*
+**Research Mode Classification:**
+- **Layer:** 3 (Economic & Game-Theoretic Failures)
+- **Priority:** High - Economic attacks cause >$400M annual losses
+- **Cross-layer Dependencies:** Layer 2 (formal verification), Layer 5 (historical case studies)
