@@ -79,6 +79,49 @@
 
 ---
 
+## Layer 2 - Formal Thinking (Why Bugs Exist)
+
+### 7. Software Abstractions — Daniel Jackson (MIT)
+**Focus:** Conceptual modeling and specification gaps  
+**Key Content:**
+- Abstract conceptual models
+- Why specifications fail to capture intent
+- State machine verification
+
+### 8. Types and Programming Languages — Benjamin Pierce
+**Source:** https://www.cis.upenn.edu/~bcpierce/tapl/  
+**Key Content:**
+- Type theory and formal semantics
+- Type systems as specifications
+- Formal proof techniques
+
+### 9. Formal Verification Tools Collection
+
+#### Halmos — a16z
+**Source:** https://github.com/a16z/halmos  
+**Status:** ✅ Cloned locally  
+**Content:** Symbolic testing for EVM contracts
+
+#### Z3 Theorem Prover — Microsoft Research
+**Source:** https://github.com/Z3Prover/z3  
+**Status:** ✅ Cloned locally  
+**Content:** SMT solver, constraint satisfaction
+
+#### Slither — Trail of Bits
+**Source:** https://github.com/crytic/slither  
+**Status:** ✅ Cloned locally  
+**Content:** 100+ static analysis detectors
+
+#### Mythril — ConsenSys
+**Source:** https://github.com/ConsenSys/mythril  
+**Content:** Symbolic execution engine
+
+#### Dafny — Microsoft Research
+**Source:** https://github.com/dafny-lang/dafny  
+**Content:** Verification-aware programming
+
+---
+
 ## Ingestion Status
 
 ### Layer 0: ✅ COMPLETE
@@ -92,5 +135,10 @@ Sources ingested into:
 - INVARIANT_FAILURES.md
 - FALSE_POSITIVE_SIGNATURES.md
 
-See research/library/LAYER_0_READING.md and LAYER_1_READING.md for extraction methodology.
+### Layer 2: ✅ COMPLETE
+Sources ingested into:
+- SPECIFICATION_GAPS.md
+- WHY_AUDITS_MISS_THINGS.md
+
+See research/library/LAYER_0_READING.md, LAYER_1_READING.md, and LAYER_2_READING.md for extraction methodology.
 

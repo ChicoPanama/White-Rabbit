@@ -231,4 +231,17 @@ Previously audited protocols with acknowledged issues are prime targets.
 
 ---
 
+## Sources
+
+Audit methodology analysis derived from:
+- **Types and Programming Languages** (Pierce) - Type theory and formal verification limits
+- **Halmos documentation** (a16z) - Symbolic testing capabilities and constraints
+- **Slither documentation** (Trail of Bits) - Static analysis detector limitations
+- **Mythril documentation** (ConsenSys) - Symbolic execution boundaries
+- **Z3 documentation** (Microsoft) - SMT solver constraints and timeout issues
+- **Quantstamp audit library** - 18 real-world audit reports, methodology observations
+- **Smart Contract Security Field Guide** - Verification tool blind spots
+
+---
+
 *Understanding why audits miss things helps you find what they missed.*

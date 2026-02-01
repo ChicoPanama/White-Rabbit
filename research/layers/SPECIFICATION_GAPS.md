@@ -230,4 +230,15 @@ SPECIFICATION GAP IDENTIFIED
 
 ---
 
+## Sources
+
+Specification gap analysis derived from:
+- **Software Abstractions** (Jackson) - Conceptual modeling and specification theory
+- **Smart Contract Security Field Guide** - Specification ambiguity patterns
+- **Quantstamp audit library** - Real-world specification failures from 18 audits
+- **ConsenSys Best Practices** - Specification recommendations
+- **Historical exploit analysis** - Root cause analysis of specification gaps
+
+---
+
 *Specification gaps are the root cause of most high-impact vulnerabilities.*
