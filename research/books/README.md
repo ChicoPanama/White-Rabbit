@@ -37,11 +37,60 @@
 
 ---
 
+## Layer 1 - Smart Contract Failure Modes
+
+### 4. Smart Contract Security Field Guide
+**Author:** Dominik Muhs  
+**License:** Free, independent  
+**Source:** https://scsfg.io/  
+**Status:** ✅ Web resource available  
+**Key Content:**
+- Reentrancy classes and defenses
+- Access control patterns
+- Oracle security
+- Economic attack vectors
+
+### 5. ConsenSys Smart Contract Best Practices
+**Authors:** ConsenSys Diligence  
+**License:** Open source  
+**Source:** https://github.com/ConsenSys/smart-contract-best-practices  
+**Status:** ✅ Cloned locally  
+**Key Content:**
+- Known attacks catalog
+- Development recommendations
+- Security tools
+- Best practices
+
+### 6. Solidity Patterns
+**Author:** Franz Volland  
+**License:** Open source  
+**Source:** https://github.com/fravoll/solidity-patterns  
+**Status:** ✅ Cloned locally  
+**Key Content:**
+- Security patterns (CEI, Access Restriction)
+- Upgradeability patterns
+- Behavioral patterns
+- Gas vs security tradeoffs
+
+### Additional Resources
+- **Smart Contract Vulnerabilities** (kadenzipfel) - ✅ Cloned
+- **Ethernaut** (OpenZeppelin) - ✅ Cloned
+- **DeFiHackLabs** (SunWeb3Sec) - Reference for patterns
+
+---
+
 ## Ingestion Status
 
-All three sources ingested into Layer 0 artifacts:
+### Layer 0: ✅ COMPLETE
+Sources ingested into:
 - FOUNDATION_PRIMITIVES.md
 - TRUST_ASSUMPTIONS.md
 
-See research/library/LAYER_0_READING.md for extraction methodology.
+### Layer 1: ✅ COMPLETE
+Sources ingested into:
+- ATTACK_VECTOR_DATABASE.md
+- INVARIANT_FAILURES.md
+- FALSE_POSITIVE_SIGNATURES.md
+
+See research/library/LAYER_0_READING.md and LAYER_1_READING.md for extraction methodology.
 

@@ -305,4 +305,15 @@
 
 ---
 
+## Sources
+
+Pattern catalog synthesized from:
+- **Smart Contract Security Field Guide** (scsfg.io) - Reentrancy classes, access control patterns
+- **ConsenSys Smart Contract Best Practices** - Known attacks catalog
+- **Solidity Patterns** (fravoll) - Security patterns and anti-patterns
+- **Smart Contract Vulnerabilities** (kadenzipfel) - Vulnerability taxonomy
+- **Ethernaut** (OpenZeppelin) - Historical hack reproductions
+
+---
+
 *Catalog of how systems break — independent of any single protocol.*

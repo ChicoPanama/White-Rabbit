@@ -259,4 +259,14 @@ Before claiming a vulnerability:
 
 ---
 
+## Sources
+
+False positive signatures compiled from:
+- **ConsenSys Smart Contract Best Practices** - Tool limitation documentation
+- **Smart Contract Security Field Guide** - Scanner false positive analysis
+- **Slither/Solhint documentation** - Detector behavior and known FPs
+- **Quantstamp audit analysis** - Real-world FP patterns from 18 reports
+
+---
+
 *False positives waste time and credibility. Verify before claiming.*
