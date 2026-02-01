@@ -277,6 +277,39 @@ research/
 
 ---
 
+## Research Library
+
+### Core Materials (v1.0)
+Downloaded and processed. See individual layer reading lists:
+- [LAYER_0_READING.md](LAYER_0_READING.md)
+- [LAYER_1_READING.md](LAYER_1_READING.md)
+- [LAYER_2_READING.md](LAYER_2_READING.md)
+- [LAYER_3_READING.md](LAYER_3_READING.md)
+- [LAYER_4_READING.md](LAYER_4_READING.md)
+- [LAYER_5_READING.md](LAYER_5_READING.md)
+
+### Extended Materials (v1.1)
+**Priority Queue:** See [EXTENDED_READING_LIST_v1.1.md](../EXTENDED_READING_LIST_v1.1.md)
+
+**Priority 1 (Read First):**
+- Security Engineering (Anderson) — Threat modeling
+- Thinking, Fast and Slow (Kahneman) — Cognitive bias
+- The Strategy of Conflict (Schelling) — Game theory
+- Normal Accidents (Perrow) — Systemic failure
+
+**Priority 2 (Core Deepening):**
+- Applied Cryptography (Schneier)
+- The Art of Exploitation (Erickson)
+- Bug Bounty Playbook
+- Human Error (Reason)
+- Release It! (Nygard)
+- Spam Nation (Krebs)
+
+**Priority 3 (Advanced):**
+- Remaining 14 titles in extended list
+
+---
+
 ## Immutability
 
 This layer structure is canonical. Books, papers, and audits are inputs mapped onto this framework.
