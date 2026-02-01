@@ -257,29 +257,29 @@
 
 ---
 
-## 📥 Download URLs (To Be Resolved)
+## 📥 Download URLs (Resolved)
 
 **Academic (arXiv):**
-- [1] SoK: Security Analysis — arXiv:2025.xxxxx
-- [2] Quantum Disruption — arXiv:2025.xxxxx
-- [3] Zero Trust Framework — arXiv:2025.xxxxx
-- [4] Quantum Risk Assessment — arXiv:2025.xxxxx
+- [1] SoK: Security Analysis — https://arxiv.org/abs/2503.22156
+- [2] Quantum Disruption — https://arxiv.org/abs/2512.13333
+- [3] Zero Trust Framework — https://arxiv.org/abs/2507.19976
+- [4] Quantum Risk Assessment — https://arxiv.org/abs/2501.11798
 
 **Academic (ScienceDirect):**
-- [5] Blockchain Security Survey — sciencedirect.com/...
+- [5] Blockchain Security Survey — https://www.sciencedirect.com/science/article/pii/S2096720922000070
 
 **Industry Reports:**
-- [6] TRM Labs 2026 Report — trmlabs.com/...
-- [7] Chainalysis 2026 Report — chainalysis.com/...
-- [8] Hacken 2025 Report — hacken.io/...
-- [9] SlowMist 2025 Report — slowmist.com/...
-- [10] Lunaray 2025 Report — medium.com/@lunaray
+- [6] TRM Labs 2026 Report — https://www.trmlabs.com/reports-and-whitepapers/2026-crypto-crime-report
+- [7] Chainalysis 2026 Report — https://www.chainalysis.com/blog/2026-crypto-crime-report-introduction/
+- [8] Hacken 2025 Report — https://hacken.io/insights/2025-security-report/
+- [9] SlowMist 2025 Report — https://www.slowmist.com/report/2025-Blockchain-Security-and-AML-Annual-Report%28EN%29.pdf
+- [10] Lunaray 2025 Report — https://lunaray.medium.com/2025-blockchain-security-situation-annual-report-b32df8d74204
 
 **News/Analysis:**
-- [11] PC Gamer / Chainalysis — pcgamer.com/...
-- [12] Reuters — reuters.com/...
-- [13] Kroll — kroll.com/...
-- [14] TechRadar — techradar.com/...
+- [11] PC Gamer / Chainalysis — https://www.pcgamer.com/gaming-industry/north-koreas-crypto-thieving-went-into-overdrive-in-2025/
+- [12] Reuters — https://www.reuters.com/legal/government/crypto-money-laundering-hit-82-billion-2025-researchers-say-2026-01-27/
+- [13] Kroll — https://www.kroll.com/en/reports/cyber/threat-intelligence-reports/threat-landscape-report-lens-on-crypto
+- [14] TechRadar — https://www.techradar.com/pro/security/more-ai-malware-has-been-found-this-time-targeting-crypto-developers
 
 ---
 
