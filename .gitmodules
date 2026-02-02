@@ -4,3 +4,9 @@
 [submodule "ssv-exploit-lab/lib/openzeppelin-contracts-upgradeable"]
 	path = ssv-exploit-lab/lib/openzeppelin-contracts-upgradeable
 	url = https://github.com/OpenZeppelin/openzeppelin-contracts-upgradeable
+[submodule "hunts/aerodrome/contracts"]
+	path = hunts/aerodrome/contracts
+	url = https://github.com/aerodrome-finance/contracts.git
+[submodule "hunts/pinto/contracts"]
+	path = hunts/pinto/contracts
+	url = https://github.com/pinto-org/protocol.git
