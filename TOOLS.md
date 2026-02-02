@@ -1,36 +1,31 @@
-# TOOLS.md - Local Notes
+# TOOLS.md - Vulnerability Hunting Setup
 
-Skills define *how* tools work. This file is for *your* specifics — the stuff that's unique to your setup.
+## Foundry/Forge
+- **Path**: `/home/ubuntu/.foundry/bin/`
+- **Status**: ✅ Installed
+- **Tools**: forge, cast, anvil, chisel, foundryup
+- **Usage**: `/home/ubuntu/.foundry/bin/forge test --fork-url <RPC>`
 
-## What Goes Here
+## RPC Endpoints
+| Chain | URL | Notes |
+|-------|-----|-------|
+| Base | https://base-rpc.publicnode.com | Pinto lives here |
+| Ethereum | https://eth.llamarpc.com | Backup |
 
-Things like:
-- Camera names and locations
-- SSH hosts and aliases  
-- Preferred voices for TTS
-- Speaker/room names
-- Device nicknames
-- Anything environment-specific
+## Quick Commands
+```bash
+# Run fork test
+~/.foundry/bin/forge test --fork-url https://base-rpc.publicnode.com
 
-## Examples
-
-```markdown
-### Cameras
-- living-room → Main area, 180° wide angle
-- front-door → Entrance, motion-triggered
-
-### SSH
-- home-server → 192.168.1.100, user: admin
-
-### TTS
-- Preferred voice: "Nova" (warm, slightly British)
-- Default speaker: Kitchen HomePod
+# Cast call
+~/.foundry/bin/cast call <contract> <sig> --rpc-url <url>
 ```
 
-## Why Separate?
-
-Skills are shared. Your setup is yours. Keeping them apart means you can update skills without losing your notes, and share skills without leaking your infrastructure.
+## Gate System
+- **Location**: `/home/ubuntu/clawd/gate/`
+- **Prepare**: `gate/prepare-candidate.sh <protocol> <finding> <chain> <contract>`
+- **Run**: `gate/run-gate.sh <candidate-dir>`
+- **Results**: `gate-results.json`
 
 ---
-
-Add whatever helps you do your job. This is your cheat sheet.
+*Last updated: 2026-02-02*
