@@ -43,6 +43,13 @@ Usage:
   npx tsx src/cli.ts sessions [--list]
   npx tsx src/cli.ts stats
   npx tsx src/cli.ts findings [--limit <n>]
+  npx tsx src/cli.ts router <task> [--lane <L1|L2|L3>]
+  npx tsx src/cli.ts router-audit <address> [--chain <name>]
+  npx tsx src/cli.ts router-budget
+  npx tsx src/cli.ts twitter-test
+  npx tsx src/cli.ts tweet <message>
+  npx tsx src/cli.ts tweet-milestone
+  npx tsx src/cli.ts tweet-stats
 
 Commands:
   audit       Audit a single contract address
@@ -145,6 +152,38 @@ async function main() {
   // Research Pipeline: explicit /research command
   if (command === 'research') {
     await runResearchPipeline(args.slice(1));
+    return;
+  }
+
+  // Reasoning Router commands
+  if (command === 'router') {
+    await runRouter(args.slice(1));
+    return;
+  }
+  if (command === 'router-audit') {
+    await runRouterAudit(args.slice(1));
+    return;
+  }
+  if (command === 'router-budget') {
+    await runRouterBudget();
+    return;
+  }
+
+  // Twitter/X logging commands
+  if (command === 'twitter-test') {
+    await runTwitterTest();
+    return;
+  }
+  if (command === 'tweet') {
+    await runTweet(args.slice(1));
+    return;
+  }
+  if (command === 'tweet-milestone') {
+    await runTweetMilestone();
+    return;
+  }
+  if (command === 'tweet-stats') {
+    await runTweetStats();
     return;
   }
 
@@ -1835,6 +1874,149 @@ function formatTvlCompact(tvl: number): string {
   if (tvl >= 1e6) return `${(tvl / 1e6).toFixed(0)}M`;
   if (tvl >= 1e3) return `${(tvl / 1e3).toFixed(0)}K`;
   return String(tvl);
+}
+
+// ── Reasoning Router Commands ──
+
+async function runRouter(args: string[]) {
+  const { routeScan, routeResearch, routeQuick, formatResult } = require('./router-integration');
+  
+  const task = args.join(' ');
+  if (!task) {
+    console.log('Usage: npx tsx src/cli.ts router <task description>');
+    console.log('\nExamples:');
+    console.log('  npx tsx src/cli.ts router "Scan Base chain for unaudited protocols"');
+    console.log('  npx tsx src/cli.ts router "Research Compound fork vulnerabilities"');
+    console.log('  npx tsx src/cli.ts router "What is the current ETH price?"');
+    return;
+  }
+  
+  console.log('🐇 WhiteRabbit Reasoning Router');
+  console.log(`Task: ${task}`);
+  console.log('Routing through L1/L2/L3 lanes...\n');
+  
+  try {
+    const result = await routeQuick(task);
+    console.log(formatResult(result, 'router'));
+  } catch (error) {
+    console.error('Router error:', error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function runRouterAudit(args: string[]) {
+  const { routeAudit, formatResult } = require('./router-integration');
+  
+  const address = args[0];
+  const chain = getFlag(args, '--chain') || 'ethereum';
+  
+  if (!address || !isValidEthAddress(address)) {
+    console.log('Usage: npx tsx src/cli.ts router-audit <address> [--chain <name>]');
+    console.log('\nThis forces L3 (deep reasoning) lane for security audits.');
+    return;
+  }
+  
+  console.log('🐇 WhiteRabbit Router Audit (L3 Lane)');
+  console.log(`Target: ${address} on ${chain}\n`);
+  
+  try {
+    const result = await routeAudit(address, chain);
+    console.log(formatResult(result, 'audit'));
+    
+    // Also suggest running the actual scanner
+    console.log('\n⚡ To run full scanner:');
+    console.log(`  npx tsx src/cli.ts audit ${address} --chain ${chain}`);
+  } catch (error) {
+    console.error('Router audit error:', error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function runRouterBudget() {
+  const { getBudgetStatus } = require('./router-integration');
+  
+  const budget = getBudgetStatus();
+  
+  console.log('💰 WhiteRabbit Router Budget Status');
+  console.log('═══════════════════════════════════════\n');
+  
+  console.log('Lane Usage:');
+  console.log(`  L1 (Gemini Flash):  ${budget.L1.calls} calls, ${budget.L1.tokens} tokens`);
+  console.log(`  L2 (Moonshot Code): ${budget.L2.calls} calls, ${budget.L2.tokens} tokens`);
+  console.log(`  L3 (Paid):          ${budget.L3.used}/${budget.L3.max} (${budget.L3.percentage}%)`);
+  console.log();
+  
+  console.log('Search Usage:');
+  console.log(`  S1 (Serper): ${budget.search.S1} queries`);
+  console.log(`  S2 (Brave):  ${budget.search.S2} queries`);
+  console.log();
+  
+  if (budget.L3.percentage >= 80) {
+    console.log('⚠️  WARNING: L3 budget at 80%+ - auto-escalation disabled');
+    console.log('   Reserve maintained for L4 (critical) tasks only.');
+  } else if (budget.L3.percentage >= 60) {
+    console.log('⚡ NOTE: L3 budget at 60%+ - monitor usage');
+  } else {
+    console.log('✅ Budget healthy');
+  }
+}
+
+// ── Twitter/X Logging Commands ──
+
+async function runTwitterTest() {
+  try {
+    const { whiteRabbitLogger } = require('../clawd/skills/reasoning-router/logger');
+    console.log('🐦 Testing Twitter connection...\n');
+    const result = await whiteRabbitLogger.testConnection();
+    if (result.success) {
+      console.log(`✅ Connected as @${result.username}`);
+    } else {
+      console.log(`❌ Failed: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Twitter module not available:', error.message);
+    console.log('Make sure the reasoning-router skill is built.');
+  }
+}
+
+async function runTweet(args: string[]) {
+  try {
+    const { whiteRabbitLogger } = require('../clawd/skills/reasoning-router/logger');
+    const message = args.join(' ');
+    
+    if (!message) {
+      console.log('Usage: npx tsx src/cli.ts tweet <message>');
+      console.log('\nExamples:');
+      console.log('  npx tsx src/cli.ts tweet "Daily hunt complete! 5 protocols scanned."');
+      console.log('  npx tsx src/cli.ts tweet-milestone');
+      console.log('  npx tsx src/cli.ts tweet-stats');
+      return;
+    }
+    
+    console.log('Posting tweet...');
+    await whiteRabbitLogger.logInsight(message);
+    console.log('✅ Posted to Twitter!');
+  } catch (error) {
+    console.error('Failed to tweet:', error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function runTweetMilestone() {
+  try {
+    const { whiteRabbitLogger } = require('../clawd/skills/reasoning-router/logger');
+    await whiteRabbitLogger.logMilestone('WhiteRabbit Reasoning Router v2.1 now live! Three lanes (L1/L2/L3) + search layer (S1/S2) for intelligent vulnerability hunting. Autonomous DeFi security. 🐇');
+    console.log('✅ Milestone posted!');
+  } catch (error) {
+    console.error('Failed to tweet:', error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function runTweetStats() {
+  try {
+    const { whiteRabbitLogger } = require('../clawd/skills/reasoning-router/logger');
+    await whiteRabbitLogger.logDailyStats();
+    console.log('✅ Daily stats posted!');
+  } catch (error) {
+    console.error('Failed to tweet:', error instanceof Error ? error.message : String(error));
+  }
 }
 
 main().catch((err) => {

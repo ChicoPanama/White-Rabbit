@@ -21,6 +21,7 @@ import type { DynamicChainConfig } from './services/chains.js';
 import { TelegramAlertService } from './alerts/telegram.js';
 import { Database } from './database.js';
 import { CHAINS, SEVERITY_ORDER } from './types/index.js';
+import { getChainKey } from './config/chains.js';
 import type { Contract, Finding, VerifiedFinding, VerificationStatus, ExploitEstimate, ForkHuntResult } from './types/index.js';
 import { EXPLOIT_VALUE_THRESHOLDS } from './types/index.js';
 import { ForkHunterV2 } from './services/fork-hunter-v2.js';
@@ -622,7 +623,9 @@ export class Scanner {
   }
 
   private async scanChain(chainName: string): Promise<ChainScanResult> {
-    const chainConfig = CHAINS[chainName.toLowerCase()];
+    // Resolve chain key from display name or key (e.g., "Arbitrum One" -> "arbitrum")
+    const chainKey = getChainKey(chainName) || chainName.toLowerCase();
+    const chainConfig = CHAINS[chainKey];
     if (!chainConfig) {
       // Try dynamic chain discovery
       const dynChain = this.chainDiscovery.getChainConfig(chainName);
@@ -632,15 +635,15 @@ export class Scanner {
       throw new Error(`Unknown chain: ${chainName}`);
     }
 
-    console.log(`\n[Scanner] Discovering protocols on ${chainName} (min TVL: $${this.config.minTvlThreshold})`);
+    console.log(`\n[Scanner] Discovering protocols on ${chainConfig.name} (min TVL: $${this.config.minTvlThreshold})`);
 
     const protocols = await this.defillama.getTopProtocols(
-      chainName.toLowerCase(),
+      chainKey,
       this.config.minTvlThreshold,
       50,
     );
 
-    console.log(`[Scanner] Found ${protocols.length} protocols on ${chainName}`);
+    console.log(`[Scanner] Found ${protocols.length} protocols on ${chainConfig.name}`);
 
     const result: ChainScanResult = {
       protocols: protocols.length,
@@ -654,16 +657,16 @@ export class Scanner {
 
     // Display top protocols by TVL
     for (const protocol of protocols.slice(0, 10)) {
-      const tvl = protocol.chainTvls?.[capitalize(chainName)] ?? protocol.tvl ?? 0;
+      const tvl = protocol.chainTvls?.[chainConfig.name] ?? protocol.chainTvls?.[capitalize(chainKey)] ?? protocol.tvl ?? 0;
       console.log(`  - ${protocol.name}: $${(tvl / 1e6).toFixed(1)}M TVL`);
     }
 
     // Collect contracts to analyze from known protocols
     const contractsToScan: Array<{ address: string; protocolName: string; tvl: number }> = [];
-    
+
     for (const protocol of protocols) {
       const protocolContracts = getProtocolContracts(protocol.slug, chainConfig.chainId);
-      const tvl = protocol.chainTvls?.[capitalize(chainName)] ?? protocol.tvl ?? 0;
+      const tvl = protocol.chainTvls?.[chainConfig.name] ?? protocol.chainTvls?.[capitalize(chainKey)] ?? protocol.tvl ?? 0;
       
       if (protocolContracts.length > 0) {
         console.log(`[Scanner] Found ${protocolContracts.length} known contracts for ${protocol.name}`);
