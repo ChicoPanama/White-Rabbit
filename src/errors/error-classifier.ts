@@ -8,39 +8,63 @@
 import {
   ScannerError,
   NetworkError,
+  RPCError,
   RateLimitError,
   ProviderError,
-  AuthenticationError,
+  AuthError,
   ValidationError,
-  AnalysisError,
+  DeliverableError,
+  ToolError,
   TimeoutError,
+  ParseError,
+  BudgetError,
   ResourceError,
   ContractError,
   toScannerError,
 } from './error-types.js';
 
-// ── Classification Rules ──
-
-interface ClassificationRule {
-  /** Human-readable name for debugging. */
-  name: string;
-
-  /** Test if this rule matches. Return a ScannerError or null. */
-  match(err: Error, context?: ClassificationContext): ScannerError | null;
-}
+// ── Classification Context ──
 
 export interface ClassificationContext {
-  /** The provider or service that generated this error. */
+  /** The source that generated this error. */
+  source?: 'rpc' | 'ai-provider' | 'tool' | 'network' | 'internal';
+
+  /** The provider or service name. */
   provider?: string;
 
   /** The HTTP status code if from an HTTP response. */
   statusCode?: number;
 
-  /** The operation being performed (e.g. 'slither-analysis', 'ai-query'). */
+  /** The operation being performed. */
   operation?: string;
 
   /** Contract address if relevant. */
   contractAddress?: string;
+
+  /** Agent ID if inside an agent context. */
+  agentId?: string;
+
+  /** Pipeline phase name. */
+  phase?: string;
+
+  /** Endpoint URL. */
+  endpoint?: string;
+
+  /** AI model string. */
+  model?: string;
+
+  /** Blockchain chain identifier. */
+  chain?: string;
+
+  /** Current retry attempt number. */
+  attemptNumber?: number;
+}
+
+// ── Classification Rules ──
+
+interface ClassificationRule {
+  name: string;
+  match(err: Error, context?: ClassificationContext): ScannerError | null;
 }
 
 // ── Pattern Matchers ──
@@ -59,6 +83,20 @@ const NETWORK_PATTERNS = [
   /ERR_NETWORK/i,
   /connection reset/i,
   /EPIPE/i,
+];
+
+const RPC_PATTERNS = [
+  /execution reverted/i,
+  /nonce too low/i,
+  /insufficient funds/i,
+  /gas required exceeds/i,
+  /replacement transaction underpriced/i,
+  /already known/i,
+  /block not found/i,
+  /header not found/i,
+  /missing trie node/i,
+  /transaction underpriced/i,
+  /intrinsic gas too low/i,
 ];
 
 const RATE_LIMIT_PATTERNS = [
@@ -93,6 +131,17 @@ const TIMEOUT_PATTERNS = [
   /request.*aborted/i,
 ];
 
+const BUDGET_PATTERNS = [
+  /context length/i,
+  /token limit/i,
+  /max tokens/i,
+  /context window/i,
+  /maximum context/i,
+  /budget exceeded/i,
+  /cost limit/i,
+  /spending limit/i,
+];
+
 const RESOURCE_PATTERNS = [
   /ENOSPC/i,
   /disk full/i,
@@ -106,6 +155,32 @@ const RESOURCE_PATTERNS = [
   /allocation failed/i,
 ];
 
+const TOOL_MISSING_PATTERNS = [
+  /command not found/i,
+  /ENOENT/,
+  /not found.*command/i,
+  /not installed/i,
+];
+
+const TOOL_CRASH_PATTERNS = [
+  /slither.*failed/i,
+  /slither.*error/i,
+  /slither.*crash/i,
+  /foundry.*failed/i,
+  /forge.*failed/i,
+  /analysis.*failed/i,
+];
+
+const PARSE_PATTERNS = [
+  /JSON\.parse/i,
+  /unexpected token/i,
+  /malformed.*response/i,
+  /invalid.*json/i,
+  /response.*parse/i,
+  /unexpected.*format/i,
+  /SyntaxError.*JSON/i,
+];
+
 const CONTRACT_PATTERNS = [
   /solc.*error/i,
   /compilation.*failed/i,
@@ -113,31 +188,48 @@ const CONTRACT_PATTERNS = [
   /contract source.*not (found|verified)/i,
   /not verified/i,
   /invalid bytecode/i,
-  /constructor.*error/i,
   /Source code not verified/i,
   /missing source/i,
 ];
 
-const ANALYSIS_PATTERNS = [
-  /slither.*failed/i,
-  /slither.*error/i,
-  /slither.*crash/i,
-  /analysis.*failed/i,
-  /parsing.*failed/i,
-  /malformed.*response/i,
-  /invalid.*json/i,
-  /response.*parse/i,
-  /unexpected.*format/i,
+const DELIVERABLE_PATTERNS = [
+  /deliverable.*not found/i,
+  /deliverable.*missing/i,
+  /phase.*prerequisite/i,
+  /required.*deliverable/i,
 ];
 
 // ── Classification Rules ──
 
 const rules: ClassificationRule[] = [
-  // Rule 1: Already a ScannerError → pass through
+  // Rule 0: Already a ScannerError → pass through
   {
     name: 'already-classified',
     match(err) {
       return err instanceof ScannerError ? err : null;
+    },
+  },
+
+  // Rule 1: Context-based source classification (highest priority after pass-through)
+  {
+    name: 'context-source',
+    match(err, ctx) {
+      if (!ctx?.source) return null;
+
+      if (ctx.source === 'rpc') {
+        return new RPCError(err.message, {
+          chain: ctx.chain,
+          endpoint: ctx.endpoint,
+          cause: err,
+        });
+      }
+
+      if (ctx.source === 'ai-provider') {
+        // Still check for specific subtypes before defaulting to ProviderError
+        return null; // Fall through to more specific rules
+      }
+
+      return null;
     },
   },
 
@@ -149,7 +241,7 @@ const rules: ClassificationRule[] = [
       if (!status) return null;
 
       if (status === 401 || status === 403) {
-        return new AuthenticationError(err.message, {
+        return new AuthError(err.message, {
           provider: ctx?.provider,
           statusCode: status,
           cause: err,
@@ -165,9 +257,27 @@ const rules: ClassificationRule[] = [
         });
       }
 
+      if (status === 408 || status === 504) {
+        return new TimeoutError(err.message, {
+          timeoutMs: 0,
+          provider: ctx?.provider,
+          cause: err,
+        });
+      }
+
       if (status >= 500 && status < 600) {
+        // Differentiate between RPC and AI provider based on context
+        if (ctx?.source === 'rpc') {
+          return new RPCError(err.message, {
+            chain: ctx.chain,
+            endpoint: ctx.endpoint,
+            cause: err,
+          });
+        }
         return new ProviderError(err.message, {
           provider: ctx?.provider,
+          model: ctx?.model,
+          endpoint: ctx?.endpoint,
           statusCode: status,
           cause: err,
         });
@@ -181,12 +291,16 @@ const rules: ClassificationRule[] = [
     },
   },
 
-  // Rule 3: Network patterns
+  // Rule 3: Budget patterns (before rate limit to avoid false matches)
   {
-    name: 'network-pattern',
+    name: 'budget-pattern',
     match(err, ctx) {
-      if (matchesAny(err.message, NETWORK_PATTERNS)) {
-        return new NetworkError(err.message, { provider: ctx?.provider, cause: err });
+      if (matchesAny(err.message, BUDGET_PATTERNS)) {
+        return new BudgetError(err.message, {
+          budgetType: 'tokens',
+          provider: ctx?.provider,
+          cause: err,
+        });
       }
       return null;
     },
@@ -212,7 +326,7 @@ const rules: ClassificationRule[] = [
     name: 'auth-pattern',
     match(err, ctx) {
       if (matchesAny(err.message, AUTH_PATTERNS)) {
-        return new AuthenticationError(err.message, {
+        return new AuthError(err.message, {
           provider: ctx?.provider,
           cause: err,
         });
@@ -221,7 +335,33 @@ const rules: ClassificationRule[] = [
     },
   },
 
-  // Rule 6: Timeout patterns
+  // Rule 6: RPC patterns
+  {
+    name: 'rpc-pattern',
+    match(err, ctx) {
+      if (matchesAny(err.message, RPC_PATTERNS)) {
+        return new RPCError(err.message, {
+          chain: ctx?.chain,
+          endpoint: ctx?.endpoint,
+          cause: err,
+        });
+      }
+      return null;
+    },
+  },
+
+  // Rule 7: Network patterns
+  {
+    name: 'network-pattern',
+    match(err, ctx) {
+      if (matchesAny(err.message, NETWORK_PATTERNS)) {
+        return new NetworkError(err.message, { provider: ctx?.provider, cause: err });
+      }
+      return null;
+    },
+  },
+
+  // Rule 8: Timeout patterns
   {
     name: 'timeout-pattern',
     match(err, ctx) {
@@ -236,7 +376,7 @@ const rules: ClassificationRule[] = [
     },
   },
 
-  // Rule 7: Resource patterns
+  // Rule 9: Resource patterns
   {
     name: 'resource-pattern',
     match(err) {
@@ -248,7 +388,65 @@ const rules: ClassificationRule[] = [
     },
   },
 
-  // Rule 8: Contract-specific patterns
+  // Rule 10: Deliverable patterns
+  {
+    name: 'deliverable-pattern',
+    match(err, ctx) {
+      if (matchesAny(err.message, DELIVERABLE_PATTERNS)) {
+        return new DeliverableError(err.message, {
+          phase: ctx?.phase,
+          cause: err,
+        });
+      }
+      return null;
+    },
+  },
+
+  // Rule 11: Tool missing patterns (non-retryable)
+  {
+    name: 'tool-missing-pattern',
+    match(err, ctx) {
+      if (matchesAny(err.message, TOOL_MISSING_PATTERNS)) {
+        return new ToolError(err.message, {
+          tool: ctx?.operation,
+          retryable: false,
+          cause: err,
+        });
+      }
+      return null;
+    },
+  },
+
+  // Rule 12: Tool crash patterns (retryable)
+  {
+    name: 'tool-crash-pattern',
+    match(err, ctx) {
+      if (matchesAny(err.message, TOOL_CRASH_PATTERNS)) {
+        return new ToolError(err.message, {
+          tool: ctx?.operation,
+          retryable: true,
+          cause: err,
+        });
+      }
+      return null;
+    },
+  },
+
+  // Rule 13: Parse errors
+  {
+    name: 'parse-pattern',
+    match(err, ctx) {
+      if (matchesAny(err.message, PARSE_PATTERNS)) {
+        return new ParseError(err.message, {
+          provider: ctx?.provider,
+          cause: err,
+        });
+      }
+      return null;
+    },
+  },
+
+  // Rule 14: Contract-specific patterns
   {
     name: 'contract-pattern',
     match(err, ctx) {
@@ -262,15 +460,15 @@ const rules: ClassificationRule[] = [
     },
   },
 
-  // Rule 9: Analysis tool patterns
+  // Rule 15: Context-based fallback for AI provider errors
   {
-    name: 'analysis-pattern',
+    name: 'ai-provider-fallback',
     match(err, ctx) {
-      if (matchesAny(err.message, ANALYSIS_PATTERNS)) {
-        return new AnalysisError(err.message, {
-          tool: ctx?.operation,
-          provider: ctx?.provider,
-          retryable: true,
+      if (ctx?.source === 'ai-provider') {
+        return new ProviderError(err.message, {
+          provider: ctx.provider,
+          model: ctx.model,
+          endpoint: ctx.endpoint,
           cause: err,
         });
       }
@@ -291,7 +489,6 @@ export function classifyError(
   err: unknown,
   context?: ClassificationContext,
 ): ScannerError {
-  // Ensure we have an Error object
   const error = err instanceof Error ? err : new Error(String(err));
 
   for (const rule of rules) {
@@ -299,14 +496,11 @@ export function classifyError(
     if (result) return result;
   }
 
-  // Fallback: wrap in generic ScannerError
   return toScannerError(error, context?.provider);
 }
 
 /**
  * Classify and enrich with provider context.
- *
- * Convenience wrapper for classify that adds provider and operation metadata.
  */
 export function classifyWithContext(
   err: unknown,
@@ -322,10 +516,6 @@ function matchesAny(message: string, patterns: RegExp[]): boolean {
   return patterns.some(p => p.test(message));
 }
 
-/**
- * Try to extract HTTP status code from error.
- * Many HTTP libraries attach status/statusCode to the error object.
- */
 function extractStatusCode(err: Error): number | undefined {
   const anyErr = err as Record<string, unknown>;
   if (typeof anyErr.status === 'number') return anyErr.status;
@@ -336,20 +526,15 @@ function extractStatusCode(err: Error): number | undefined {
     if (typeof resp.statusCode === 'number') return resp.statusCode;
   }
 
-  // Try to parse from message (e.g. "Request failed with status 429")
   const match = err.message.match(/status[:\s]+(\d{3})/i);
   if (match) return parseInt(match[1], 10);
 
   return undefined;
 }
 
-/**
- * Try to extract Retry-After seconds from an error.
- */
 function extractRetryAfter(err: Error): number | undefined {
   const anyErr = err as Record<string, unknown>;
 
-  // Check error.headers
   if (typeof anyErr.headers === 'object' && anyErr.headers !== null) {
     const headers = anyErr.headers as Record<string, string>;
     const retryAfter = headers['retry-after'] ?? headers['Retry-After'];
@@ -359,7 +544,6 @@ function extractRetryAfter(err: Error): number | undefined {
     }
   }
 
-  // Check response.headers
   if (typeof anyErr.response === 'object' && anyErr.response !== null) {
     const resp = anyErr.response as Record<string, unknown>;
     if (typeof resp.headers === 'object' && resp.headers !== null) {
@@ -372,16 +556,12 @@ function extractRetryAfter(err: Error): number | undefined {
     }
   }
 
-  // Try to parse from message (e.g. "retry after 60 seconds")
   const match = err.message.match(/retry.*?(\d+)\s*s/i);
   if (match) return parseInt(match[1], 10);
 
   return undefined;
 }
 
-/**
- * Identify which resource is exhausted from an error message.
- */
 function identifyResource(message: string): string {
   const lower = message.toLowerCase();
   if (lower.includes('disk') || lower.includes('nospc') || lower.includes('space')) return 'disk';

@@ -42,7 +42,7 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
   maxDelayMs: 60_000,
   jitterFactor: 0.2,
   totalTimeoutMs: 300_000,
-  nonRetryableCategories: ['authentication', 'validation', 'resource'],
+  nonRetryableCategories: ['auth', 'validation', 'resource', 'deliverable', 'budget'],
 };
 
 // ── Circuit Breaker ──
