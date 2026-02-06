@@ -7,7 +7,8 @@ import * as path from 'node:path';
  * and supports shared partials via {{>shared/filename}} syntax.
  */
 
-const PROMPTS_DIR = path.resolve(import.meta.dirname ?? path.dirname(new URL(import.meta.url).pathname), '..', 'prompts');
+// Resolve prompts dir relative to the project root (works in both src/ and dist/)
+const PROMPTS_DIR = path.resolve(process.cwd(), 'prompts');
 
 // Cache loaded templates to avoid repeated disk reads
 const templateCache = new Map<string, string>();
