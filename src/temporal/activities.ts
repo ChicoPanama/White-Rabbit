@@ -15,6 +15,9 @@ import { createSession, writeDeliverable, readDeliverable, listDeliverables, get
 import { setDeliverableBaseDir, validatePhasePrerequisites } from '../queue-validation.js';
 import { loadPrompt } from '../prompt-manager.js';
 import { isDryRun, dryRunLog, logAiPrompt, logApiCall, loadJsonFixture } from '../dry-run.js';
+import type { AgentResult } from '../agents/agent-types.js';
+import { getAgentById } from '../agents/agent-registry.js';
+import { executeAgent, loadRequiredDeliverables } from '../agents/agent-executor.js';
 
 // ── Error Types ──
 
@@ -585,4 +588,35 @@ export async function reportActivity(
       metadata: {},
     };
   }
+}
+
+// ── Generic Agent Activity ──
+
+/**
+ * Execute any registered agent by ID.
+ * Used by the agent-based workflow (scanPipelineWorkflow) for all phases.
+ */
+export async function executeAgentActivity(
+  input: ScanWorkflowInput,
+  agentId: string,
+): Promise<AgentResult> {
+  console.log(`[Activity:agent] Executing agent ${agentId} for session ${input.sessionId}`);
+  resolveSessionDir(input.sessionId);
+
+  const config = loadConfig(input);
+  const agent = getAgentById(agentId);
+  const inputDeliverables = loadRequiredDeliverables(input.sessionId, agent.requiredDeliverables);
+
+  heartbeat();
+
+  const result = await executeAgent({
+    sessionId: input.sessionId,
+    config,
+    agent,
+    inputDeliverables,
+    dryRun: input.dryRun ?? false,
+  });
+
+  heartbeat();
+  return result;
 }
