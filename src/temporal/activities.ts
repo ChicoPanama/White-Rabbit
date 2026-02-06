@@ -7,7 +7,7 @@
  * so Temporal knows the activity is still alive.
  */
 
-import { heartbeat, activityInfo } from '@temporalio/activity';
+import { heartbeat, activityInfo, ApplicationFailure } from '@temporalio/activity';
 import type { ScanWorkflowInput, PhaseResult, VulnType } from './shared.js';
 import { VULN_TYPES } from './shared.js';
 import { loadScanConfig, type ScanConfig } from '../config-parser.js';
@@ -18,6 +18,8 @@ import { isDryRun, dryRunLog, logAiPrompt, logApiCall, loadJsonFixture } from '.
 import type { AgentResult } from '../agents/agent-types.js';
 import { getAgentById } from '../agents/agent-registry.js';
 import { executeAgent, loadRequiredDeliverables } from '../agents/agent-executor.js';
+import { classifyError } from '../errors/error-classifier.js';
+import { ScannerError, BudgetError } from '../errors/error-types.js';
 
 // ── Error Types ──
 
@@ -595,6 +597,13 @@ export async function reportActivity(
 /**
  * Execute any registered agent by ID.
  * Used by the agent-based workflow (scanPipelineWorkflow) for all phases.
+ *
+ * Maps ScannerError categories to Temporal retry behavior:
+ * - Non-retryable errors → ApplicationFailure.nonRetryable()
+ * - BudgetError → non-retryable + signal to stop gracefully
+ * - Retryable errors → regular throw (Temporal retries per activity config)
+ *
+ * Heartbeats include error state so the workflow can monitor progress.
  */
 export async function executeAgentActivity(
   input: ScanWorkflowInput,
@@ -603,20 +612,68 @@ export async function executeAgentActivity(
   console.log(`[Activity:agent] Executing agent ${agentId} for session ${input.sessionId}`);
   resolveSessionDir(input.sessionId);
 
-  const config = loadConfig(input);
-  const agent = getAgentById(agentId);
-  const inputDeliverables = loadRequiredDeliverables(input.sessionId, agent.requiredDeliverables);
+  try {
+    const config = loadConfig(input);
+    const agent = getAgentById(agentId);
+    const inputDeliverables = loadRequiredDeliverables(input.sessionId, agent.requiredDeliverables);
 
-  heartbeat();
+    heartbeat({
+      agentId,
+      phase: agent.phase,
+      status: 'running',
+    });
 
-  const result = await executeAgent({
-    sessionId: input.sessionId,
-    config,
-    agent,
-    inputDeliverables,
-    dryRun: input.dryRun ?? false,
-  });
+    const result = await executeAgent({
+      sessionId: input.sessionId,
+      config,
+      agent,
+      inputDeliverables,
+      dryRun: input.dryRun ?? false,
+    });
 
-  heartbeat();
-  return result;
+    heartbeat({
+      agentId,
+      phase: agent.phase,
+      status: result.status,
+      findingCount: result.findings.length,
+      retryAttempts: result.metadata.retryAttempts ?? 0,
+      providerRotations: result.metadata.providerRotations ?? 0,
+    });
+
+    return result;
+  } catch (err) {
+    // Classify the error
+    const classified = err instanceof ScannerError
+      ? err
+      : classifyError(err, { agentId });
+
+    // Report error state in heartbeat
+    heartbeat({
+      agentId,
+      status: 'error',
+      lastError: classified.toJSON(),
+      retryAttempt: classified.context.attemptNumber,
+    });
+
+    // BudgetError → non-retryable, signal workflow to stop gracefully
+    if (classified instanceof BudgetError) {
+      throw ApplicationFailure.nonRetryable(
+        classified.message,
+        'BudgetError',
+        classified.toJSON(),
+      );
+    }
+
+    // Non-retryable errors → ApplicationFailure.nonRetryable so Temporal won't retry
+    if (!classified.isRetryable()) {
+      throw ApplicationFailure.nonRetryable(
+        classified.message,
+        classified.name,
+        classified.toJSON(),
+      );
+    }
+
+    // Retryable errors → throw regular error, Temporal retries per activity config
+    throw err;
+  }
 }
