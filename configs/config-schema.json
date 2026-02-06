@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "White-Rabbit Scanner Configuration",
+  "description": "Configuration schema for the White-Rabbit vulnerability scanner pipeline",
+  "type": "object",
+  "properties": {
+    "target": {
+      "type": "object",
+      "description": "Target contract/chain configuration",
+      "properties": {
+        "chain": {
+          "type": "string",
+          "description": "Target blockchain name (e.g., ethereum, base, arbitrum)"
+        },
+        "contract_address": {
+          "type": "string",
+          "description": "Target contract address (0x-prefixed hex)",
+          "pattern": "^(0x[a-fA-F0-9]{40})?$"
+        },
+        "protocol_name": {
+          "type": "string",
+          "description": "Protocol name for context enrichment"
+        },
+        "tvl_range": {
+          "type": "array",
+          "description": "Min/max TVL range in USD [min, max]",
+          "items": { "type": "number", "minimum": 0 },
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "scanner": {
+      "type": "object",
+      "description": "Scanner pipeline configuration",
+      "properties": {
+        "scan_frequency_minutes": {
+          "type": "integer",
+          "description": "Minutes between autonomous scan cycles",
+          "minimum": 1,
+          "maximum": 1440
+        },
+        "max_concurrent_scans": {
+          "type": "integer",
+          "description": "Maximum parallel contract scans",
+          "minimum": 1,
+          "maximum": 20
+        },
+        "enabled_vuln_types": {
+          "type": "array",
+          "description": "Vulnerability types to scan for",
+          "items": {
+            "type": "string",
+            "enum": ["arithmetic", "reentrancy", "access-control", "oracle", "flash-loan", "logic"]
+          },
+          "uniqueItems": true
+        }
+      },
+      "additionalProperties": false
+    },
+    "verification": {
+      "type": "object",
+      "description": "PoC verification configuration",
+      "properties": {
+        "foundry_fork": {
+          "type": "boolean",
+          "description": "Enable Foundry mainnet fork testing"
+        },
+        "mainnet_rpc": {
+          "type": "string",
+          "description": "RPC endpoint for mainnet fork verification"
+        },
+        "gas_limit": {
+          "type": "integer",
+          "description": "Gas limit for verification transactions",
+          "minimum": 100000,
+          "maximum": 100000000
+        },
+        "require_compilation_check": {
+          "type": "boolean",
+          "description": "Require PoC compiles against mainnet bytecode"
+        },
+        "require_parameter_bounds": {
+          "type": "boolean",
+          "description": "Require parameter bounds verification"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ai": {
+      "type": "object",
+      "description": "AI provider configuration. Users must configure their own provider.",
+      "properties": {
+        "provider_endpoint": {
+          "type": "string",
+          "description": "AI provider API endpoint URL (e.g., https://api.anthropic.com, https://openrouter.ai/api/v1)"
+        },
+        "api_key_env": {
+          "type": "string",
+          "description": "Name of the environment variable containing the API key (e.g., ANTHROPIC_API_KEY)"
+        },
+        "model": {
+          "type": "string",
+          "description": "Primary model identifier (e.g., claude-sonnet-4-20250514)"
+        },
+        "fallback_model": {
+          "type": "string",
+          "description": "Optional fallback model identifier"
+        },
+        "response_token_limit": {
+          "type": "integer",
+          "description": "Maximum response tokens per AI call",
+          "minimum": 100,
+          "maximum": 32000
+        },
+        "context_window_guard": {
+          "type": "integer",
+          "description": "Maximum context tokens before truncation",
+          "minimum": 1000,
+          "maximum": 200000
+        },
+        "tiered_analysis": {
+          "type": "boolean",
+          "description": "Use tiered model selection based on severity/TVL"
+        }
+      },
+      "additionalProperties": false
+    },
+    "reporting": {
+      "type": "object",
+      "description": "Report generation configuration",
+      "properties": {
+        "format": {
+          "type": "string",
+          "description": "Report output format",
+          "enum": ["immunefi", "markdown", "json"]
+        },
+        "min_severity": {
+          "type": "string",
+          "description": "Minimum severity to include in reports",
+          "enum": ["critical", "high", "medium", "low", "informational"]
+        },
+        "include_poc": {
+          "type": "boolean",
+          "description": "Include Foundry PoC in reports"
+        }
+      },
+      "additionalProperties": false
+    },
+    "filtering": {
+      "type": "object",
+      "description": "False positive filtering configuration",
+      "properties": {
+        "skip_design_choices": {
+          "type": "boolean",
+          "description": "Filter out design choice findings (centralization risks, etc.)"
+        },
+        "skip_solidity_08_overflow": {
+          "type": "boolean",
+          "description": "Auto-filter overflow findings in Solidity 0.8+ contracts"
+        },
+        "min_exploitable_value_usd": {
+          "type": "number",
+          "description": "Minimum estimated exploitable value to report",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
