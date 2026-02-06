@@ -4,6 +4,7 @@
   "description": "Autonomous smart contract vulnerability scanner for DeFi protocols",
   "main": "dist/index.js",
   "scripts": {
+    "test": "tsx --test src/tests/smoke.test.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "worker": "node dist/worker.js",

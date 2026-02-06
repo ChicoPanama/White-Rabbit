@@ -30,6 +30,7 @@
     "src/clients/cached-etherscan.ts",
     "src/services/fork-hunter-advanced.ts",
     "src/services/decompiler.ts",
-    "src/scripts/**/*"
+    "src/scripts/**/*",
+    "src/tests/**/*"
   ]
 }
