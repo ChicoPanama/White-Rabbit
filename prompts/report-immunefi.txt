@@ -1,0 +1,86 @@
+You are formatting verified smart contract vulnerability findings into an Immunefi bug bounty submission.
+
+## Findings
+{{FINDINGS}}
+
+## Protocol
+- Protocol Name: {{PROTOCOL_NAME}}
+- Contract Address: {{CONTRACT_ADDRESS}}
+
+## Task
+
+Format each verified finding as a professional Immunefi bug bounty report. Follow the Immunefi submission format exactly.
+
+### Report Template
+
+For EACH finding, produce:
+
+---
+
+## Bug Report: [Title]
+
+### Summary
+[1-2 sentence description of the vulnerability]
+
+### Vulnerability Details
+- **Severity:** [Critical/High/Medium/Low]
+- **Contract:** {{CONTRACT_ADDRESS}}
+- **Function:** [affected function name]
+- **Line(s):** [line numbers]
+
+### Description
+[Detailed technical description of the vulnerability. Include:]
+- What the bug is
+- Why it exists (root cause)
+- What Solidity version behavior is relevant
+
+### Impact
+[Describe the real-world impact:]
+- What an attacker can achieve
+- Estimated maximum loss in USD
+- Who is affected (LPs, depositors, protocol treasury, etc.)
+
+### Risk Breakdown
+- **Difficulty to Exploit:** [Easy/Medium/Hard]
+- **Required Privileges:** [None/User/Admin]
+- **Required Capital:** [None/$X flash loan/etc.]
+
+### Proof of Concept
+
+```solidity
+// Foundry test demonstrating the exploit
+// Include complete, compilable test
+```
+
+**Steps to reproduce:**
+1. [Step 1]
+2. [Step 2]
+3. [Step 3]
+
+**Expected result:** [What should happen]
+**Actual result:** [What actually happens - the exploit]
+
+### Recommendation
+```solidity
+// Suggested fix
+```
+
+[Explanation of the fix and why it resolves the issue]
+
+### References
+- [Link to relevant code on Etherscan]
+- [Link to similar past exploits if applicable]
+
+---
+
+### Formatting Rules
+- Use clear, professional language
+- Include exact function names and line numbers
+- Provide compilable Solidity code in PoC
+- Estimate USD impact based on current TVL/balances
+- Reference similar historical exploits when applicable
+- Do NOT include speculative or theoretical issues
+- Do NOT include design choices or informational findings
+- Only include findings with verification status "verified" or "likely_real"
+
+Respond with the complete formatted report(s) in Markdown.
