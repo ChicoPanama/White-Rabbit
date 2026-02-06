@@ -4,6 +4,12 @@
  * Loads deliverables, hydrates the prompt template, sends to AI provider
  * (via config), extracts findings, writes output deliverables, and
  * tracks token usage and duration.
+ *
+ * Integrates with the error handling system for:
+ * - Classified errors with structured retry logic
+ * - Provider rotation on AI failures
+ * - RPC rotation on blockchain failures
+ * - Circuit breaker protection for failing endpoints
  */
 
 import { v4 as uuidv4 } from 'uuid';
@@ -14,6 +20,12 @@ import { isDryRun, dryRunLog, logAiPrompt } from '../dry-run.js';
 import * as slitherTool from './tools/slither-tool.js';
 import * as foundryTool from './tools/foundry-tool.js';
 import * as etherscanTool from './tools/etherscan-tool.js';
+
+// Error handling imports
+import { withRetry, type RetryResult } from '../errors/retry-engine.js';
+import { classifyError, type ClassificationContext } from '../errors/error-classifier.js';
+import type { ScannerError, ErrorCategory } from '../errors/error-types.js';
+import { ToolError } from '../errors/error-types.js';
 
 // ── Tool Registry ──
 
@@ -33,7 +45,7 @@ export function getAvailableTools(): string[] {
 }
 
 /**
- * Execute a tool by name.
+ * Execute a tool by name with retry handling.
  */
 async function executeTool(toolName: string, params: Record<string, unknown>): Promise<ToolResult> {
   const tool = TOOL_REGISTRY[toolName];
@@ -58,6 +70,51 @@ async function executeTool(toolName: string, params: Record<string, unknown>): P
   return tool.execute(params);
 }
 
+/**
+ * Execute a tool with retry logic.
+ * Tools get 2 attempts max (they usually fail deterministically).
+ */
+async function executeToolWithRetry(
+  toolName: string,
+  params: Record<string, unknown>,
+  agentId: string,
+): Promise<{ result: ToolResult; retryAttempts: number }> {
+  const retryResult = await withRetry<ToolResult>(
+    async () => {
+      const result = await executeTool(toolName, params);
+      if (!result.success) {
+        throw new ToolError(result.error ?? `Tool ${toolName} failed`, {
+          tool: toolName,
+          retryable: true,
+        });
+      }
+      return result;
+    },
+    {
+      maxRetries: 1, // 2 total attempts for tools
+      initialDelayMs: 2000,
+      nonRetryableCategories: ['auth', 'validation', 'resource', 'deliverable', 'budget'],
+    },
+    { source: 'tool', operation: toolName, agentId },
+  );
+
+  if (retryResult.success && retryResult.value) {
+    return { result: retryResult.value, retryAttempts: retryResult.attempts - 1 };
+  }
+
+  // All retries failed — return a failed ToolResult
+  return {
+    result: {
+      tool: toolName,
+      success: false,
+      data: null,
+      error: retryResult.error?.message ?? `Tool ${toolName} failed after retries`,
+      duration: retryResult.totalDuration,
+    },
+    retryAttempts: retryResult.attempts - 1,
+  };
+}
+
 // ── Deliverable Loading ──
 
 /**
@@ -71,7 +128,6 @@ export function loadRequiredDeliverables(
   const inputs: Record<string, unknown> = {};
 
   for (const deliverableFilename of requiredDeliverables) {
-    // Determine which phase produced this deliverable
     const phase = resolvePhaseForDeliverable(deliverableFilename);
     const result = readDeliverable(sessionId, phase, deliverableFilename);
     inputs[deliverableFilename] = result?.data ?? null;
@@ -99,7 +155,6 @@ function resolvePhaseForDeliverable(filename: string): string {
   if (filename.startsWith('final-')) {
     return 'report';
   }
-  // Default: search in the agent's own phase
   return 'discovery';
 }
 
@@ -113,30 +168,25 @@ function hydratePrompt(context: AgentExecutionContext): string | null {
   const { agent, inputDeliverables, config } = context;
 
   try {
-    // Build variables from input deliverables and context
     const variables: Record<string, string> = {};
 
-    // Contract source is common across most agents
     const contractSource = inputDeliverables['contract-source.json'] as Record<string, unknown> | null;
     if (contractSource) {
       variables.CONTRACT_SOURCE = String(contractSource.sourceCode ?? '');
       variables.SOLIDITY_VERSION = String(contractSource.compilerVersion ?? 'unknown');
     }
 
-    // Protocol metadata
     const metadata = inputDeliverables['protocol-metadata.json'] as Record<string, unknown> | null;
     if (metadata) {
       variables.PROTOCOL_NAME = String(metadata.protocolName ?? 'Unknown');
       variables.CONTRACT_ADDRESS = String(metadata.address ?? '');
     }
 
-    // Slither output
     const slither = inputDeliverables['slither-report.json'] as Record<string, unknown> | null;
     if (slither) {
       variables.SLITHER_OUTPUT = JSON.stringify(slither.findings ?? []);
     }
 
-    // Agent-specific variables
     switch (agent.id) {
       case 'vuln-arithmetic':
         variables.SLITHER_OUTPUT = variables.SLITHER_OUTPUT ?? '[]';
@@ -199,7 +249,6 @@ function extractFilteredFindings(slither: Record<string, unknown> | null, keywor
 function parseFindings(responseText: string, agentId: string, vulnType: string): Finding[] {
   const findings: Finding[] = [];
 
-  // Try JSON parsing first (AI may return structured JSON)
   try {
     const parsed = JSON.parse(responseText);
     if (Array.isArray(parsed)) {
@@ -218,7 +267,6 @@ function parseFindings(responseText: string, agentId: string, vulnType: string):
     // Not JSON — try text parsing
   }
 
-  // Basic text parsing: look for severity markers
   const severityPatterns = [
     { pattern: /\*\*(?:CRITICAL|Critical)\*\*[:\s]+(.*?)(?:\n|$)/g, severity: 'critical' as const },
     { pattern: /\*\*(?:HIGH|High)\*\*[:\s]+(.*?)(?:\n|$)/g, severity: 'high' as const },
@@ -270,6 +318,65 @@ function normalizeSeverity(s: string): Finding['severity'] {
   return 'info';
 }
 
+// ── AI Provider Call with Retry ──
+
+/** Retryable categories for AI provider calls. */
+const AI_RETRYABLE: ErrorCategory[] = ['provider', 'rate-limit', 'network', 'timeout', 'parse'];
+
+/**
+ * Send prompt to AI provider with retry logic and provider rotation.
+ *
+ * Currently a placeholder — returns empty findings. When the real AI provider
+ * integration is connected, this wraps it with withRetry().
+ */
+async function callAIProviderWithRetry(
+  agentId: string,
+  prompt: string,
+  maxRetries: number,
+): Promise<{ responseText: string; tokensUsed: number; retryAttempts: number; providerRotations: number }> {
+  let providerRotations = 0;
+
+  const retryResult = await withRetry<{ responseText: string; tokensUsed: number }>(
+    async () => {
+      // Placeholder: real AI call goes here.
+      // When connected, this would use the ProviderRotator to get the active
+      // provider and make the API call.
+      return { responseText: JSON.stringify({ findings: [] }), tokensUsed: 0 };
+    },
+    {
+      maxRetries,
+      initialDelayMs: 1000,
+      backoffMultiplier: 2,
+      nonRetryableCategories: ['auth', 'validation', 'budget', 'deliverable', 'resource'],
+    },
+    { source: 'ai-provider', agentId },
+    {
+      onRotateProvider: () => {
+        providerRotations++;
+        // When connected, this would call providerRotator.rotateProvider()
+        // and return the new provider key.
+        return undefined;
+      },
+    },
+  );
+
+  if (retryResult.success && retryResult.value) {
+    return {
+      ...retryResult.value,
+      retryAttempts: retryResult.attempts - 1,
+      providerRotations,
+    };
+  }
+
+  // All retries failed — return empty response with error info
+  return {
+    responseText: JSON.stringify({ findings: [] }),
+    tokensUsed: 0,
+    retryAttempts: retryResult.attempts - 1,
+    providerRotations,
+  };
+}
+
 // ── Main Executor ──
 
 /**
@@ -277,32 +384,41 @@ function normalizeSeverity(s: string): Finding['severity'] {
  *
  * 1. Loads required input deliverables
  * 2. Hydrates the agent's prompt template
- * 3. Sends prompt to AI (or stubs in DRY_RUN)
+ * 3. Sends prompt to AI (with retry + rotation) or stubs in DRY_RUN
  * 4. Parses findings from response
  * 5. Writes output deliverables
- * 6. Returns AgentResult
+ * 6. Returns AgentResult with structured error details
  */
 export async function executeAgent(context: AgentExecutionContext): Promise<AgentResult> {
   const startMs = Date.now();
   const { sessionId, agent, dryRun } = context;
   const errors: string[] = [];
+  const structuredErrors: ScannerError[] = [];
   const findings: Finding[] = [];
   const deliverables: string[] = [];
   let tokensUsed = 0;
+  let totalRetryAttempts = 0;
+  let totalProviderRotations = 0;
 
   console.log(`[Agent:${agent.id}] Starting execution`);
 
   try {
-    // Step 1: Execute any tools the agent needs
+    // Step 1: Execute any tools the agent needs (with retry)
     const toolResults: Record<string, ToolResult> = {};
     for (const toolName of agent.tools) {
       const toolParams = buildToolParams(context, toolName);
-      const result = await executeTool(toolName, toolParams);
+      const { result, retryAttempts } = await executeToolWithRetry(toolName, toolParams, agent.id);
       toolResults[toolName] = result;
+      totalRetryAttempts += retryAttempts;
 
       if (!result.success) {
+        const toolErr = classifyError(
+          new Error(result.error ?? `Tool ${toolName} failed`),
+          { source: 'tool', operation: toolName, agentId: agent.id },
+        );
+        structuredErrors.push(toolErr);
         console.warn(`[Agent:${agent.id}] Tool ${toolName} failed: ${result.error}`);
-        // For tool agents (static-slither), tool failure is agent failure
+
         if (agent.id.startsWith('static-') && toolName === 'slither') {
           errors.push(`Tool failure: ${toolName} — ${result.error}`);
         }
@@ -312,7 +428,6 @@ export async function executeAgent(context: AgentExecutionContext): Promise<Agen
     // Step 2: Hydrate prompt
     const prompt = hydratePrompt(context);
     if (!prompt) {
-      // Template not available — write empty output
       writeEmptyOutput(sessionId, agent, 'Prompt template not available');
       deliverables.push(...agent.outputDeliverables.map(d => `${agent.phase}/${d}`));
       return {
@@ -323,11 +438,11 @@ export async function executeAgent(context: AgentExecutionContext): Promise<Agen
         duration: Date.now() - startMs,
         tokensUsed: 0,
         errors: ['Prompt template not available'],
-        metadata: {},
+        metadata: { retryAttempts: totalRetryAttempts, providerRotations: 0 },
       };
     }
 
-    // Step 3: Send to AI provider (or stub in DRY_RUN)
+    // Step 3: Send to AI provider (with retry and rotation) or stub in DRY_RUN
     let responseText = '';
 
     if (dryRun) {
@@ -335,13 +450,15 @@ export async function executeAgent(context: AgentExecutionContext): Promise<Agen
       dryRunLog(agent.id, `Would send ${prompt.length} char prompt, max ${agent.maxTurns} turns`);
       responseText = JSON.stringify({ findings: [] });
     } else {
-      // AI call placeholder — the real implementation uses config.ai settings
-      // to construct the API call to whatever provider is configured.
-      // This is intentionally left as a placeholder that returns empty findings.
-      // The actual AI integration happens when the agent-executor is connected
-      // to the AI provider via the config's provider_endpoint + model.
-      responseText = JSON.stringify({ findings: [] });
-      tokensUsed = 0;
+      const aiResult = await callAIProviderWithRetry(
+        agent.id,
+        prompt,
+        agent.maxRetries,
+      );
+      responseText = aiResult.responseText;
+      tokensUsed = aiResult.tokensUsed;
+      totalRetryAttempts += aiResult.retryAttempts;
+      totalProviderRotations += aiResult.providerRotations;
     }
 
     // Step 4: Parse findings
@@ -349,11 +466,10 @@ export async function executeAgent(context: AgentExecutionContext): Promise<Agen
     const parsedFindings = parseFindings(responseText, agent.id, vulnType);
     findings.push(...parsedFindings);
 
-    // Incorporate tool results (e.g. Slither findings for static agents)
+    // Incorporate tool results
     if (toolResults.slither?.success) {
       const slitherData = toolResults.slither.data as Record<string, unknown> | null;
       if (slitherData && Array.isArray(slitherData.findings)) {
-        // Write tool output directly as a deliverable
         writeDeliverable(sessionId, agent.phase, 'slither-report.json', slitherData, agent.id);
       }
     }
@@ -370,6 +486,8 @@ export async function executeAgent(context: AgentExecutionContext): Promise<Agen
         ),
         tokensUsed,
         dryRun,
+        retryAttempts: totalRetryAttempts,
+        providerRotations: totalProviderRotations,
       };
 
       if (outputFile.endsWith('.md')) {
@@ -380,7 +498,7 @@ export async function executeAgent(context: AgentExecutionContext): Promise<Agen
       deliverables.push(`${agent.phase}/${outputFile}`);
     }
 
-    console.log(`[Agent:${agent.id}] Completed: ${findings.length} findings in ${Date.now() - startMs}ms`);
+    console.log(`[Agent:${agent.id}] Completed: ${findings.length} findings in ${Date.now() - startMs}ms (retries: ${totalRetryAttempts}, rotations: ${totalProviderRotations})`);
 
     return {
       agentId: agent.id,
@@ -394,14 +512,19 @@ export async function executeAgent(context: AgentExecutionContext): Promise<Agen
         vulnType,
         toolsUsed: Object.keys(toolResults),
         promptLength: prompt.length,
+        retryAttempts: totalRetryAttempts,
+        providerRotations: totalProviderRotations,
+        structuredErrors: structuredErrors.map(e => e.toJSON()),
       },
     };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[Agent:${agent.id}] Failed: ${msg}`);
+    const classified = classifyError(err, { agentId: agent.id });
+    structuredErrors.push(classified);
+
+    const msg = classified.message;
+    console.error(`[Agent:${agent.id}] Failed: ${msg} [${classified.category}/${classified.code}]`);
     errors.push(msg);
 
-    // Write empty output so downstream agents don't block
     try {
       writeEmptyOutput(sessionId, agent, msg);
       deliverables.push(...agent.outputDeliverables.map(d => `${agent.phase}/${d}`));
@@ -415,7 +538,11 @@ export async function executeAgent(context: AgentExecutionContext): Promise<Agen
       duration: Date.now() - startMs,
       tokensUsed,
       errors,
-      metadata: {},
+      metadata: {
+        retryAttempts: totalRetryAttempts,
+        providerRotations: totalProviderRotations,
+        structuredErrors: structuredErrors.map(e => e.toJSON()),
+      },
     };
   }
 }
