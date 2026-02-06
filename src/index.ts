@@ -3,10 +3,14 @@ import { Scanner } from './scanner.js';
 import { isDryRun, phaseStart, phaseEnd, printDryRunSummary, resetTimings } from './dry-run.js';
 import { createSession, listDeliverables } from './deliverables-manager.js';
 import { loadScanConfig } from './config-parser.js';
+import { getOrchestratorMode, runTemporalScan } from './temporal/orchestrator.js';
 
 async function main() {
   console.log('White-Rabbit Smart Contract Vulnerability Scanner');
   console.log('================================================\n');
+
+  const orchestrator = getOrchestratorMode();
+  console.log(`Orchestrator: ${orchestrator}`);
 
   if (isDryRun()) {
     console.log('[DRY_RUN] Pipeline testing mode active — no external calls will be made\n');
@@ -15,16 +19,53 @@ async function main() {
 
   // Load YAML config if --config flag is provided, otherwise use env-based config
   const configArg = process.argv.indexOf('--config');
-  let scanConfig;
+  let configPath: string | undefined;
   if (configArg !== -1 && process.argv[configArg + 1]) {
+    configPath = process.argv[configArg + 1];
     try {
-      scanConfig = loadScanConfig(process.argv[configArg + 1]);
-      console.log(`Loaded config from: ${process.argv[configArg + 1]}`);
+      loadScanConfig(configPath);
+      console.log(`Loaded config from: ${configPath}`);
     } catch (err) {
       console.warn(`Config load warning: ${err instanceof Error ? err.message : String(err)}`);
       console.warn('Falling back to environment variables\n');
+      configPath = undefined;
     }
   }
+
+  // Check if a specific contract address was provided via CLI
+  const args = process.argv.filter(a => a !== '--config' && !(configArg !== -1 && a === process.argv[configArg + 1]));
+  const targetAddress = args[2];
+  const targetChainId = args[3] ? Number(args[3]) : 1;
+
+  // ── Temporal orchestrator path ──
+  if (orchestrator === 'temporal') {
+    const sessionId = createSession();
+    console.log(`Session: ${sessionId}\n`);
+
+    const result = await runTemporalScan({
+      contractAddress: targetAddress,
+      chain: targetChainId === 1 ? 'ethereum' : String(targetChainId),
+      configPath,
+      dryRun: isDryRun(),
+      sessionId,
+    });
+
+    console.log(`\nScan ${result.status}: ${result.findingsCount} findings (${result.verifiedCount} verified)`);
+    console.log(`Duration: ${(result.duration / 1000).toFixed(1)}s`);
+    if (result.phasesFailed.length > 0) {
+      console.log(`Failed phases: ${result.phasesFailed.join(', ')}`);
+    }
+
+    if (isDryRun()) {
+      const deliverables = listDeliverables(sessionId);
+      printDryRunSummary(deliverables.length);
+    }
+
+    process.exit(result.status === 'failed' ? 1 : 0);
+    return;
+  }
+
+  // ── Legacy orchestrator path (PM2/BullMQ) ──
 
   const config = loadConfig();
   console.log(`Chains: ${config.scanChains.map(c => c.name).join(', ')}`);
@@ -47,11 +88,6 @@ async function main() {
   };
   process.on('SIGINT', () => { handleSignal('SIGINT'); });
   process.on('SIGTERM', () => { handleSignal('SIGTERM'); });
-
-  // Check if a specific contract address was provided via CLI
-  const args = process.argv.filter(a => a !== '--config' && !(configArg !== -1 && a === process.argv[configArg + 1]));
-  const targetAddress = args[2];
-  const targetChainId = args[3] ? Number(args[3]) : 1;
 
   try {
     if (targetAddress) {
