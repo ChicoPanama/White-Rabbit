@@ -1,0 +1,15 @@
+{
+  "_schema": "immunefi-programs-v1",
+  "_description": "Local cache of Immunefi bug bounty programs. Run updateProgramCache() to refresh.",
+  "_updatedAt": null,
+  "_fields": {
+    "name": "Program display name",
+    "slug": "URL slug on immunefi.com",
+    "url": "Full Immunefi program URL",
+    "maxBounty": "Maximum payout in USD",
+    "assets": "Array of { address, chain, type } objects in scope",
+    "launchDate": "ISO 8601 program launch date",
+    "updatedDate": "ISO 8601 last update date"
+  },
+  "programs": []
+}

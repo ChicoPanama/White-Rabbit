@@ -1,0 +1,31 @@
+## Solidity Version Behavior Reference
+
+### Solidity 0.8.0+ (CRITICAL - Most Common Today)
+- **Built-in overflow/underflow protection:** All arithmetic operations revert on overflow/underflow by default
+- Overflow is ONLY possible inside `unchecked { }` blocks or in inline assembly
+- Do NOT flag standard arithmetic as overflow-vulnerable in 0.8.0+ contracts
+- `type(uint256).max` operations still revert if they overflow
+- ABI coder v2 is default (stricter encoding/decoding)
+
+### Solidity 0.7.x
+- NO built-in overflow protection - SafeMath is REQUIRED
+- All arithmetic can silently overflow/underflow
+- ABIEncoderV2 must be explicitly enabled
+
+### Solidity 0.6.x
+- Same overflow behavior as 0.7.x (no built-in protection)
+- `try/catch` introduced (relevant for external call handling)
+- `receive()` and `fallback()` function syntax introduced
+
+### Solidity 0.5.x and Earlier
+- No overflow protection
+- No `receive()`/`fallback()` distinction
+- Different constructor syntax (`function ContractName()`)
+- Storage pointer behavior differences
+
+### Version-Dependent Analysis Rules
+1. ALWAYS check the pragma solidity version FIRST before assessing arithmetic vulnerabilities
+2. For 0.8.0+: Only flag arithmetic in `unchecked` blocks or assembly
+3. For < 0.8.0: Flag ALL unprotected arithmetic as potential overflow
+4. Check for mixed-version projects (different files may use different pragmas)
+5. Note: `unchecked` blocks in 0.8.0+ are intentional gas optimizations - analyze their safety individually

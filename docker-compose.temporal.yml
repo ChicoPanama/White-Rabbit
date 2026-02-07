@@ -1,0 +1,89 @@
+version: "3.8"
+
+# Temporal orchestration infrastructure for White-Rabbit scanner.
+# Separate from the main docker-compose.yml so users can opt in.
+#
+# Usage:
+#   docker compose -f docker-compose.temporal.yml up -d
+#   ./scanner start --config configs/default-config.yaml
+#
+# Web UI: http://localhost:8233
+
+services:
+  temporal-db:
+    image: postgres:16-alpine
+    container_name: wr-temporal-db
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_DB: temporal
+    ports:
+      - "5433:5432"
+    volumes:
+      - temporal-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  temporal:
+    image: temporalio/auto-setup:latest
+    container_name: wr-temporal
+    depends_on:
+      temporal-db:
+        condition: service_healthy
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal-db
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+    ports:
+      - "7233:7233"
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    volumes:
+      - temporal-config:/etc/temporal/config
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    container_name: wr-temporal-ui
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_CORS_ORIGINS=http://localhost:3000
+    ports:
+      - "8233:8080"
+
+  scanner-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wr-scanner-worker
+    depends_on:
+      temporal:
+        condition: service_healthy
+    environment:
+      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_NAMESPACE=white-rabbit
+      - TEMPORAL_TASK_QUEUE=scanner-queue
+    env_file:
+      - .env
+    volumes:
+      - ./deliverables:/app/deliverables
+      - ./prompts:/app/prompts
+      - ./configs:/app/configs
+      - ./fixtures:/app/fixtures
+    command: ["node", "dist/temporal/worker.js"]
+
+volumes:
+  temporal-db-data:
+  temporal-config:
