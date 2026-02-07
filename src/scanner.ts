@@ -22,6 +22,7 @@ import { CHAINS, SEVERITY_ORDER } from './types/index.js';
 import type { Contract, Finding, VerifiedFinding, VerificationStatus, ExploitEstimate, ForkHuntResult } from './types/index.js';
 import { EXPLOIT_VALUE_THRESHOLDS } from './types/index.js';
 import { capitalize } from './utils/helpers.js';
+import { matchKnownHacks } from './data/known-hacks.js';
 
 /**
  * Main scanner orchestrator. Runs the 6-stage verification pipeline:
@@ -187,6 +188,50 @@ export class Scanner {
               finding.aiIsFalsePositive = assessment.isFalsePositive;
             }
           }
+        }
+      }
+
+      // ── Stage 2b: KNOWN VULNERABILITY PATTERN MATCHING ──
+      console.log(`[Stage 2b] Checking against known exploit patterns`);
+      const knownHackMatches = matchKnownHacks(source.sourceCode);
+      const unpatchedHacks = knownHackMatches.filter(m => !m.isPatched);
+      const patchedHacks = knownHackMatches.filter(m => m.isPatched);
+
+      if (patchedHacks.length > 0) {
+        console.log(`[Stage 2b] Found ${patchedHacks.length} known patterns (PATCHED):`);
+        for (const match of patchedHacks) {
+          console.log(`  \u2705 ${match.hack.name}: patched with ${match.patchEvidence?.slice(0, 50)}`);
+        }
+      }
+
+      if (unpatchedHacks.length > 0) {
+        console.log(`[Stage 2b] \u26A0\uFE0F Found ${unpatchedHacks.length} UNPATCHED known vulnerability patterns:`);
+        for (const match of unpatchedHacks) {
+          console.log(`  \u{1F6A8} ${match.hack.name} (${match.hack.severity}) - ${match.hack.exploitType}`);
+          if (match.hack.exploitValue) {
+            console.log(`      Historical exploit value: $${match.hack.exploitValue.toLocaleString()}`);
+          }
+
+          // Create HIGH-CONFIDENCE findings for unpatched known vulnerabilities
+          const knownHackFinding: Finding = {
+            id: `known-hack-${match.hack.id}-${Date.now()}`,
+            scanId: scan.id,
+            contractId: contractId,
+            detectorName: `known-${match.hack.exploitType}`,
+            tool: 'known-hacks-db',
+            severity: match.hack.severity,
+            confidence: 'high',
+            title: match.hack.name,
+            description: `${match.hack.description}\n\nMatched pattern: ${match.matchedPattern.slice(0, 100)}...`,
+            codeSnippet: match.matchedPattern.slice(0, 500),
+            filePath: null,
+            lineStart: null,
+            lineEnd: null,
+            aiAssessment: `Known vulnerability pattern from historical exploit. ${match.hack.affectedProtocols?.length ? `Previously exploited in: ${match.hack.affectedProtocols.join(', ')}` : ''}`,
+            aiIsFalsePositive: false,
+            deduplicatedGroupId: null,
+          };
+          findings.push(knownHackFinding);
         }
       }
 
