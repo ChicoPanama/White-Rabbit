@@ -187,24 +187,38 @@ class OpenRouterClient {
   }> {
     // Map model name to OpenRouter format if needed
     const model = OPENROUTER_MODELS[params.model] || params.model;
+    const controller = new AbortController();
+    const timeoutMs = 30000;
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://github.com/white-rabbit-scanner',
-        'X-Title': 'White-Rabbit Security Scanner',
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: params.max_tokens,
-        messages: [
-          { role: 'system', content: params.system },
-          ...params.messages,
-        ],
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://github.com/white-rabbit-scanner',
+          'X-Title': 'White-Rabbit Security Scanner',
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: params.max_tokens,
+          messages: [
+            { role: 'system', content: params.system },
+            ...params.messages,
+          ],
+        }),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error(`OpenRouter API timeout after ${timeoutMs}ms`);
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       const error = await response.text();

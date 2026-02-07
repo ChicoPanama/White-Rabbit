@@ -22,6 +22,7 @@ export const AI_STATS_KEY = 'wr:ai:stats';
 export interface AIJobData {
   id: string;
   createdAt: number;
+  startedAt?: number;
   chain: string;
   chainId: number;
   address: string;
@@ -135,17 +136,20 @@ export class AIQueueManager {
     }
 
     // Get highest priority job (lowest score)
-    const result = await this.redis.zpopmin(AI_QUEUE_KEY);
+    const result = timeoutSec > 0
+      ? await this.redis.bzpopmin(AI_QUEUE_KEY, timeoutSec)
+      : await this.redis.zpopmin(AI_QUEUE_KEY);
     if (!result || result.length === 0) {
       return null;
     }
 
-    const [serialized] = result;
+    const serialized = Array.isArray(result) && result.length === 3 ? result[1] : result[0];
     try {
       const job = JSON.parse(serialized) as AIJobData;
+      job.startedAt = Date.now();
 
       // Move to processing set (for crash recovery)
-      await this.redis.hset(AI_PROCESSING_KEY, job.id, serialized);
+      await this.redis.hset(AI_PROCESSING_KEY, job.id, JSON.stringify(job));
 
       return job;
     } catch (err) {
@@ -186,6 +190,7 @@ export class AIQueueManager {
       ...job,
       attempts: job.attempts + 1,
       lastError: error,
+      startedAt: undefined,
     };
 
     // Exponential backoff: delay requeue by increasing the score
@@ -334,9 +339,10 @@ export class AIQueueManager {
     for (const [jobId, serialized] of Object.entries(processing)) {
       try {
         const job = JSON.parse(serialized) as AIJobData;
+        const startedAt = job.startedAt ?? job.createdAt;
         // If job has been processing for > 5 minutes, assume it's stuck
         const stuckThreshold = 5 * 60 * 1000;
-        if (Date.now() - job.createdAt > stuckThreshold) {
+        if (Date.now() - startedAt > stuckThreshold) {
           await this.requeue(job, 'Recovered from stuck state');
           recovered++;
         }
