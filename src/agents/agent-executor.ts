@@ -222,6 +222,7 @@ function hydratePrompt(context: AgentExecutionContext): string | null {
         variables.FINDINGS = JSON.stringify(inputDeliverables);
         variables.PROTOCOL_NAME = variables.PROTOCOL_NAME ?? 'Unknown';
         variables.CONTRACT_ADDRESS = variables.CONTRACT_ADDRESS ?? '';
+        variables.CHAIN = String(metadata?.chain ?? config.target.chain ?? 'ethereum');
         break;
     }
 
