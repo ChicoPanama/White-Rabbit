@@ -2,7 +2,7 @@ import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import type { Finding, PoCResult, PoCValueResult, Severity } from '../types/index.js';
-import { CHAIN_RPC_ENV, CHAINS, SEVERITY_ORDER } from '../types/index.js';
+import { CHAIN_RPC_ENV, CHAINS, SEVERITY_ORDER, getRpcUrl } from '../types/index.js';
 import { isValidEthAddress } from '../utils/validation.js';
 
 const POC_DIR = path.resolve(process.cwd(), '.poc-workspace');
@@ -122,10 +122,10 @@ export class PoCVerifier {
   private readonly foundryAvailable: boolean;
 
   constructor() {
-    // Collect RPC URLs from environment
+    // Collect RPC URLs from environment using new multi-name support
     this.rpcUrls = new Map();
-    for (const [chain, envVar] of Object.entries(CHAIN_RPC_ENV)) {
-      const url = process.env[envVar];
+    for (const chain of Object.keys(CHAIN_RPC_ENV)) {
+      const url = getRpcUrl(chain);
       if (url) {
         this.rpcUrls.set(chain, url);
       }
@@ -205,7 +205,7 @@ export class PoCVerifier {
         succeeded: false,
         exploitContract: null,
         forkBlockNumber: null,
-        errorMessage: `No RPC URL configured for ${chainName} (set ${CHAIN_RPC_ENV[chainName]})`,
+        errorMessage: `No RPC URL configured for ${chainName} (set ${CHAIN_RPC_ENV[chainName]?.join(' or ')})`,
         gasUsed: null,
         extractedValue: null,
       };

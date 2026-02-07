@@ -196,20 +196,49 @@ export interface FalsePositivePattern {
 
 // ── RPC Configuration ──
 
-export const CHAIN_RPC_ENV: Record<string, string> = {
-  ethereum: 'ETH_RPC_URL',
-  bsc: 'BSC_RPC_URL',
-  arbitrum: 'ARBITRUM_RPC_URL',
-  base: 'BASE_RPC_URL',
-  polygon: 'POLYGON_RPC_URL',
-  optimism: 'OPTIMISM_RPC_URL',
-  avalanche: 'AVALANCHE_RPC_URL',
-  fantom: 'FANTOM_RPC_URL',
-  linea: 'LINEA_RPC_URL',
-  scroll: 'SCROLL_RPC_URL',
-  blast: 'BLAST_RPC_URL',
-  gnosis: 'GNOSIS_RPC_URL',
+/**
+ * RPC URL environment variable names by chain.
+ * Supports both long-form (ARBITRUM_RPC_URL) and short-form (ARB_RPC_URL) conventions.
+ * The getRpcUrl helper checks both to ensure compatibility.
+ */
+export const CHAIN_RPC_ENV: Record<string, string[]> = {
+  ethereum: ['ETH_RPC_URL'],
+  bsc: ['BSC_RPC_URL'],
+  arbitrum: ['ARBITRUM_RPC_URL', 'ARB_RPC_URL'],
+  base: ['BASE_RPC_URL'],
+  polygon: ['POLYGON_RPC_URL', 'MATIC_RPC_URL'],
+  optimism: ['OPTIMISM_RPC_URL', 'OP_RPC_URL'],
+  avalanche: ['AVALANCHE_RPC_URL', 'AVAX_RPC_URL'],
+  fantom: ['FANTOM_RPC_URL', 'FTM_RPC_URL'],
+  linea: ['LINEA_RPC_URL'],
+  scroll: ['SCROLL_RPC_URL'],
+  blast: ['BLAST_RPC_URL'],
+  gnosis: ['GNOSIS_RPC_URL', 'XDAI_RPC_URL'],
+  mantle: ['MANTLE_RPC_URL'],
+  cronos: ['CRONOS_RPC_URL', 'CRO_RPC_URL'],
+  sonic: ['SONIC_RPC_URL'],
+  taiko: ['TAIKO_RPC_URL'],
+  unichain: ['UNICHAIN_RPC_URL'],
 };
+
+/**
+ * Get RPC URL for a chain, checking all supported env var names.
+ */
+export function getRpcUrl(chainName: string): string | null {
+  const envVars = CHAIN_RPC_ENV[chainName.toLowerCase()];
+  if (!envVars) return null;
+
+  for (const envVar of envVars) {
+    const url = process.env[envVar];
+    if (url) return url;
+  }
+
+  // Also check CHAIN_CONFIGS for fallback RPC
+  const chainConfig = getChainConfig(chainName);
+  if (chainConfig?.rpcUrl) return chainConfig.rpcUrl;
+
+  return null;
+}
 
 // ── Exploit Value Estimation ──
 

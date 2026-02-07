@@ -25,6 +25,7 @@ import type { Contract, Finding, VerifiedFinding, VerificationStatus, ExploitEst
 import { EXPLOIT_VALUE_THRESHOLDS } from './types/index.js';
 import { ForkHunterV2 } from './services/fork-hunter-v2.js';
 import { getProtocolContracts, getChainContracts, hasKnownContracts } from './data/protocol-contracts.js';
+import { KNOWN_HACKS, type KnownHack } from './data/known-hacks.js';
 import { capitalize } from './utils/helpers.js';
 import { isDryRun, dryRunLog, phaseStart, phaseEnd, logAiPrompt, logApiCall } from './dry-run.js';
 import { loadPrompt } from './prompt-manager.js';
@@ -67,10 +68,13 @@ export class Scanner {
     this.defillama = new DeFiLlamaClient(config.defiLlamaCacheTtlMs);
     this.slither = new SlitherAnalyzer();
     this.costTracker = new CostTracker(config.ai.maxCallsPerHour, config.ai.maxSpendPerDay);
+    this.db = new Database(config.databaseUrl);
     this.ai = new AIAnalyzer(config.anthropicApiKey, config.ai, this.costTracker, {
       useQueue: config.useAiQueue,
       redisUrl: config.redisUrl,
       rateLimitConfig: config.aiRateLimit,
+      db: this.db,
+      enableCache: true,
     });
     this.deduplicator = new FindingDeduplicator();
     this.context = new ContextService();
@@ -89,7 +93,6 @@ export class Scanner {
     );
     this.evolutionEngine = new SelfEvolutionEngine(this.patternCache);
     this.telegram = new TelegramAlertService(config.telegramBotToken, config.telegramChatId);
-    this.db = new Database(config.databaseUrl);
   }
 
   /**
@@ -171,13 +174,33 @@ export class Scanner {
       return [];
     }
 
-    // Upsert contract
+    // If this is a proxy, fetch implementation source for analysis
+    let implementationSource = source.sourceCode;
+    let implementationName = source.name;
+    let implementationCompilerVersion = source.compilerVersion;
+
+    if (source.isProxy && source.implementationAddress) {
+      console.log(`[Scanner] Proxy detected, fetching implementation ${source.implementationAddress}`);
+      const implSource = await this.etherscan.getContractSource(chainId, source.implementationAddress);
+      if (implSource) {
+        implementationSource = implSource.sourceCode;
+        implementationName = implSource.name;
+        implementationCompilerVersion = implSource.compilerVersion;
+        console.log(`[Scanner] Using implementation source: ${implSource.name} (${implSource.sourceCode.length} chars)`);
+      } else {
+        console.log(`[Scanner] Implementation source not verified, using proxy source only`);
+      }
+    }
+
+    // Upsert contract (with implementation info if proxy)
     const contractId = await this.db.upsertContract({
       address,
       chainId,
-      name: source.name,
-      sourceCode: source.sourceCode,
-      compilerVersion: source.compilerVersion,
+      name: source.isProxy && implementationName !== source.name
+        ? `${source.name} -> ${implementationName}`
+        : source.name,
+      sourceCode: implementationSource,
+      compilerVersion: implementationCompilerVersion,
       isProxy: source.isProxy,
       implementationAddress: source.implementationAddress,
     });
@@ -200,7 +223,7 @@ export class Scanner {
       // ── Stage 1: CONTEXT ──
       phaseStart('context');
       console.log(`[Stage 1] Gathering context for ${source.name || address}`);
-      const contextInfo = this.context.analyzeContext(source.sourceCode, source.name, null);
+      const contextInfo = this.context.analyzeContext(implementationSource, implementationName, null);
       if (contextInfo.isAudited) {
         console.log(`[Stage 1] Known audited protocol: ${contextInfo.knownProtocol} (by ${contextInfo.auditedBy.join(', ')})`);
       }
@@ -211,8 +234,43 @@ export class Scanner {
       // ── Stage 2: STATIC ANALYSIS ──
       phaseStart('static-analysis');
       console.log(`[Stage 2] Running Slither static analysis`);
-      const findings = await this.slither.analyze(address, chainId, source.sourceCode, source.compilerVersion);
+      const findings = await this.slither.analyze(address, chainId, implementationSource, implementationCompilerVersion);
       console.log(`[Stage 2] Slither found ${findings.length} raw findings`);
+
+      // ── Stage 2b: KNOWN HACKS PATTERN MATCHING ──
+      // Check if contract matches any known vulnerable patterns
+      const knownHackMatches = this.checkKnownHacks(implementationSource, implementationName);
+      if (knownHackMatches.length > 0) {
+        console.log(`[Stage 2b] Found ${knownHackMatches.length} known vulnerability pattern matches:`);
+        for (const match of knownHackMatches) {
+          console.log(`  ⚠️  ${match.hack.name}: ${match.hack.vulnerability.description}`);
+          console.log(`      Type: ${match.hack.vulnerability.type}, Lost: $${match.hack.amountLost.toLocaleString()}`);
+          console.log(`      Patched: ${match.isPatched ? 'YES' : 'NO'}`);
+
+          // If unpatched, add as high-priority finding
+          if (!match.isPatched) {
+            const knownHackFinding: Finding = {
+              id: `known-hack-${match.hack.id}`,
+              scanId: scan.id,
+              contractId,
+              detectorName: `known-hack:${match.hack.vulnerability.type}`,
+              tool: 'known-hacks-db',
+              severity: 'critical',
+              confidence: 'high',
+              title: `Known Vulnerability: ${match.hack.name}`,
+              description: `This contract matches the vulnerable pattern from ${match.hack.name} (${match.hack.date}). Original exploit lost $${match.hack.amountLost.toLocaleString()}. ${match.hack.vulnerability.description}`,
+              codeSnippet: null,
+              filePath: null,
+              lineStart: null,
+              lineEnd: null,
+              aiAssessment: null,
+              aiIsFalsePositive: null,
+              deduplicatedGroupId: null,
+            };
+            findings.push(knownHackFinding);
+          }
+        }
+      }
 
       // Write static analysis deliverables
       writeDeliverable(sessionId, 'static-analysis', 'slither-report.json', {
@@ -220,14 +278,17 @@ export class Scanner {
         findings: findings.map(f => ({ id: f.id, detector: f.detectorName, severity: f.severity, confidence: f.confidence })),
       });
       writeDeliverable(sessionId, 'static-analysis', 'pattern-matches.json', {
-        totalPatterns: 0, matches: [],
+        totalPatterns: knownHackMatches.length,
+        matches: knownHackMatches.map(m => ({
+          hackId: m.hack.id, name: m.hack.name, isPatched: m.isPatched,
+        })),
       });
       phaseEnd();
 
       // ── Stage 3: FALSE POSITIVE FILTERING ──
       // 3a: Local rule-based filter (free, runs before AI)
       console.log(`[Stage 3] Running local FP filter`);
-      const localResult = localFpFilter(findings, source.sourceCode);
+      const localResult = localFpFilter(findings, implementationSource);
       if (localResult.filteredCount > 0) {
         console.log(`[Stage 3] Local filter removed ${localResult.filteredCount} false positives:`);
         for (const fp of localResult.filtered) {
@@ -237,7 +298,7 @@ export class Scanner {
 
       // 3b: Context-based FP filtering
       console.log(`[Stage 3] Filtering known false positive patterns`);
-      const { real, falsePositives } = this.context.filterFalsePositives(localResult.passed, source.sourceCode);
+      const { real, falsePositives } = this.context.filterFalsePositives(localResult.passed, implementationSource);
       if (falsePositives.length > 0) {
         console.log(`[Stage 3] Context filter removed ${falsePositives.length} false positives:`);
         for (const fp of falsePositives) {
@@ -283,7 +344,7 @@ export class Scanner {
             if (group.length > 0) {
               const jobId = await this.ai.enqueueAnalysis(
                 group,
-                source.sourceCode,
+                implementationSource,
                 address,
                 chainName,
                 chainId,
@@ -302,7 +363,7 @@ export class Scanner {
           // Direct mode: make API calls immediately (legacy behavior)
           for (const [tier, group] of Object.entries(tierGroups)) {
             if (group.length > 0) {
-              const assessments = await this.ai.analyzeFindingsBatch(group, source.sourceCode, null, tier as AnalysisTier);
+              const assessments = await this.ai.analyzeFindingsBatch(group, implementationSource, null, tier as AnalysisTier);
               for (const assessment of assessments) {
                 const finding = group.find(f => f.id === assessment.findingId);
                 if (finding) {
@@ -365,7 +426,7 @@ export class Scanner {
         if (SEVERITY_ORDER[finding.severity] >= SEVERITY_ORDER['high']) {
           if (useEnhancedVerification) {
             // 4-stage wallet-based verification
-            const enhanced = await this.enhancedVerifier.verify(finding, address, chainId, source.sourceCode);
+            const enhanced = await this.enhancedVerifier.verify(finding, address, chainId, implementationSource);
             pocResult = enhanced.pocResult;
             enhancedResults.set(finding.id, enhanced);
             const stageLabel = enhanced.stage.replace(/_/g, ' ');
@@ -379,8 +440,20 @@ export class Scanner {
         }
 
         // ── Stage 5: RISK SCORING ──
-        const isFPPattern = this.context.checkFalsePositive(finding, source.sourceCode) !== null;
-        const toolsAgreeing = [finding.tool]; // Extend when more analysis tools added
+        const isFPPattern = this.context.checkFalsePositive(finding, implementationSource) !== null;
+
+        // Build list of tools that agree this is a real finding
+        const toolsAgreeing = [finding.tool];
+
+        // If AI analyzed this finding and did NOT mark it as FP, count as agreement
+        if (finding.aiAssessment && finding.aiIsFalsePositive === false) {
+          toolsAgreeing.push('ai-analyzer');
+        }
+
+        // If known-hacks DB found this pattern, count as agreement
+        if (finding.detectorName.startsWith('known-hack:')) {
+          toolsAgreeing.push('known-hacks-db');
+        }
 
         // If enhanced verification failed at wallet_sim stage, reduce confidence
         const enhancedResult = enhancedResults.get(finding.id);
@@ -452,10 +525,10 @@ export class Scanner {
           id: contractId,
           address,
           chainId,
-          name: source.name,
-          sourceCode: source.sourceCode,
+          name: implementationName,
+          sourceCode: implementationSource,
           abi: [],
-          compilerVersion: source.compilerVersion,
+          compilerVersion: implementationCompilerVersion,
           isProxy: source.isProxy,
           implementationAddress: source.implementationAddress,
           tvlUsd: null,
@@ -493,9 +566,9 @@ export class Scanner {
         // Learn patterns from each verified finding
         for (const vf of verifiedOrLikely) {
           try {
-            const fingerprint = this.patternCache.generateFingerprint(address, chainId, source.name, source.sourceCode);
+            const fingerprint = this.patternCache.generateFingerprint(address, chainId, implementationName, implementationSource);
             this.patternCache.saveFingerprint(fingerprint);
-            const pattern = this.patternCache.learnPattern(vf, address, chainId, source.sourceCode);
+            const pattern = this.patternCache.learnPattern(vf, address, chainId, implementationSource);
             console.log(`[Stage 5c] Pattern ${pattern.id.slice(0, 8)} learned (type: ${pattern.patternType}, instances: ${this.patternCache.getPatternInstances(pattern.id).length})`);
           } catch (err) {
             console.warn(`[Stage 5c] Pattern learning failed for ${vf.detectorName}: ${err instanceof Error ? err.message : String(err)}`);
@@ -513,7 +586,7 @@ export class Scanner {
           console.log(`[Stage 5c] Hunting forks for ${highValueVerified.length} high-value verified findings`);
           for (const vf of highValueVerified.slice(0, 3)) { // Max 3 fork hunts per scan
             try {
-              const result = await this.forkHunter.huntForks(vf, address, chainId, source.sourceCode, source.name);
+              const result = await this.forkHunter.huntForks(vf, address, chainId, implementationSource, implementationName);
               forkHuntResults.push(result);
               if (result.verifiedVulnerable.length > 0) {
                 console.log(`[Stage 5c] Fork hunt found ${result.verifiedVulnerable.length} vulnerable forks ($${result.totalValueAtRisk.toLocaleString()} total)`);
@@ -699,6 +772,57 @@ export class Scanner {
     console.log(`  FPs filtered: ${summary.falsePositivesFiltered}, Alerts: ${summary.alertsSent}`);
 
     return summary;
+  }
+
+  /**
+   * Check if contract matches any known vulnerable patterns from the hacks database.
+   * Returns matches with patch detection status.
+   */
+  private checkKnownHacks(sourceCode: string, contractName: string): Array<{
+    hack: KnownHack;
+    isPatched: boolean;
+    matchedPatterns: string[];
+  }> {
+    const matches: Array<{ hack: KnownHack; isPatched: boolean; matchedPatterns: string[] }> = [];
+    const normalizedName = contractName.toLowerCase();
+    const normalizedSource = sourceCode.toLowerCase();
+
+    for (const hack of KNOWN_HACKS) {
+      const matchedPatterns: string[] = [];
+
+      // Check vulnerability code patterns
+      for (const pattern of hack.vulnerability.codePatterns) {
+        if (pattern.test(sourceCode)) {
+          matchedPatterns.push(pattern.source.slice(0, 50) + '...');
+        }
+      }
+
+      // Check name keywords (looser matching)
+      const hasNameMatch = hack.vulnerability.nameKeywords.some(kw =>
+        normalizedName.includes(kw.toLowerCase()) || normalizedSource.includes(kw.toLowerCase()),
+      );
+
+      // Only count as match if we have code pattern matches OR strong name + detector correlation
+      if (matchedPatterns.length === 0 && !hasNameMatch) continue;
+      if (matchedPatterns.length === 0 && hasNameMatch) {
+        // Name match only - check if any of the detectors would fire
+        // This is a weaker signal, skip for now
+        continue;
+      }
+
+      // Check if patched
+      let isPatched = false;
+      for (const patchPattern of hack.patch.codePatterns) {
+        if (patchPattern.test(sourceCode)) {
+          isPatched = true;
+          break;
+        }
+      }
+
+      matches.push({ hack, isPatched, matchedPatterns });
+    }
+
+    return matches;
   }
 
   /**
