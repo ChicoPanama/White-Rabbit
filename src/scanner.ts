@@ -5,6 +5,7 @@ import { SlitherAnalyzer } from './analyzers/slither.js';
 import { AIAnalyzer } from './analyzers/ai-analyzer.js';
 import { FindingDeduplicator } from './analyzers/deduplicator.js';
 import { LocalFPFilter } from './analyzers/local-fp-filter.js';
+import { ParameterBoundsChecker } from './analyzers/parameter-bounds.js';
 import { ContextService } from './services/context.js';
 import { PoCVerifier } from './services/verifier.js';
 import { ExploitEstimator, formatExploitValue, exploitValueIcon, estimateBounty } from './services/exploitEstimator.js';
@@ -41,6 +42,7 @@ export class Scanner {
   private readonly ai: AIAnalyzer;
   private readonly deduplicator: FindingDeduplicator;
   private readonly localFpFilter: LocalFPFilter;
+  private readonly boundsChecker: ParameterBoundsChecker;
   private readonly context: ContextService;
   private readonly verifier: PoCVerifier;
   private readonly exploitEstimator: ExploitEstimator;
@@ -62,6 +64,7 @@ export class Scanner {
     this.ai = new AIAnalyzer(config.anthropicApiKey);
     this.deduplicator = new FindingDeduplicator();
     this.localFpFilter = new LocalFPFilter();
+    this.boundsChecker = new ParameterBoundsChecker();
     this.context = new ContextService();
     this.verifier = new PoCVerifier();
     this.exploitEstimator = new ExploitEstimator();
@@ -254,8 +257,19 @@ export class Scanner {
         console.log(`[Stage 3] AI filtered ${aiFiltered} additional false positives`);
       }
 
+      // Parameter bounds check for arithmetic findings (SSV lesson)
+      console.log(`[Stage 3] Checking parameter bounds for arithmetic findings`);
+      const { findings: boundsChecked, boundsChecks } = this.boundsChecker.filterFindings(afterAiFilter, source.sourceCode);
+      const unachievable = boundsChecks.filter(c => !c.result.isAchievable);
+      if (unachievable.length > 0) {
+        console.log(`[Stage 3] Downgraded ${unachievable.length} findings with unachievable trigger values:`);
+        for (const { finding: f, result: r } of unachievable) {
+          console.log(`  \u26A0\uFE0F ${f.detectorName}: ${r.reason}`);
+        }
+      }
+
       // Deduplicate
-      const deduplicated = this.deduplicator.deduplicate(afterAiFilter);
+      const deduplicated = this.deduplicator.deduplicate(boundsChecked);
       console.log(`[Stage 3] ${deduplicated.length} findings after deduplication`);
 
       // ── Stage 4: VERIFICATION (PoC on fork + optional wallet stages) ──
