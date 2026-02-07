@@ -52,7 +52,7 @@ const GLOBAL_RULES: FilterRule[] = [
   // Assembly usage that is standard safe patterns
   {
     detector: /assembly/,
-    safePattern: /assembly\s*\{[^}]*(?:mload|mstore|returndatasize|returndatacopy|extcodesize|chainid|calldataload|calldatasize|calldatacopy)[^}]*\}/s,
+    safePattern: /assembly\s*\{[\s\S]*?(?:mload|mstore|returndatasize|returndatacopy|extcodesize|chainid|calldataload|calldatasize|calldatacopy)[\s\S]*?\}/,
     reason: 'Standard safe assembly pattern (memory ops, calldata reads)',
   },
 

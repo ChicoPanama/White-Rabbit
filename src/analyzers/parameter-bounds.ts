@@ -62,10 +62,10 @@ const PARAMETER_PATTERNS = [
  * Patterns to find setter functions and their constraints.
  */
 const SETTER_PATTERNS = [
-  /function\s+(set\w+)\s*\([^)]*\b(\w+)\b[^)]*\)[^{]*\{([^}]+)\}/gs,
-  /function\s+(update\w+)\s*\([^)]*\b(\w+)\b[^)]*\)[^{]*\{([^}]+)\}/gs,
-  /function\s+(initialize)\s*\([^)]*\)[^{]*\{([^}]+)\}/gs,
-  /constructor\s*\([^)]*\)[^{]*\{([^}]+)\}/gs,
+  /function\s+(set\w+)\s*\([^)]*\b(\w+)\b[^)]*\)[^{]*\{([^}]+)\}/g,
+  /function\s+(update\w+)\s*\([^)]*\b(\w+)\b[^)]*\)[^{]*\{([^}]+)\}/g,
+  /function\s+(initialize)\s*\([^)]*\)[^{]*\{([^}]+)\}/g,
+  /constructor\s*\([^)]*\)[^{]*\{([^}]+)\}/g,
 ];
 
 /**
