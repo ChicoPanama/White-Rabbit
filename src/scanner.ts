@@ -4,6 +4,7 @@ import { DeFiLlamaClient } from './clients/defillama.js';
 import { SlitherAnalyzer } from './analyzers/slither.js';
 import { AIAnalyzer } from './analyzers/ai-analyzer.js';
 import { FindingDeduplicator } from './analyzers/deduplicator.js';
+import { LocalFPFilter } from './analyzers/local-fp-filter.js';
 import { ContextService } from './services/context.js';
 import { PoCVerifier } from './services/verifier.js';
 import { ExploitEstimator, formatExploitValue, exploitValueIcon, estimateBounty } from './services/exploitEstimator.js';
@@ -38,6 +39,7 @@ export class Scanner {
   private readonly slither: SlitherAnalyzer;
   private readonly ai: AIAnalyzer;
   private readonly deduplicator: FindingDeduplicator;
+  private readonly localFpFilter: LocalFPFilter;
   private readonly context: ContextService;
   private readonly verifier: PoCVerifier;
   private readonly exploitEstimator: ExploitEstimator;
@@ -58,6 +60,7 @@ export class Scanner {
     this.slither = new SlitherAnalyzer();
     this.ai = new AIAnalyzer(config.anthropicApiKey);
     this.deduplicator = new FindingDeduplicator();
+    this.localFpFilter = new LocalFPFilter();
     this.context = new ContextService();
     this.verifier = new PoCVerifier();
     this.exploitEstimator = new ExploitEstimator();
@@ -188,12 +191,14 @@ export class Scanner {
       }
 
       // ── Stage 3: FALSE POSITIVE FILTERING ──
-      console.log(`[Stage 3] Filtering known false positive patterns`);
-      const { real, falsePositives } = this.context.filterFalsePositives(findings, source.sourceCode);
+      // Use per-function FP filter (checks if the SPECIFIC function has protection)
+      console.log(`[Stage 3] Filtering false positives (per-function analysis)`);
+      const { real, falsePositives } = this.localFpFilter.filterFindings(findings, source.sourceCode);
       if (falsePositives.length > 0) {
         console.log(`[Stage 3] Filtered ${falsePositives.length} false positives:`);
         for (const fp of falsePositives) {
-          console.log(`  - ${fp.finding.detectorName}: ${fp.reason}`);
+          const protection = fp.protection ? ` [${fp.protection}]` : '';
+          console.log(`  - ${fp.finding.detectorName}: ${fp.reason}${protection}`);
         }
       }
 
