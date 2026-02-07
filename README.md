@@ -37,7 +37,12 @@ Stage 5: RISK SCORING          Stage 6: SMART ALERTING
 | **Exploitable Value Estimation** | Estimates real extractable value (TVL != exploitable) |
 | **Smart Alerts** | Telegram alerts only for verified/likely-real findings above $25K |
 | **20+ EVM Chains** | Ethereum, Base, Arbitrum, Polygon, Optimism, BNB Chain, and 15+ more |
-| **Fork Detection** | Finds vulnerable forks across all chains when one exploit is discovered |
+| **Fork Cascade Hunting** | Finds a vuln on one chain, then hunts all 20+ chains for vulnerable forks |
+| **Cross-Chain PoC Adaptation** | Automatically adapts PoC exploits across chains with token/address mapping |
+| **Immunefi Report Generation** | Generates submission-ready reports with severity mapping and bounty estimates |
+| **Multi-Agent Architecture** | 18+ specialized agents with parallel execution and structured deliverables |
+| **Temporal Workflow Orchestration** | Durable, queryable scan pipelines with automatic retry and progress tracking |
+| **Structured Error Handling** | Classified errors with retry policies, circuit breakers, and Temporal integration |
 | **Pattern Learning** | SQLite-backed pattern cache learns from scan outcomes |
 | **Self-Evolution** | Autonomous pattern refinement and FP accuracy improvement |
 | **Hack Database** | 430+ historical DeFi hacks from DeFiLlama for pattern matching |
@@ -142,7 +147,18 @@ npx tsx src/cli.ts findings --limit 20
 
 ```
 White-Rabbit/
-├── src/                   # Core scanner source code
+├── src/                   # Core scanner source code (see Architecture below)
+├── prompts/               # Vulnerability-specific prompt templates
+│   ├── vuln-reentrancy.txt    # Reentrancy analysis prompt
+│   ├── vuln-oracle.txt        # Oracle manipulation prompt
+│   ├── report-immunefi.txt    # Immunefi report generation prompt
+│   └── ...                    # 9 vuln templates + 2 shared partials
+├── configs/               # YAML configuration files
+│   ├── default.yaml           # Default scan configuration
+│   ├── schema.json            # JSON Schema for config validation
+│   └── micro-protocol.yaml    # Lightweight protocol config
+├── fixtures/              # Sample data for testing
+├── data/                  # Immunefi program cache
 ├── docs/                  # Documentation & guides
 │   ├── ARMY_COMMAND.md        # Army coordination commands
 │   ├── ARMY_DEPLOYMENT.md     # Deployment guide
@@ -150,12 +166,6 @@ White-Rabbit/
 │   ├── RPC_CONFIGURATION.md   # RPC setup guide
 │   └── army-command-center.md # Command center docs
 ├── research/              # Research notes & analysis
-│   ├── exploit-research.md    # Exploit research notes
-│   ├── exploiter-study.md     # Exploiter behavior analysis
-│   ├── mev-exploiter-analysis.md
-│   ├── hunt-plan.md           # Hunting strategy
-│   ├── hunt-targets.md        # Target protocols
-│   └── hunting-log.json       # Scan results log
 ├── tools/                 # Standalone utilities
 │   ├── forensics-engine.js    # Transaction forensics
 │   └── mev-detector.js        # MEV detection tool
@@ -163,10 +173,6 @@ White-Rabbit/
 │   ├── skills/                # Bot skills (white-rabbit, etc.)
 │   ├── templates/             # Agent templates
 │   └── clawdbot.example.json  # Config template
-├── cache/                 # SQLite caching system
-├── analysis/              # Analysis scripts
-├── exploits/              # PoC exploit templates
-├── contracts/             # Test contracts
 ├── migrations/            # Database migrations
 ├── scripts/               # Bash wrapper scripts
 └── skills/                # Legacy skill definitions
@@ -182,15 +188,61 @@ src/
 ├── config.ts              # Environment configuration
 ├── scanner.ts             # 6-stage pipeline orchestrator
 ├── database.ts            # PostgreSQL persistence
+├── config-parser.ts       # YAML config with JSON Schema validation
+├── prompt-manager.ts      # Template loading with variable substitution
+├── queue-validation.ts    # 5-phase pipeline validation
+├── deliverables-manager.ts # Session-scoped structured output per scan
+├── dry-run.ts             # DRY_RUN/PIPELINE_TESTING mode
 ├── types/index.ts         # Shared type definitions
 ├── data/
 │   ├── raw-hacks.json     # 430+ historical hack entries
 │   ├── enriched-hacks.json
 │   ├── known-hacks.ts     # Generated hack database module
 │   └── protocol-contracts.ts  # Known protocol contract addresses
+├── agents/                # Multi-agent architecture
+│   ├── agent-types.ts     # Agent definition, execution context, result types
+│   ├── agent-registry.ts  # 18+ agent definitions across 5 pipeline phases
+│   ├── agent-executor.ts  # Agent execution with deliverable I/O
+│   ├── session-manager.ts # Parallel execution planning and orchestration
+│   ├── findings-consolidator.ts  # Cross-agent finding dedup and ranking
+│   └── agent-logger.ts    # Session metrics and execution logging
+├── errors/                # Structured error handling
+│   ├── error-types.ts     # Error class hierarchy (Network, AI, Config, etc.)
+│   ├── error-classifier.ts # Automatic error classification from raw errors
+│   ├── retry-policy.ts    # Per-category retry with exponential backoff
+│   ├── circuit-breaker.ts # Circuit breaker for external service protection
+│   └── temporal-errors.ts # Temporal SDK error mapping
+├── reporting/             # Immunefi bug bounty submission generation
+│   ├── immunefi-types.ts  # Submission schema and program types
+│   ├── severity-mapper.ts # Internal severity → Immunefi classification
+│   ├── poc-formatter.ts   # PoC sanitization and formatting
+│   ├── report-generator.ts # Markdown/JSON report generation
+│   ├── recommendation-engine.ts  # Auto-generated fix recommendations
+│   ├── report-pipeline.ts # Pipeline integration with deliverables
+│   └── program-lookup.ts  # Immunefi program matching and scope validation
+├── hunt-forks/            # Cross-chain fork cascade hunting
+│   ├── chain-registry.ts  # 20+ EVM chain registry with RPCs and explorers
+│   ├── bytecode-matcher.ts # Bytecode signature extraction and similarity
+│   ├── fork-hunter.ts     # Multi-chain parallel fork search
+│   ├── cascade-scanner.ts # Automatic fork vulnerability verification
+│   ├── poc-adapter.ts     # Cross-chain PoC adaptation with token mapping
+│   ├── cascade-report.ts  # Cross-chain report with submission plan
+│   └── tvl-lookup.ts      # DeFiLlama TVL-based fork prioritization
+├── temporal/              # Temporal workflow orchestration
+│   ├── shared.ts          # Shared types (V8 sandbox safe)
+│   ├── workflows.ts       # Main scan workflow (5 phases)
+│   ├── activities.ts      # Activity implementations (Node.js)
+│   ├── cascade-shared.ts  # Cascade hunt shared types
+│   ├── cascade-workflow.ts # Cascade hunt workflow (5 phases)
+│   ├── cascade-activities.ts # Cascade hunt activities
+│   ├── worker.ts          # Temporal worker bootstrap
+│   ├── client.ts          # Temporal client factory
+│   ├── orchestrator.ts    # Legacy/Temporal routing bridge
+│   ├── query.ts           # Workflow progress querying
+│   └── start-scan.ts      # CLI scan launcher
 ├── analyzers/
 │   ├── slither.ts         # Slither subprocess runner
-│   ├── ai-analyzer.ts     # Claude AI analysis
+│   ├── ai-analyzer.ts     # Multi-provider AI analysis
 │   ├── deduplicator.ts    # Cross-tool finding dedup
 │   └── local-fp-filter.ts # Local FP pattern matching
 ├── services/
@@ -200,8 +252,8 @@ src/
 │   ├── crypto.ts          # AES-256-GCM wallet encryption
 │   ├── exploitEstimator.ts # Exploitable value estimation
 │   ├── exploitVerifier.ts # 4-stage wallet-based verification
-│   ├── forkHunter.ts      # Cross-chain fork detection
-│   ├── fork-hunter-v2.ts  # Fork detection v2
+│   ├── forkHunter.ts      # Cross-chain fork detection (legacy)
+│   ├── fork-hunter-v2.ts  # Fork detection v2 (legacy)
 │   ├── patternCache.ts    # SQLite pattern learning
 │   ├── selfEvolution.ts   # Self-improvement engine
 │   ├── state.ts           # File-based state persistence
@@ -215,6 +267,13 @@ src/
 ├── queue/
 │   ├── queues.ts          # BullMQ queue definitions
 │   └── workers.ts         # Worker processors
+├── tests/                 # Test suites (Node.js built-in test runner)
+│   ├── smoke.test.ts      # Core module smoke tests
+│   ├── agents.test.ts     # Multi-agent architecture tests
+│   ├── temporal.test.ts   # Temporal workflow tests
+│   ├── errors.test.ts     # Error handling tests
+│   ├── reporting.test.ts  # Immunefi reporting tests
+│   └── hunt-forks.test.ts # Fork cascade hunting tests
 └── utils/
     ├── helpers.ts         # Utilities
     └── validation.ts      # Input validation
@@ -294,6 +353,140 @@ npm run build:hacks:scrape   # Scrape from DeFiLlama
 npm run build:hacks:extract  # Extract patterns
 npm run build:hacks:generate # Generate known-hacks.ts
 ```
+
+## Fork Cascade Hunting
+
+When a vulnerability is found on one chain, the cascade system automatically hunts all 20+ EVM chains for forks of the same contract.
+
+```
+Original Vuln Found (Ethereum)
+        │
+        ▼
+  Bytecode Extraction → Signature (function selectors, normalized hash)
+        │
+        ▼
+  Fork Discovery (parallel across 20 chains)
+        │    └─ Etherscan V2 search + bytecode comparison
+        ▼
+  Cascade Verification
+        │    └─ Source analysis: patch indicators vs vulnerability indicators
+        ▼
+  PoC Adaptation
+        │    └─ Replace addresses, tokens (WETH→WBNB), RPC endpoints
+        ▼
+  Report Generation → Submission plan with TVL-ranked priorities
+```
+
+### Bytecode Similarity
+
+Contracts are compared using:
+- **Function selector overlap** (Jaccard index, 70% weight) — extracted from PUSH4 opcodes
+- **Code size similarity** (30% weight) — normalized for metadata
+- **Normalized hash** — bytecode with zeroed immutables for exact fork detection
+
+| Score | Classification |
+|-------|---------------|
+| 95-100 | Exact fork |
+| 80-94 | Modified fork |
+| 60-79 | Related |
+| < 60 | Unrelated |
+
+### Fork Verification
+
+Each discovered fork is classified:
+- **Vulnerable** — No patch indicators, vuln indicators present, or exact bytecode match
+- **Patched** — Security patterns added (ReentrancyGuard, AccessControl, TWAP, etc.)
+- **Uncertain** — Mixed signals or bytecode-only analysis
+
+### Cross-Chain PoC Adaptation
+
+The PoC adapter maps well-known addresses across chains:
+- Wrapped native tokens (WETH, WBNB, WMATIC, etc.)
+- Stablecoins (USDC, USDT per chain)
+- DEX routers (Uniswap V2/V3, PancakeSwap, SpookySwap)
+- Lending pools (AAVE V3 per chain)
+
+## Immunefi Report Generation
+
+Automatically generates submission-ready bug bounty reports:
+
+```
+Findings → Severity Mapping → PoC Formatting → Report Generation
+                │                    │                  │
+                ▼                    ▼                  ▼
+         Immunefi severity     Sanitized PoC      Markdown + JSON
+         + CWE mapping         (no private keys)  + per-finding reports
+                │                                       │
+                ▼                                       ▼
+         Recommendation Engine              Submission Checklist
+         (auto-generated fixes)             + Program Matching
+```
+
+- Maps internal severity to Immunefi classification (Critical/High/Medium/Low)
+- Sanitizes PoC code (removes private keys, API keys, internal URLs)
+- Generates fix recommendations per vulnerability type
+- Matches findings to Immunefi programs by contract address
+- Estimates bounty ranges based on program max bounty and severity
+
+## Multi-Agent Architecture
+
+18+ specialized agents organized across 5 pipeline phases:
+
+| Phase | Agents | Purpose |
+|-------|--------|---------|
+| Discovery | `discovery-source`, `discovery-context` | Fetch source code and audit context |
+| Static Analysis | `static-slither` | Run Slither detectors |
+| Vulnerability Hypothesis | `vuln-reentrancy`, `vuln-arithmetic`, `vuln-access-control`, `vuln-oracle`, `vuln-flash-loan`, `vuln-logic` | Per-vuln-type AI analysis |
+| Verification | `verify-reentrancy`, `verify-arithmetic`, `verify-access-control`, `verify-oracle`, `verify-flash-loan`, `verify-logic` | PoC verification per type |
+| Report | `report-consolidate`, `report-immunefi` | Finding consolidation and report generation |
+
+Agents within the same phase run in parallel. Each agent has:
+- A prompt template (`prompts/` directory) with variable substitution
+- Required input deliverables from prior phases
+- Structured output deliverables for downstream agents
+- Configurable retry, timeout, and priority settings
+
+## Temporal Workflow Orchestration
+
+Scan pipelines can run as durable Temporal workflows with automatic retry, progress querying, and failure recovery.
+
+```bash
+# Set orchestrator mode
+export ORCHESTRATOR=temporal   # or 'legacy' (default)
+
+# Start Temporal infrastructure
+docker compose -f docker-compose.temporal.yml up -d
+
+# Start Temporal worker
+npx tsx src/temporal/worker.ts
+
+# Launch a scan
+npx tsx src/temporal/start-scan.ts --address 0x... --chain ethereum
+
+# Query progress
+npx tsx src/temporal/query.ts --workflow-id scan-<session-id>
+```
+
+Two workflow types:
+- **Scan workflow** — 5 phases: discovery → static analysis → vulnerability hypothesis → verification → report
+- **Cascade workflow** — 5 phases: bytecode extraction → fork discovery → cascade verification → PoC adaptation → report generation
+
+## Error Handling
+
+Structured error classification with automatic retry policies:
+
+| Error Category | Retry? | Examples |
+|----------------|--------|----------|
+| Network | Yes (3x, exponential backoff) | Timeouts, DNS failures, 5xx |
+| RateLimit | Yes (after cooldown) | 429 responses, quota exceeded |
+| AI | Yes (2x with model rotation) | Provider errors, token limits |
+| Config | No | Missing env vars, invalid YAML |
+| Validation | No | Bad addresses, schema violations |
+| Slither | Yes (1x) | Compilation errors, timeouts |
+| Database | Yes (2x) | Connection drops, deadlocks |
+| Budget | No | Cost limit exceeded |
+
+Circuit breakers protect external services — after 5 consecutive failures, the circuit opens for 60 seconds before allowing half-open probes.
 
 ## AI Memory System
 
@@ -425,6 +618,25 @@ White-Rabbit integrates with [Clawdbot](https://clawd.bot) for Telegram-controll
 
 See `.env.example` for the full list including wallet, search, and additional chain RPC variables.
 
+## Testing
+
+Tests use the Node.js built-in test runner (`node:test` + `node:assert`):
+
+```bash
+npm test
+```
+
+| Suite | Tests | Coverage |
+|-------|-------|----------|
+| `smoke.test.ts` | Core module smoke tests | Config, types, helpers |
+| `agents.test.ts` | Multi-agent architecture | Registry, executor, session manager, consolidator |
+| `temporal.test.ts` | Temporal workflows | Shared types, activities, orchestrator, docker |
+| `errors.test.ts` | Error handling | Classification, retry policies, circuit breakers |
+| `reporting.test.ts` | Immunefi reporting | Severity mapping, PoC formatting, report generation |
+| `hunt-forks.test.ts` | Fork cascade hunting | Chain registry, bytecode matching, PoC adapter, TVL |
+
+218 tests across 44 suites.
+
 ## Docker
 
 ```bash
@@ -432,6 +644,14 @@ docker compose up -d
 ```
 
 This starts the scanner, worker, PostgreSQL, and Redis. See `docker-compose.yml` for configuration.
+
+### Temporal Infrastructure
+
+```bash
+docker compose -f docker-compose.temporal.yml up -d
+```
+
+This starts Temporal Server, PostgreSQL (for Temporal), and the Temporal Web UI at `http://localhost:8233`.
 
 ## Responsible Disclosure
 
