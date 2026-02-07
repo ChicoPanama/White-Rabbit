@@ -4,7 +4,8 @@ import type { Config } from '../config.js';
 import { EtherscanClient } from '../clients/etherscan.js';
 import { DeFiLlamaClient } from '../clients/defillama.js';
 import { SlitherAnalyzer } from '../analyzers/slither.js';
-import { AIAnalyzer } from '../analyzers/ai-analyzer.js';
+import { AIAnalyzer, getAnalysisTier } from '../analyzers/ai-analyzer.js';
+import type { AnalysisTier } from '../analyzers/ai-analyzer.js';
 import { FindingDeduplicator } from '../analyzers/deduplicator.js';
 import { TelegramAlertService } from '../alerts/telegram.js';
 import { CHAINS, SEVERITY_ORDER } from '../types/index.js';
@@ -16,7 +17,11 @@ export function createWorkers(config: Config) {
   const etherscan = new EtherscanClient(config.etherscanApiKey, config.etherscanRequestIntervalMs);
   const defillama = new DeFiLlamaClient(config.defiLlamaCacheTtlMs);
   const slither = new SlitherAnalyzer();
-  const ai = new AIAnalyzer(config.anthropicApiKey);
+  const ai = new AIAnalyzer(config.anthropicApiKey, config.ai, undefined, {
+    useQueue: config.useAiQueue,
+    redisUrl: config.redisUrl,
+    rateLimitConfig: config.aiRateLimit,
+  });
   const deduplicator = new FindingDeduplicator();
   const telegram = new TelegramAlertService(config.telegramBotToken, config.telegramChatId);
 
@@ -89,16 +94,44 @@ export function createWorkers(config: Config) {
             f => SEVERITY_ORDER[f.severity] >= SEVERITY_ORDER['high']
           );
           if (significant.length > 0) {
-            const assessments = await ai.analyzeFindingsBatch(
-              significant,
-              contract!.sourceCode,
-              contract!.protocolName,
-            );
-            for (const assessment of assessments) {
-              const finding = significant.find(f => f.id === assessment.findingId);
-              if (finding) {
-                finding.aiAssessment = assessment.assessment;
-                finding.aiIsFalsePositive = assessment.isFalsePositive;
+            // Queue mode: enqueue for async processing
+            if (ai.isQueueMode) {
+              // Group by tier
+              const tierGroups: Record<string, Finding[]> = { sonnet: [], haiku: [] };
+              for (const f of significant) {
+                const tierDecision = getAnalysisTier(f.severity, null, false, config.ai);
+                if (tierDecision.tier !== 'none') {
+                  tierGroups[tierDecision.tier].push(f);
+                }
+              }
+
+              for (const [tier, group] of Object.entries(tierGroups)) {
+                if (group.length > 0) {
+                  await ai.enqueueAnalysis(
+                    group,
+                    contract!.sourceCode,
+                    address,
+                    chainName,
+                    chainId,
+                    tier as AnalysisTier,
+                    contract!.protocolName ?? undefined,
+                  );
+                  console.log(`[Analysis] Enqueued ${group.length} findings for AI (tier: ${tier})`);
+                }
+              }
+            } else {
+              // Direct mode: make API calls immediately
+              const assessments = await ai.analyzeFindingsBatch(
+                significant,
+                contract!.sourceCode,
+                contract!.protocolName,
+              );
+              for (const assessment of assessments) {
+                const finding = significant.find(f => f.id === assessment.findingId);
+                if (finding) {
+                  finding.aiAssessment = assessment.assessment;
+                  finding.aiIsFalsePositive = assessment.isFalsePositive;
+                }
               }
             }
           }
@@ -176,17 +209,20 @@ export function createWorkers(config: Config) {
         discoveryWorker.close(),
         analysisWorker.close(),
         alertWorker.close(),
+        ai.close(),
         db.close(),
       ]);
     },
   };
 }
 
-function parseRedisUrl(url: string): { host: string; port: number } {
+function parseRedisUrl(url: string): { host: string; port: number; password?: string; username?: string } {
   const parsed = new URL(url);
   return {
     host: parsed.hostname,
     port: Number(parsed.port) || 6379,
+    ...(parsed.password ? { password: decodeURIComponent(parsed.password) } : {}),
+    ...(parsed.username ? { username: decodeURIComponent(parsed.username) } : {}),
   };
 }
 

@@ -1,318 +1,255 @@
 /**
- * Local False Positive Filter
+ * Local False Positive Filter - Rule-based FP detection that runs BEFORE
+ * any AI calls, eliminating obvious false positives at zero cost.
  *
- * Critical fix: The previous FP filter checked if patterns like ReentrancyGuard
- * exist ANYWHERE in the contract. This means if ANY function has the guard,
- * ALL reentrancy findings were filtered out — even for unprotected functions.
+ * These patterns are deterministic and well-understood — no AI needed.
  *
- * This filter checks if the SPECIFIC function flagged in the finding has
- * the relevant protection modifier.
+ * CRITICAL FIX: For modifier-based protections (nonReentrant, onlyOwner),
+ * we now check if the SPECIFIC function flagged has the modifier, not just
+ * if the pattern exists ANYWHERE in the contract. This prevents masking
+ * real vulnerabilities in unprotected functions.
  */
 
 import type { Finding } from '../types/index.js';
 
-export interface FPFilterResult {
-  isFalsePositive: boolean;
-  reason: string | null;
-  detectedProtection: string | null;
-}
-
-interface PerFunctionFPPattern {
-  detector: RegExp;
-  modifierPattern: RegExp;
+interface FilterRule {
+  /** Slither detector name (or prefix) this rule targets */
+  detector: string | RegExp;
+  /** Code pattern that, if present, means the finding is a false positive */
+  safePattern: RegExp;
+  /** Human-readable explanation */
   reason: string;
-  protectionName: string;
+  /** If true, check only the specific function, not the entire contract */
+  perFunction?: boolean;
 }
 
 /**
- * Per-function false positive patterns.
- * These only trigger FP if the SPECIFIC flagged function has the modifier.
+ * Global rules: These patterns, if found ANYWHERE in the contract, mean the
+ * finding is likely a false positive. Good for contract-wide patterns.
  */
-const PER_FUNCTION_FP_PATTERNS: PerFunctionFPPattern[] = [
+const GLOBAL_RULES: FilterRule[] = [
+  // Reentrancy on view/pure functions — impossible to exploit
   {
-    detector: /^reentrancy/i,
-    modifierPattern: /\bnonReentrant\b/,
-    reason: 'Function is protected by nonReentrant modifier',
-    protectionName: 'nonReentrant',
+    detector: /^reentrancy/,
+    safePattern: /function\s+\w+\s*\([^)]*\)\s+(?:external|public)\s+(?:view|pure)/,
+    reason: 'Reentrancy on view/pure function (no state changes)',
   },
+
+  // Uninitialized state in upgradeable contracts with initializer
   {
-    detector: /^reentrancy/i,
-    modifierPattern: /\block\s*\(\s*\)/,
-    reason: 'Function uses explicit lock pattern',
-    protectionName: 'lock()',
+    detector: /uninitialized/,
+    safePattern: /initializer|Initializable|__init\(/,
+    reason: 'Upgradeable contract with proper initializer pattern',
   },
+
+  // Timestamp dependence in non-critical paths (logging, events)
   {
-    detector: /arbitrary-send-eth/i,
-    modifierPattern: /\bonlyOwner\b/,
-    reason: 'Function is restricted to owner',
-    protectionName: 'onlyOwner',
+    detector: 'timestamp',
+    safePattern: /emit\s+\w+.*block\.timestamp|lastUpdated\s*=\s*block\.timestamp/,
+    reason: 'Timestamp used for non-critical bookkeeping only',
   },
+
+  // Assembly usage that is standard safe patterns
   {
-    detector: /arbitrary-send-eth/i,
-    modifierPattern: /\bonlyAdmin\b/,
-    reason: 'Function is restricted to admin',
-    protectionName: 'onlyAdmin',
+    detector: /assembly/,
+    safePattern: /assembly\s*\{[^}]*(?:mload|mstore|returndatasize|returndatacopy|extcodesize|chainid|calldataload|calldatasize|calldatacopy)[^}]*\}/s,
+    reason: 'Standard safe assembly pattern (memory ops, calldata reads)',
   },
+
+  // Low-level call with checked return value
   {
-    detector: /arbitrary-send-eth/i,
-    modifierPattern: /\bonlyRole\s*\([^)]+\)/,
-    reason: 'Function is role-restricted',
-    protectionName: 'onlyRole',
+    detector: 'low-level-calls',
+    safePattern: /\(bool\s+success[^)]*\)\s*=\s*\w+\.call|require\s*\(\s*success/,
+    reason: 'Low-level call with return value check',
   },
+
+  // Controlled delegatecall in known proxy patterns
   {
-    detector: /arbitrary-send-erc20/i,
-    modifierPattern: /\bonlyOwner\b/,
-    reason: 'Function is restricted to owner',
-    protectionName: 'onlyOwner',
+    detector: 'controlled-delegatecall',
+    safePattern: /ERC1967|TransparentUpgradeableProxy|UUPSUpgradeable|BeaconProxy/,
+    reason: 'Delegatecall in standard proxy pattern',
   },
+
+  // Oracle manipulation with TWAP protection
   {
-    detector: /arbitrary-send-erc20/i,
-    modifierPattern: /\bonlyAdmin\b/,
-    reason: 'Function is restricted to admin',
-    protectionName: 'onlyAdmin',
+    detector: /oracle/,
+    safePattern: /TWAP|twap|timeWeightedAverage|observe\s*\(|consult\s*\(/,
+    reason: 'Oracle protected by TWAP mechanism',
   },
+
+  // Missing zero-address check on constructor-only params
   {
-    detector: /controlled-delegatecall/i,
-    modifierPattern: /\bonlyOwner\b/,
-    reason: 'Delegatecall is restricted to owner',
-    protectionName: 'onlyOwner',
-  },
-  {
-    detector: /controlled-delegatecall/i,
-    modifierPattern: /\b_checkProxy\b/,
-    reason: 'Delegatecall is part of proxy pattern',
-    protectionName: '_checkProxy',
-  },
-  {
-    detector: /suicidal/i,
-    modifierPattern: /\bonlyOwner\b/,
-    reason: 'Self-destruct is restricted to owner',
-    protectionName: 'onlyOwner',
+    detector: 'missing-zero-check',
+    safePattern: /constructor\s*\(/,
+    reason: 'Zero-check in constructor (deploy-time only, not exploitable post-deploy)',
   },
 ];
 
 /**
- * Global FP patterns that apply contract-wide.
- * These are patterns where presence ANYWHERE in the contract means the
- * finding is very unlikely to be exploitable.
+ * Per-function rules: These patterns must be checked on the SPECIFIC function
+ * flagged in the finding, not the entire contract. This prevents false negatives
+ * where one protected function masks an unprotected vulnerable function.
  */
-interface GlobalFPPattern {
-  detector: RegExp;
-  globalPattern: RegExp;
-  reason: string;
-}
+const PER_FUNCTION_RULES: FilterRule[] = [
+  // Reentrancy with OpenZeppelin ReentrancyGuard - CHECK SPECIFIC FUNCTION
+  {
+    detector: /^reentrancy/,
+    safePattern: /\bnonReentrant\b/,
+    reason: 'Function protected by nonReentrant modifier',
+    perFunction: true,
+  },
 
-const GLOBAL_FP_PATTERNS: GlobalFPPattern[] = [
+  // Arbitrary-send with onlyOwner/onlyRole - CHECK SPECIFIC FUNCTION
   {
-    detector: /oracle-manipulation/i,
-    globalPattern: /\bTWAP\b|\btimeWeightedAverage\b|\bobserve\s*\(/i,
-    reason: 'Contract uses TWAP oracle (manipulation resistant)',
+    detector: 'arbitrary-send-eth',
+    safePattern: /\bonlyOwner\b|\bonlyRole\s*\([^)]+\)|\bonlyAdmin\b/,
+    reason: 'Function restricted by access control modifier',
+    perFunction: true,
   },
+
+  // Arbitrary-send-erc20 with access control - CHECK SPECIFIC FUNCTION
   {
-    detector: /uninitialized-state/i,
-    globalPattern: /\bInitializable\b|\binitializer\b|constructor\s*\(/i,
-    reason: 'Contract uses proper initialization pattern',
+    detector: 'arbitrary-send-erc20',
+    safePattern: /\bonlyOwner\b|\bonlyRole\s*\([^)]+\)|\bonlyAdmin\b/,
+    reason: 'Function restricted by access control modifier',
+    perFunction: true,
   },
+
+  // Controlled delegatecall with owner check - CHECK SPECIFIC FUNCTION
   {
-    detector: /tx-origin/i,
-    globalPattern: /tx\.origin\s*==\s*msg\.sender/i,
-    reason: 'tx.origin used as additional check alongside msg.sender',
+    detector: 'controlled-delegatecall',
+    safePattern: /\bonlyOwner\b|\bonlyProxy\b|\b_checkProxy\b/,
+    reason: 'Delegatecall restricted by access control',
+    perFunction: true,
+  },
+
+  // Suicidal with owner protection - CHECK SPECIFIC FUNCTION
+  {
+    detector: 'suicidal',
+    safePattern: /\bonlyOwner\b|\bonlyAdmin\b/,
+    reason: 'Self-destruct restricted to owner',
+    perFunction: true,
   },
 ];
 
-export class LocalFPFilter {
-  /**
-   * Check if a finding is a false positive by examining the SPECIFIC
-   * function flagged, not the entire contract.
-   */
-  checkFinding(finding: Finding, sourceCode: string): FPFilterResult {
-    const detectorName = finding.detectorName.toLowerCase();
+export interface LocalFilterResult {
+  /** Findings that passed local filtering (not obvious FPs) */
+  passed: Finding[];
+  /** Count of findings removed by local rules */
+  filteredCount: number;
+  /** Details of each filtered finding */
+  filtered: Array<{ finding: Finding; rule: string }>;
+}
 
-    // First check global patterns (contract-wide)
-    for (const pattern of GLOBAL_FP_PATTERNS) {
-      if (pattern.detector.test(detectorName)) {
-        if (pattern.globalPattern.test(sourceCode)) {
-          return {
-            isFalsePositive: true,
-            reason: pattern.reason,
-            detectedProtection: null,
-          };
-        }
-      }
-    }
+/**
+ * Extract the function declaration line(s) for the flagged finding.
+ * Returns the function signature with modifiers if found.
+ */
+function extractFlaggedFunction(finding: Finding, contractSource: string): string | null {
+  // Method 1: Use line numbers if available
+  if (finding.lineStart != null && finding.lineEnd != null) {
+    const lines = contractSource.split('\n');
+    const startLine = Math.max(0, finding.lineStart - 1);
 
-    // Extract the flagged function from source code
-    const flaggedFunction = this.extractFlaggedFunction(finding, sourceCode);
-    if (!flaggedFunction) {
-      // Can't determine the specific function, don't filter
-      return { isFalsePositive: false, reason: null, detectedProtection: null };
-    }
-
-    // Check per-function patterns
-    for (const pattern of PER_FUNCTION_FP_PATTERNS) {
-      if (pattern.detector.test(detectorName)) {
-        if (pattern.modifierPattern.test(flaggedFunction.declaration)) {
-          return {
-            isFalsePositive: true,
-            reason: pattern.reason,
-            detectedProtection: pattern.protectionName,
-          };
-        }
-      }
-    }
-
-    return { isFalsePositive: false, reason: null, detectedProtection: null };
-  }
-
-  /**
-   * Extract the function declaration and body for the flagged finding.
-   */
-  private extractFlaggedFunction(
-    finding: Finding,
-    sourceCode: string,
-  ): { name: string; declaration: string; body: string } | null {
-    // Method 1: Use line numbers if available
-    if (finding.lineStart != null && finding.lineEnd != null) {
-      const lines = sourceCode.split('\n');
-      const startLine = Math.max(0, finding.lineStart - 1);
-      const endLine = Math.min(lines.length - 1, finding.lineEnd);
-
-      // Search backwards from startLine to find function declaration
-      let funcStart = startLine;
-      for (let i = startLine; i >= 0; i--) {
-        const line = lines[i];
-        if (/^\s*(function|modifier|constructor|receive|fallback)\s+/.test(line) ||
-            /^\s*(function|modifier|constructor)\s*\(/.test(line)) {
-          funcStart = i;
-          break;
-        }
-        // Stop if we hit another function's closing brace or contract declaration
-        if (/^\s*\}\s*$/.test(line) || /^\s*(contract|library|interface)\s+/.test(line)) {
-          break;
-        }
-      }
-
-      // Get the function declaration line(s)
-      const declarationLines: string[] = [];
-      let braceCount = 0;
-      let foundOpenBrace = false;
-      for (let i = funcStart; i <= endLine && i < lines.length; i++) {
-        declarationLines.push(lines[i]);
-        for (const char of lines[i]) {
-          if (char === '{') {
-            foundOpenBrace = true;
-            braceCount++;
-          } else if (char === '}') {
-            braceCount--;
+    // Search backwards to find function declaration
+    for (let i = startLine; i >= Math.max(0, startLine - 20); i--) {
+      const line = lines[i];
+      if (/^\s*(function|modifier|constructor|receive|fallback)\s+/.test(line) ||
+          /^\s*(function|modifier|constructor)\s*\(/.test(line)) {
+        // Collect the full declaration (may span multiple lines)
+        const declarationLines: string[] = [];
+        let braceDepth = 0;
+        for (let j = i; j < lines.length && j < i + 10; j++) {
+          declarationLines.push(lines[j]);
+          for (const char of lines[j]) {
+            if (char === '{') braceDepth++;
+            if (char === '}') braceDepth--;
           }
+          if (braceDepth > 0 || lines[j].includes('{')) break;
         }
-        if (foundOpenBrace && braceCount === 0) break;
+        return declarationLines.join('\n');
       }
-
-      const declaration = declarationLines.join('\n');
-      // The declaration is everything up to (and including) the first '{'
-      const declMatch = declaration.match(/^[\s\S]*?\{/);
-
-      return {
-        name: this.extractFunctionName(declaration) ?? 'unknown',
-        declaration: declMatch ? declMatch[0] : declaration.split('{')[0],
-        body: declaration,
-      };
-    }
-
-    // Method 2: Parse function name from codeSnippet
-    if (finding.codeSnippet) {
-      const funcName = this.extractFunctionName(finding.codeSnippet);
-      if (funcName) {
-        return this.findFunctionByName(funcName, sourceCode);
+      // Stop if we hit another function's closing brace or contract declaration
+      if (/^\s*\}\s*$/.test(line) || /^\s*(contract|library|interface)\s+/.test(line)) {
+        break;
       }
     }
-
-    // Method 3: Parse function name from description
-    const descMatch = finding.description.match(/(?:function|modifier)\s+([a-zA-Z_][a-zA-Z0-9_]*)/);
-    if (descMatch) {
-      return this.findFunctionByName(descMatch[1], sourceCode);
-    }
-
-    return null;
   }
 
-  /**
-   * Extract function name from code snippet or declaration.
-   */
-  private extractFunctionName(code: string): string | null {
-    // Match "function name(" or "function name ("
-    const match = code.match(/function\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/);
-    if (match) return match[1];
-
-    // Match modifier declarations
-    const modMatch = code.match(/modifier\s+([a-zA-Z_][a-zA-Z0-9_]*)/);
-    if (modMatch) return modMatch[1];
-
-    return null;
-  }
-
-  /**
-   * Find a function by name in the source code and return its declaration + body.
-   */
-  private findFunctionByName(
-    name: string,
-    sourceCode: string,
-  ): { name: string; declaration: string; body: string } | null {
-    // Build regex to find function declaration
+  // Method 2: Parse function name from description or code snippet
+  const funcNameMatch = finding.description.match(/(?:function|modifier)\s+([a-zA-Z_][a-zA-Z0-9_]*)/);
+  if (funcNameMatch) {
+    const funcName = funcNameMatch[1];
     const funcRegex = new RegExp(
-      `(function\\s+${name}\\s*\\([^)]*\\)[^{]*\\{)`,
+      `function\\s+${funcName}\\s*\\([^)]*\\)[^{]*\\{`,
       'g',
     );
-
-    const match = funcRegex.exec(sourceCode);
-    if (!match) return null;
-
-    const startIdx = match.index;
-    const declaration = match[1];
-
-    // Find matching closing brace
-    let braceCount = 1;
-    let endIdx = startIdx + declaration.length;
-    for (let i = endIdx; i < sourceCode.length && braceCount > 0; i++) {
-      if (sourceCode[i] === '{') braceCount++;
-      else if (sourceCode[i] === '}') braceCount--;
-      endIdx = i + 1;
+    const match = funcRegex.exec(contractSource);
+    if (match) {
+      return match[0];
     }
-
-    return {
-      name,
-      declaration,
-      body: sourceCode.slice(startIdx, endIdx),
-    };
   }
 
-  /**
-   * Batch filter findings, separating real findings from false positives.
-   */
-  filterFindings(
-    findings: Finding[],
-    sourceCode: string,
-  ): {
-    real: Finding[];
-    falsePositives: Array<{ finding: Finding; reason: string; protection: string | null }>;
-  } {
-    const real: Finding[] = [];
-    const falsePositives: Array<{ finding: Finding; reason: string; protection: string | null }> = [];
+  // Method 3: Use code snippet directly
+  if (finding.codeSnippet) {
+    return finding.codeSnippet;
+  }
 
-    for (const finding of findings) {
-      const result = this.checkFinding(finding, sourceCode);
-      if (result.isFalsePositive && result.reason) {
-        falsePositives.push({
-          finding,
-          reason: result.reason,
-          protection: result.detectedProtection,
+  return null;
+}
+
+/**
+ * Run rule-based FP filtering on findings before AI analysis.
+ *
+ * This is cheap (string matching only) and catches the most common
+ * false positive patterns from Slither without any API calls.
+ *
+ * CRITICAL: Per-function rules check the SPECIFIC function flagged,
+ * not the entire contract. This prevents masking real vulnerabilities.
+ */
+export function localFpFilter(findings: Finding[], contractSource: string): LocalFilterResult {
+  const passed: Finding[] = [];
+  const filtered: Array<{ finding: Finding; rule: string }> = [];
+
+  for (const finding of findings) {
+    let matchedRule: FilterRule | undefined;
+
+    // First check global rules (contract-wide patterns)
+    matchedRule = GLOBAL_RULES.find(rule => {
+      const detectorMatch = typeof rule.detector === 'string'
+        ? finding.detectorName === rule.detector
+        : rule.detector.test(finding.detectorName);
+      if (!detectorMatch) return false;
+      return rule.safePattern.test(contractSource);
+    });
+
+    // If no global rule matched, check per-function rules
+    if (!matchedRule) {
+      const flaggedFunction = extractFlaggedFunction(finding, contractSource);
+
+      if (flaggedFunction) {
+        matchedRule = PER_FUNCTION_RULES.find(rule => {
+          const detectorMatch = typeof rule.detector === 'string'
+            ? finding.detectorName === rule.detector
+            : rule.detector.test(finding.detectorName);
+          if (!detectorMatch) return false;
+
+          // Check if the SPECIFIC function has the modifier
+          return rule.safePattern.test(flaggedFunction);
         });
-      } else {
-        real.push(finding);
       }
     }
 
-    return { real, falsePositives };
+    if (matchedRule) {
+      filtered.push({ finding, rule: matchedRule.reason });
+    } else {
+      passed.push(finding);
+    }
   }
+
+  return {
+    passed,
+    filteredCount: filtered.length,
+    filtered,
+  };
 }

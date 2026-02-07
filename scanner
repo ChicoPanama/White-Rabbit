@@ -1,0 +1,174 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# scanner — unified CLI for White-Rabbit scanner.
+#
+# Usage:
+#   ./scanner start [options]        Start a scan workflow
+#   ./scanner status <sessionId>     Query workflow progress
+#   ./scanner result <sessionId>     Wait for and print result
+#   ./scanner list [limit]           List recent scans
+#   ./scanner cancel <sessionId>     Cancel a running scan
+#   ./scanner worker                 Start the Temporal worker
+#   ./scanner infra [--no-worker]    Start Temporal infrastructure
+#   ./scanner legacy [args...]       Run the legacy PM2 scanner
+#
+# Environment:
+#   ORCHESTRATOR=temporal|legacy     Which pipeline to use (default: temporal)
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ORCHESTRATOR="${ORCHESTRATOR:-temporal}"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+usage() {
+  cat <<USAGE
+${CYAN}White-Rabbit Scanner CLI${NC}
+
+Usage: ./scanner <command> [options]
+
+Commands:
+  ${GREEN}start${NC}    [options]         Start a scan workflow
+  ${GREEN}status${NC}   <sessionId>       Query workflow progress
+  ${GREEN}result${NC}   <sessionId>       Wait for and print scan result
+  ${GREEN}list${NC}     [limit]           List recent scan workflows
+  ${GREEN}cancel${NC}   <sessionId>       Cancel a running scan
+  ${GREEN}worker${NC}                     Start the Temporal worker
+  ${GREEN}infra${NC}    [--no-worker]     Start Temporal infrastructure (Docker)
+  ${GREEN}legacy${NC}   [args...]         Run the legacy PM2-based scanner
+
+Start Options:
+  --address <addr>       Contract address to scan
+  --chain <chain>        Target chain (default: ethereum)
+  --protocol <name>      Protocol name for context
+  --config <path>        Path to YAML config file
+  --dry-run              Run without external API calls
+  --session <id>         Custom session ID (default: auto-generated)
+
+Environment Variables:
+  ORCHESTRATOR           'temporal' (default) or 'legacy'
+  TEMPORAL_ADDRESS       Temporal server (default: localhost:7233)
+  TEMPORAL_NAMESPACE     Temporal namespace (default: white-rabbit)
+
+Examples:
+  ./scanner start --address 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D --chain ethereum
+  ./scanner start --config configs/default-config.yaml --dry-run
+  ./scanner status abc123-def456
+  ./scanner list 20
+  ./scanner worker
+  ./scanner infra
+
+USAGE
+  exit 0
+}
+
+cmd_start() {
+  local address="" chain="" protocol="" config="" dry_run="" session=""
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --address)  address="$2"; shift 2 ;;
+      --chain)    chain="$2"; shift 2 ;;
+      --protocol) protocol="$2"; shift 2 ;;
+      --config)   config="$2"; shift 2 ;;
+      --dry-run)  dry_run="true"; shift ;;
+      --session)  session="$2"; shift 2 ;;
+      --help|-h)  usage ;;
+      *) echo -e "${RED}Unknown option: $1${NC}"; usage ;;
+    esac
+  done
+
+  # Build the tsx command args
+  local args=()
+
+  if [[ -n "$address" ]]; then args+=("--address" "$address"); fi
+  if [[ -n "$chain" ]]; then args+=("--chain" "$chain"); fi
+  if [[ -n "$protocol" ]]; then args+=("--protocol" "$protocol"); fi
+  if [[ -n "$config" ]]; then args+=("--config" "$config"); fi
+  if [[ -n "$dry_run" ]]; then args+=("--dry-run"); fi
+  if [[ -n "$session" ]]; then args+=("--session" "$session"); fi
+
+  echo -e "${CYAN}Starting scan workflow...${NC}"
+
+  if [[ "$ORCHESTRATOR" == "temporal" ]]; then
+    exec npx tsx "$SCRIPT_DIR/src/temporal/start-scan.ts" "${args[@]}"
+  else
+    echo -e "${YELLOW}Using legacy orchestrator${NC}"
+    exec npx tsx "$SCRIPT_DIR/src/cli.ts" audit "${args[@]}"
+  fi
+}
+
+cmd_status() {
+  local session_id="${1:-}"
+  if [[ -z "$session_id" ]]; then
+    echo -e "${RED}Error: sessionId required${NC}"
+    echo "Usage: ./scanner status <sessionId>"
+    exit 1
+  fi
+  exec npx tsx "$SCRIPT_DIR/src/temporal/query.ts" progress "$session_id"
+}
+
+cmd_result() {
+  local session_id="${1:-}"
+  if [[ -z "$session_id" ]]; then
+    echo -e "${RED}Error: sessionId required${NC}"
+    echo "Usage: ./scanner result <sessionId>"
+    exit 1
+  fi
+  exec npx tsx "$SCRIPT_DIR/src/temporal/query.ts" result "$session_id"
+}
+
+cmd_list() {
+  local limit="${1:-10}"
+  exec npx tsx "$SCRIPT_DIR/src/temporal/query.ts" list "$limit"
+}
+
+cmd_cancel() {
+  local session_id="${1:-}"
+  if [[ -z "$session_id" ]]; then
+    echo -e "${RED}Error: sessionId required${NC}"
+    echo "Usage: ./scanner cancel <sessionId>"
+    exit 1
+  fi
+  exec npx tsx "$SCRIPT_DIR/src/temporal/query.ts" cancel "$session_id"
+}
+
+cmd_worker() {
+  echo -e "${CYAN}Starting Temporal worker...${NC}"
+  exec npx tsx "$SCRIPT_DIR/src/temporal/worker.ts"
+}
+
+cmd_infra() {
+  exec "$SCRIPT_DIR/temporal-start.sh" "$@"
+}
+
+cmd_legacy() {
+  echo -e "${YELLOW}Running legacy PM2 scanner...${NC}"
+  exec npx tsx "$SCRIPT_DIR/src/cli.ts" "$@"
+}
+
+# ── Main dispatch ──
+
+COMMAND="${1:-}"
+shift || true
+
+case "$COMMAND" in
+  start)   cmd_start "$@" ;;
+  status)  cmd_status "$@" ;;
+  result)  cmd_result "$@" ;;
+  list)    cmd_list "$@" ;;
+  cancel)  cmd_cancel "$@" ;;
+  worker)  cmd_worker ;;
+  infra)   cmd_infra "$@" ;;
+  legacy)  cmd_legacy "$@" ;;
+  help|--help|-h|"") usage ;;
+  *)
+    echo -e "${RED}Unknown command: $COMMAND${NC}"
+    usage
+    ;;
+esac

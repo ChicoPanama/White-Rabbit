@@ -1,17 +1,9 @@
 // ── Chain Configuration ──
+// Import comprehensive chain configuration
+import { CHAIN_CONFIGS, ChainConfig, getChainConfig, getHighValueChains } from '../config/chains.js';
 
-export interface ChainConfig {
-  chainId: number;
-  name: string;
-}
-
-export const CHAINS: Record<string, ChainConfig> = {
-  ethereum: { chainId: 1, name: 'Ethereum' },
-  base: { chainId: 8453, name: 'Base' },
-  arbitrum: { chainId: 42161, name: 'Arbitrum' },
-  polygon: { chainId: 137, name: 'Polygon' },
-  optimism: { chainId: 10, name: 'Optimism' },
-};
+export { ChainConfig, getChainConfig, getHighValueChains };
+export const CHAINS = CHAIN_CONFIGS;
 
 // ── Severity & Confidence ──
 
@@ -425,4 +417,145 @@ export interface EvolutionReport {
   accuracyImprovement: number;
   insights: string[];
   summary: string;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AI MEMORY & CACHING TYPES
+// ══════════════════════════════════════════════════════════════════════════════
+
+/** Stored AI run (Postgres ai_runs table) */
+export interface AiRun {
+  id: string;
+  promptHash: string;
+  model: string;
+  inputJson: Record<string, unknown>;
+  outputJson: Record<string, unknown>;
+  status: 'ok' | 'error';
+  errorText: string | null;
+  tokensIn: number | null;
+  tokensOut: number | null;
+  costUsd: number | null;
+  createdAt: Date;
+}
+
+/** Input for inserting a new AI run */
+export interface InsertAiRun {
+  promptHash: string;
+  model: string;
+  inputJson: Record<string, unknown>;
+  outputJson: Record<string, unknown>;
+  status?: 'ok' | 'error';
+  errorText?: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  costUsd?: number;
+}
+
+/** Link between AI run and a finding */
+export interface FindingAiLink {
+  id: string;
+  aiRunId: string;
+  chain: string;
+  address: string;
+  findingHash: string;
+  createdAt: Date;
+}
+
+/** Contract tag (key-value metadata) */
+export interface ContractTag {
+  id: string;
+  chain: string;
+  address: string;
+  tag: string;
+  value: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Memory summary (daily/weekly/lifetime) */
+export interface MemorySummary {
+  scope: 'daily' | 'weekly' | 'lifetime';
+  periodStart?: string;
+  periodEnd?: string;
+  text: string;
+  aiRunId?: string;
+}
+
+/** Similar contract reference */
+export interface SimilarContract {
+  chain: string;
+  address: string;
+  score: number;               // 0.0 - 1.0 similarity
+  reasonSnippet?: string;
+  contractName?: string;
+  lastSeen?: string;
+}
+
+/** Confidence scoring result (computed server-side) */
+export interface MemoryConfidence {
+  score: number;                // 0.0 - 1.0
+  reasons: string[];            // Human-readable explanations
+  signals: Record<string, number>;  // Individual signal contributions
+  recommendation: 'use_memory' | 'call_llm';
+  threshold: number;
+}
+
+/** Compact memory bundle for Clawd tool integration */
+export interface MemoryBundle {
+  chain: string;
+  address: string;
+  contract?: {
+    name?: string;
+    symbol?: string;
+    protocolName?: string;
+    tvlUsd?: number;
+    isProxy?: boolean;
+    compilerVersion?: string;
+    createdAt?: string;
+  };
+  tags: Array<{ tag: string; value?: string }>;
+  lastSeen?: {
+    scanId?: string;
+    ts?: string;
+  };
+  scans: Array<{
+    scanId: string;
+    startedAt?: string;
+    completedAt?: string;
+    status?: string;
+    toolsUsed?: string[];
+  }>;
+  findings: Array<{
+    findingHash: string;
+    severity: string;
+    confidence: string;
+    title: string;
+    summary: string;
+    tool: string;
+    detectorName: string;
+    aiIsFalsePositive?: boolean;
+    ai?: {
+      model: string;
+      createdAt: string;
+      summary?: string;
+      cached: boolean;
+    };
+  }>;
+  /** Aggregated summaries (daily/weekly/lifetime) - populated when includeSummaries=true */
+  summaries?: MemorySummary[];
+  /** Similar contracts from pattern matching - populated when includeSimilar=true */
+  similar?: SimilarContract[];
+  /** Deterministic confidence score - always computed server-side */
+  confidence?: MemoryConfidence;
+  stats: {
+    totalScans: number;
+    totalFindings: number;
+    criticalCount: number;
+    highCount: number;
+    mediumCount: number;
+    lowCount: number;
+    aiAnalyzedCount: number;
+  };
+  generatedAt: string;
+  cached: boolean;
 }

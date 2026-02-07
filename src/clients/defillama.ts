@@ -1,6 +1,8 @@
 import type { DeFiLlamaProtocol } from '../types/index.js';
+import { fetchWithTimeout } from '../utils/helpers.js';
 
 const BASE_URL = 'https://api.llama.fi';
+const REQUEST_TIMEOUT_MS = 30_000;
 
 interface CacheEntry<T> {
   data: T;
@@ -69,7 +71,7 @@ export class DeFiLlamaClient {
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url, { timeoutMs: REQUEST_TIMEOUT_MS });
 
         if (!response.ok) {
           throw new Error(`DeFiLlama HTTP ${response.status}: ${response.statusText}`);

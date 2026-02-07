@@ -1,0 +1,47 @@
+# White-Rabbit Scanner — Micro-Protocol Hunting Configuration
+# Targets small protocols ($10K-$1M TVL) where security audits are rare
+# and exploitable vulnerabilities are more common.
+
+target:
+  chain: "base"               # Base has many new, unaudited protocols
+  contract_address: ""        # Leave empty for discovery-based scanning
+  protocol_name: ""
+  tvl_range: [10000, 1000000] # $10K - $1M TVL range
+
+scanner:
+  scan_frequency_minutes: 60  # Scan every hour
+  max_concurrent_scans: 5     # More concurrent since contracts are smaller
+  enabled_vuln_types:
+    - arithmetic
+    - reentrancy
+    - access-control
+    - oracle
+    - flash-loan
+    - logic
+
+verification:
+  foundry_fork: true
+  mainnet_rpc: ""             # Set your Base RPC (e.g., https://base.llamarpc.com)
+  gas_limit: 15000000         # Lower gas limit for L2
+  require_compilation_check: true
+  require_parameter_bounds: true
+
+# AI Provider Configuration — MUST be set by user
+ai:
+  provider_endpoint: ""       # Set your AI provider endpoint
+  api_key_env: ""             # Set env var name for your API key
+  model: ""                   # Set your model (e.g., claude-haiku-4-5-20251001)
+  fallback_model: ""
+  response_token_limit: 1500  # Lower for faster/cheaper analysis
+  context_window_guard: 80000
+  tiered_analysis: false      # Use single model for micro protocols
+
+reporting:
+  format: "immunefi"
+  min_severity: "medium"
+  include_poc: true
+
+filtering:
+  skip_design_choices: true
+  skip_solidity_08_overflow: true
+  min_exploitable_value_usd: 500  # Lower threshold for micro protocols

@@ -81,6 +81,31 @@ const FALSE_POSITIVE_PATTERNS: FalsePositivePattern[] = [
     codePattern: /block\.timestamp\s*[><=]+\s*\w+\s*\+\s*\d+/i,
     reason: 'Timestamp used with reasonable tolerance window',
   },
+  {
+    detector: 'assembly',
+    codePattern: /contract\s+UnstructuredStorage|function\s+\w*Storage\w*|getStorage\w+|setStorage\w+/i,
+    reason: 'Assembly in storage utility contract (expected low-level access)',
+  },
+  {
+    detector: 'assembly', 
+    codePattern: /contract\s+DelegateProxy|function\s+delegated\w+|delegatecall\s*\(/i,
+    reason: 'Assembly in proxy contract (expected for delegation patterns)',
+  },
+  {
+    detector: 'assembly',
+    codePattern: /function\s+isContract|contract\s+IsContract|\bextcodesize\b/i,
+    reason: 'Assembly in contract detection utility (standard pattern)',
+  },
+  {
+    detector: 'constant-function-asm',
+    codePattern: /view\s+.*\{[\s\S]*assembly[\s\S]*\}/i,
+    reason: 'View function with assembly for gas optimization (common pattern)',
+  },
+  {
+    detector: 'assembly',
+    codePattern: /@openzeppelin|OpenZeppelin|import.*openzeppelin/i,
+    reason: 'Assembly in OpenZeppelin library contracts (audited and battle-tested)',
+  },
 ];
 
 export class ContextService {
@@ -89,6 +114,8 @@ export class ContextService {
    * and known protocol mappings.
    */
   analyzeContext(sourceCode: string, contractName: string | null, protocolName: string | null): ContractContext {
+    // Handle null/undefined sourceCode
+    const safeSourceCode = sourceCode || '';
     const normalizedProtocol = protocolName?.toLowerCase().replace(/[^a-z0-9]/g, '') ?? '';
     const normalizedName = contractName?.toLowerCase() ?? '';
 
@@ -101,8 +128,8 @@ export class ContextService {
       if (
         normalizedProtocol.includes(protocol) ||
         normalizedName.includes(protocol) ||
-        sourceCode.toLowerCase().includes(`@${protocol}`) ||
-        sourceCode.toLowerCase().includes(`${protocol}/`)
+        safeSourceCode.toLowerCase().includes(`@${protocol}`) ||
+        safeSourceCode.toLowerCase().includes(`${protocol}/`)
       ) {
         isAudited = true;
         auditedBy = auditors;
@@ -112,7 +139,7 @@ export class ContextService {
     }
 
     // Also check for common OpenZeppelin imports (widely audited library)
-    if (!isAudited && sourceCode.includes('@openzeppelin/')) {
+    if (!isAudited && safeSourceCode.includes('@openzeppelin/')) {
       // Using OZ doesn't mean the whole contract is audited,
       // but the imported components are battle-tested.
       // We don't set isAudited=true, but note it in context.
@@ -123,10 +150,10 @@ export class ContextService {
       auditedBy,
       knownProtocol,
       contractAgeDays: null, // Would need on-chain data to compute
-      hasReentrancyGuard: /ReentrancyGuard|nonReentrant/i.test(sourceCode),
-      hasAccessControl: /Ownable|AccessControl|onlyOwner|onlyRole|hasRole/i.test(sourceCode),
-      hasTimelocks: /TimelockController|timelock|delay\s*>/i.test(sourceCode),
-      hasPauseability: /Pausable|whenNotPaused|_pause\(\)/i.test(sourceCode),
+      hasReentrancyGuard: /ReentrancyGuard|nonReentrant/i.test(safeSourceCode),
+      hasAccessControl: /Ownable|AccessControl|onlyOwner|onlyRole|hasRole/i.test(safeSourceCode),
+      hasTimelocks: /TimelockController|timelock|delay\s*>/i.test(safeSourceCode),
+      hasPauseability: /Pausable|whenNotPaused|_pause\(\)/i.test(safeSourceCode),
       usesOracle: /oracle|priceFeed|chainlink|AggregatorV3/i.test(sourceCode),
       usesTWAP: /TWAP|twap|timeWeightedAverage|observe\(/i.test(sourceCode),
     };

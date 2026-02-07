@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { Finding, PoCResult, PoCValueResult, Severity } from '../types/index.js';
 import { CHAIN_RPC_ENV, CHAINS, SEVERITY_ORDER } from '../types/index.js';
+import { isValidEthAddress } from '../utils/validation.js';
 
 const POC_DIR = path.resolve(process.cwd(), '.poc-workspace');
 
@@ -210,6 +211,19 @@ export class PoCVerifier {
       };
     }
 
+    // Validate address format to prevent Solidity code injection
+    if (!isValidEthAddress(contractAddress)) {
+      return {
+        attempted: false,
+        succeeded: false,
+        exploitContract: null,
+        forkBlockNumber: null,
+        errorMessage: `Invalid address format: ${contractAddress.slice(0, 20)}`,
+        gasUsed: null,
+        extractedValue: null,
+      };
+    }
+
     const targetLiteral = `address(${contractAddress})`;
     const exploitSource = template(targetLiteral);
 
@@ -233,7 +247,7 @@ export class PoCVerifier {
 
       fs.writeFileSync(
         path.join(workDir, 'foundry.toml'),
-        `[profile.default]\nsrc = "src"\nout = "out"\nlibs = ["lib"]\n`,
+        `[profile.default]\nsrc = "src"\nout = "out"\nlibs = ["lib"]\nffi = false\n`,
       );
 
       fs.writeFileSync(
@@ -297,10 +311,24 @@ export class PoCVerifier {
       const result = require('child_process').execSync('forge --version 2>/dev/null', {
         timeout: 5000,
         stdio: ['ignore', 'pipe', 'ignore'],
+        env: { 
+          ...process.env, 
+          PATH: `${process.env.HOME}/.foundry/bin:${process.env.PATH}` 
+        }
       });
       return true;
     } catch {
-      return false;
+      // Try with explicit path
+      try {
+        const explicitResult = require('child_process').execSync(`${process.env.HOME}/.foundry/bin/forge --version`, {
+          timeout: 5000,
+          stdio: ['ignore', 'pipe', 'ignore'],
+        });
+        return true;
+      } catch {
+        console.log('[PoCVerifier] Foundry not found in PATH or ~/.foundry/bin');
+        return false;
+      }
     }
   }
 

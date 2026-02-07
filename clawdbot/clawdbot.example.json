@@ -1,0 +1,147 @@
+{
+  "meta": {
+    "lastTouchedVersion": "2026.1.24-3"
+  },
+  "logging": {
+    "level": "info",
+    "consoleLevel": "info",
+    "redactSensitive": "tools"
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic/claude-sonnet-4-20250514",
+        "fallbacks": [
+          "anthropic/claude-haiku-4-5-20251001"
+        ]
+      },
+      "workspace": "/home/ubuntu/clawd",
+      "envelopeTimezone": "utc",
+      "envelopeTimestamp": "on",
+      "contextTokens": 50000,
+      "maxOutputTokens": 2048,
+      "heartbeat": {
+        "every": "30m",
+        "activeHours": {
+          "start": "00:00",
+          "end": "23:59",
+          "timezone": "UTC"
+        },
+        "target": "telegram"
+      },
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8
+      }
+    },
+    "list": [
+      {
+        "id": "white-rabbit",
+        "identity": {
+          "name": "White Rabbit",
+          "emoji": "🐇"
+        },
+        "policyFiles": [
+          "agents/white-rabbit.policy.json"
+        ]
+      }
+    ]
+  },
+  "compaction": {
+    "memoryFlush": {
+      "enabled": true,
+      "_comment": "Flush important context to memory files before compaction to prevent forgetting"
+    }
+  },
+  "memorySearch": {
+    "experimental": {
+      "sessionMemory": true,
+      "_comment": "Enable session transcript search (increases indexing workload)"
+    },
+    "sources": ["memory", "sessions"],
+    "_comment": "Search both memory files and session transcripts"
+  },
+  "tools": {
+    "web": {
+      "search": {
+        "enabled": true,
+        "maxResults": 10,
+        "timeoutSeconds": 10
+      },
+      "fetch": {
+        "enabled": true,
+        "maxChars": 50000,
+        "timeoutSeconds": 30
+      }
+    },
+    "links": {
+      "enabled": true,
+      "maxLinks": 5,
+      "timeoutSeconds": 30
+    },
+    "exec": {
+      "host": "gateway",
+      "security": "full"
+    }
+  },
+  "bindings": [
+    {
+      "agentId": "white-rabbit",
+      "match": {
+        "channel": "telegram"
+      }
+    }
+  ],
+  "messages": {
+    "ackReactionScope": "group-mentions"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto",
+    "restart": true
+  },
+  "session": {
+    "dmScope": "per-peer",
+    "maxHistoryTurns": 10,
+    "maxHistoryTokens": 15000,
+    "compressAfterTurns": 5
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "commands": {
+        "native": true,
+        "nativeSkills": true
+      },
+      "dmPolicy": "pairing",
+      "botToken": "YOUR_TELEGRAM_BOT_TOKEN",
+      "allowFrom": [
+        "YOUR_TELEGRAM_USER_ID"
+      ],
+      "groupPolicy": "allowlist",
+      "streamMode": "partial"
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback",
+    "auth": {
+      "mode": "token",
+      "token": "GENERATE_A_SECURE_TOKEN"
+    }
+  },
+  "skills": {
+    "load": {
+      "watch": true,
+      "watchDebounceMs": 500
+    }
+  },
+  "plugins": {
+    "entries": {
+      "telegram": {
+        "enabled": true
+      }
+    }
+  }
+}

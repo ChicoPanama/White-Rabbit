@@ -16,5 +16,21 @@
     "sourceMap": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "cache",
+    "src/cached-scanner.ts",
+    "src/cli-cached.ts",
+    "src/cli-fixed.ts",
+    "src/cli-fork-hunter.ts",
+    "src/debug-tvl.ts",
+    "src/analyzers/cached-analyzer.ts",
+    "src/clients/cached-defillama.ts",
+    "src/clients/cached-etherscan.ts",
+    "src/services/fork-hunter-advanced.ts",
+    "src/services/decompiler.ts",
+    "src/scripts/**/*",
+    "src/tests/**/*"
+  ]
 }

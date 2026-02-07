@@ -4,6 +4,7 @@
   "description": "Autonomous smart contract vulnerability scanner for DeFi protocols",
   "main": "dist/index.js",
   "scripts": {
+    "test": "tsx --test src/tests/smoke.test.ts src/tests/temporal.test.ts src/tests/agents.test.ts src/tests/errors.test.ts src/tests/reporting.test.ts src/tests/hunt-forks.test.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "worker": "node dist/worker.js",
@@ -12,7 +13,22 @@
     "protocols": "tsx src/cli.ts protocols",
     "dev": "tsx src/cli.ts",
     "dev:worker": "tsx src/worker.ts",
-    "migrate": "node dist/migrate.js"
+    "migrate": "node dist/migrate.js",
+    "build:hacks": "tsx src/scripts/build-hack-db.ts && tsx src/scripts/extract-patterns.ts && tsx src/scripts/generate-known-hacks.ts",
+    "build:hacks:scrape": "tsx src/scripts/build-hack-db.ts",
+    "build:hacks:extract": "tsx src/scripts/extract-patterns.ts",
+    "build:hacks:generate": "tsx src/scripts/generate-known-hacks.ts",
+    "army": "tsx src/army/initialize-army.ts",
+    "dashboard": "tsx src/army/battle-dashboard.ts",
+    "deploy-army": "npm run army && npm run dashboard",
+    "test-rpc": "tsx -e \"import { rpcTester } from './src/utils/rpc-tester'; rpcTester.testAllChains().then(results => rpcTester.generateReport(results))\"",
+    "test-rpc-quick": "tsx -e \"import { quickTest } from './src/utils/rpc-tester'; quickTest()\"",
+    "test-rpc-tier1": "tsx -e \"import { rpcTester } from './src/utils/rpc-tester'; rpcTester.testHighPriorityChains().then(results => rpcTester.generateReport(results))\"",
+    "memory": "tsx src/cli.ts memory",
+    "memory:server": "WR_MEMORY_HTTP_ENABLED=true tsx src/memory-server.ts",
+    "ai:worker": "tsx src/ai-worker.ts",
+    "test-deps": "node test-dependencies.js",
+    "fix-deps": "bash setup-dependencies.sh"
   },
   "keywords": [
     "smart-contract",
@@ -24,19 +40,36 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "@nomad-xyz/excessively-safe-call": "^0.0.1-rc.1",
+    "@shazow/whatsabi": "^0.25.0",
+    "@temporalio/activity": "^1.14.1",
+    "@temporalio/client": "^1.14.1",
+    "@temporalio/worker": "^1.14.1",
+    "@temporalio/workflow": "^1.14.1",
+    "ajv": "^8.17.1",
     "better-sqlite3": "^12.6.2",
     "bullmq": "^5.0.0",
+    "dotenv": "^17.2.3",
     "ethers": "^6.16.0",
     "ioredis": "^5.4.0",
+    "js-yaml": "^4.1.1",
     "pg": "^8.13.0",
     "uuid": "^10.0.0"
   },
   "devDependencies": {
+    "@openzeppelin/contracts": "^4.9.6",
+    "@openzeppelin/contracts-upgradeable": "^4.9.6",
+    "@openzeppelin/contracts-v3": "npm:@openzeppelin/contracts@^3.4.2",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.11.0",
     "@types/uuid": "^10.0.0",
+    "solmate": "^6.8.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
+  },
+  "optionalDependencies": {
+    "@esbuild/linux-x64": "^0.27.2"
   }
 }

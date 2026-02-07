@@ -59,7 +59,10 @@ const NON_EVM_CHAINS = new Set([
   'elrond', 'osmosis', 'injective', 'sei',
 ]);
 
+import { fetchWithTimeout } from '../utils/helpers.js';
+
 const DEFILLAMA_CHAINS_URL = 'https://api.llama.fi/v2/chains';
+const REQUEST_TIMEOUT_MS = 30_000;
 
 /**
  * Hardcoded fallback: top 10 EVM chains by typical TVL ordering.
@@ -160,7 +163,7 @@ export class ChainDiscoveryService {
    */
   async refreshRankings(): Promise<void> {
     try {
-      const response = await fetch(DEFILLAMA_CHAINS_URL);
+      const response = await fetchWithTimeout(DEFILLAMA_CHAINS_URL, { timeoutMs: REQUEST_TIMEOUT_MS });
       if (!response.ok) {
         throw new Error(`DeFiLlama HTTP ${response.status}`);
       }

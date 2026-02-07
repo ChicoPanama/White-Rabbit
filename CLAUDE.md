@@ -1,38 +1,200 @@
 # White-Rabbit: Autonomous Smart Contract Vulnerability Scanner
 
-## Project Overview
+## 1. Project Overview
 
-White-Rabbit is a production-ready autonomous smart contract vulnerability scanner that monitors high-value DeFi protocols across multiple EVM chains. It combines static analysis (Slither), blockchain APIs (Etherscan V2, DeFiLlama), AI-augmented analysis (Claude), **multi-layer verification to minimize false positives**, and Telegram alerting into a unified 6-stage scanning pipeline.
+White-Rabbit is an autonomous smart contract vulnerability scanner that monitors DeFi protocols across 20+ EVM chains. It combines Slither static analysis, Etherscan V2 + DeFiLlama APIs, Claude AI analysis, multi-layer false positive filtering, and Telegram alerting into a 6-stage verification pipeline.
 
-## Architecture
+**Clawdbot** is the AI orchestrator layer — it runs the `white-rabbit` agent on a 30-minute heartbeat, enabling autonomous scanning, hack monitoring, self-evolution, and Telegram-based control.
+
+**Mission:** Find exploitable vulnerabilities before attackers do, focusing on unpatched forks of previously-hacked protocols.
+
+### System Architecture
 
 ```
-Heartbeat/Cron Trigger
+Telegram User (chat 1309504379)
     │
     ▼
-Protocol Discovery (DeFiLlama) ──► TVL-based prioritization
+Clawdbot Gateway (port 18789, systemd)
+    │
+    ├── Heartbeat (30m) ──► Agent: white-rabbit
+    ├── Cron Jobs (5) ──► Autonomous hunting, hack monitoring, self-evolution
+    └── Skills (18) ──► white-rabbit, self-evolution, 16 ClawdHub skills
     │
     ▼
-Contract Fetching (Etherscan V2) ──► Multi-chain, rate-limited
+White-Rabbit Scanner (PM2)
+    │
+    ├── Protocol Discovery (DeFiLlama API)
+    ├── Contract Fetching (Etherscan V2)
+    ├── Static Analysis (Slither 0.11.5)
+    ├── AI Analysis (Claude Haiku/Sonnet)
+    ├── FP Filtering (local + AI)
+    ├── Value Estimation (on-chain balances)
+    └── Smart Alerting (Telegram)
     │
     ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                    6-STAGE VERIFICATION PIPELINE                 │
-├──────────────────────────────────────────────────────────────────┤
-│  Stage 1: CONTEXT         → Audit history, security patterns    │
-│  Stage 2: STATIC ANALYSIS → Slither + AI business logic         │
-│  Stage 3: FP FILTERING    → Known FP patterns, AI FP removal   │
-│  Stage 4: VERIFICATION    → PoC exploit on forked mainnet      │
-│  Stage 5: RISK SCORING    → Confidence 0-100, tool consensus   │
-│  Stage 5b: VALUE ESTIMATE → Exploitable $, not just TVL        │
-│  Stage 6: SMART ALERTING  → Value-gated, verified findings     │
-└──────────────────────────────────────────────────────────────────┘
-    │
-    ▼
-PostgreSQL Storage ──► Full audit trail
+Storage
+    ├── PostgreSQL (whiterabbit DB — contracts, scans, findings)
+    ├── SQLite (patterns.db — learned vulnerability patterns)
+    ├── Redis (BullMQ job queue)
+    └── File state (~/.etherscan-auditor/state.json)
 ```
 
-## Verification Statuses
+---
+
+## 2. Infrastructure (Verified)
+
+| Component | Value | Status |
+|-----------|-------|--------|
+| **EC2 Instance** | t2.medium (2 vCPU, 3.8 GB RAM) | Running |
+| **OS** | Ubuntu 24.04.3 LTS (Noble Numbat) | - |
+| **Node.js** | v22.22.0 | Upgraded from v20 |
+| **npm** | 10.9.4 | - |
+| **Disk** | 29 GB total, 5.4 GB used (20%) | OK |
+| **PostgreSQL** | 16 | active (systemd) |
+| **Redis** | redis-server | active (systemd) |
+| **Slither** | 0.11.5 (pip, not Docker) | Working |
+| **solc-select** | 10 versions: 0.4.17 → 0.8.33 | Auto-switching |
+| **Foundry (forge)** | NOT INSTALLED | PoC verification disabled |
+| **PM2** | Running 2 processes | white-rabbit-scanner, white-rabbit-worker |
+| **Clawdbot** | 2026.1.24-3 | Gateway active (systemd) |
+
+### PM2 Processes
+
+| Process | Purpose | Mode |
+|---------|---------|------|
+| `white-rabbit-scanner` | One-shot scan loop (runs, exits, PM2 restarts) | fork, online |
+| `white-rabbit-worker` | BullMQ worker for queued jobs | fork, online |
+
+### Database State (Verified)
+
+```
+PostgreSQL "whiterabbit":
+  contracts: 19 rows
+  scans:     409 rows
+  findings:  2,848 rows
+```
+
+Pattern cache at `~/.etherscan-auditor/patterns.db` (SQLite, 90KB).
+
+---
+
+## 3. White-Rabbit Scanner
+
+### Source Code (~9,000 lines TypeScript)
+
+```
+~/White-Rabbit/
+├── CLAUDE.md                  # This file
+├── README.md                  # Public docs
+├── package.json               # Dependencies
+├── tsconfig.json              # TypeScript config
+├── .env                       # Environment variables (not committed)
+├── scripts/                   # Bash wrappers (scan.sh, audit.sh, hunt.sh, etc.)
+├── migrations/
+│   └── 001_initial_schema.sql # PostgreSQL schema
+├── skills/
+│   └── contract-scanner/
+│       └── SKILL.md           # Repo-bundled skill definition
+├── src/
+│   ├── index.ts               # Main entry (one-shot scan cycle) — 53 lines
+│   ├── worker.ts              # BullMQ worker entry — 28 lines  (not actively used)
+│   ├── cli.ts                 # CLI (audit, scan, scan-top, chains, protocols, auto, stats, findings, wallet, patterns, knowledge, evolve) — 970 lines
+│   ├── config.ts              # Env config loader — 87 lines
+│   ├── scanner.ts             # 6-stage pipeline orchestrator — 767 lines
+│   ├── database.ts            # PostgreSQL client — 200 lines
+│   ├── types/index.ts         # Shared types — 428 lines
+│   ├── data/
+│   │   ├── raw-hacks.json     # 430+ hack entries from DeFiLlama (208KB)
+│   │   ├── enriched-hacks.json # Enriched hack data (363KB)
+│   │   ├── known-hacks.ts     # Generated hack database module (287KB)
+│   │   └── protocol-contracts.ts  # [CLAWD-CREATED] Known protocol addresses — 172 lines
+│   ├── analyzers/
+│   │   ├── slither.ts         # Slither subprocess runner — 275 lines
+│   │   ├── ai-analyzer.ts     # Claude API analysis — 258 lines
+│   │   ├── deduplicator.ts    # Cross-tool dedup — 145 lines
+│   │   └── local-fp-filter.ts # Local FP pattern matching — 135 lines
+│   ├── services/
+│   │   ├── chains.ts          # DeFiLlama chain discovery — 305 lines
+│   │   ├── context.ts         # Audit history + FP patterns — 255 lines
+│   │   ├── cost-tracker.ts    # AI API cost tracking — 124 lines
+│   │   ├── crypto.ts          # AES-256-GCM wallet encryption — 104 lines
+│   │   ├── exploitEstimator.ts # Value estimation — 526 lines
+│   │   ├── exploitVerifier.ts # 4-stage wallet verification — 264 lines
+│   │   ├── forkHunter.ts      # Fork detection v1 — 489 lines
+│   │   ├── fork-hunter-v2.ts  # Fork detection v2 — 362 lines
+│   │   ├── patternCache.ts    # SQLite pattern learning — 860 lines
+│   │   ├── selfEvolution.ts   # Self-improvement engine — 449 lines
+│   │   ├── state.ts           # File-based state persistence — 458 lines
+│   │   ├── verifier.ts        # PoC Foundry verification — 403 lines
+│   │   └── walletManager.ts   # HD wallet manager — 639 lines
+│   ├── clients/
+│   │   ├── etherscan.ts       # Etherscan V2 API — 153 lines
+│   │   └── defillama.ts       # DeFiLlama API — 104 lines
+│   ├── alerts/
+│   │   └── telegram.ts        # Telegram alerting (mobile-optimized) — 894 lines
+│   ├── queue/
+│   │   ├── queues.ts          # BullMQ queue definitions — 32 lines
+│   │   └── workers.ts         # Worker processors — 200 lines
+│   └── utils/
+│       ├── helpers.ts         # Utilities — 50 lines
+│       └── validation.ts      # Input validation — 15 lines
+```
+
+### Key Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@anthropic-ai/sdk` | ^0.39.0 | Claude AI analysis |
+| `better-sqlite3` | ^12.6.2 | Pattern cache (SQLite) |
+| `bullmq` | ^5.0.0 | Job queue |
+| `dotenv` | ^17.2.3 | Environment vars |
+| `ethers` | ^6.16.0 | Ethereum/wallet operations |
+| `ioredis` | ^5.4.0 | Redis client |
+| `pg` | ^8.13.0 | PostgreSQL client |
+| `uuid` | ^10.0.0 | ID generation |
+| `tsx` | ^4.19.0 | TypeScript execution (dev) |
+
+### Model Strings (Verified in config.ts)
+
+```typescript
+modelHaiku:  'claude-haiku-4-5-20251001'    // config.ts:64
+modelSonnet: 'claude-sonnet-4-20250514'     // config.ts:65
+```
+
+These are defaults. Override via `AI_MODEL_HAIKU` and `AI_MODEL_SONNET` env vars.
+
+### Environment Variables
+
+| Variable | Required | Set | Description |
+|----------|----------|-----|-------------|
+| `ETHERSCAN_API_KEY` | Yes | Yes | Etherscan V2 (all chains) |
+| `TELEGRAM_BOT_TOKEN` | Yes | Yes | Telegram bot token |
+| `TELEGRAM_CHAT_ID` | Yes | Yes | Chat ID: 1309504379 |
+| `ANTHROPIC_API_KEY` | Yes | Yes | Claude API key |
+| `DATABASE_URL` | Yes | Yes | PostgreSQL connection |
+| `REDIS_URL` | Yes | Yes | Redis connection |
+| `ETH_RPC_URL` | No | No | Ethereum RPC (PoC testing) |
+| `SCAN_CHAINS` | No | No | Default: ethereum,base,arbitrum |
+| `MIN_TVL_THRESHOLD` | No | No | Default: $10M |
+| `ALERT_MIN_SEVERITY` | No | No | Default: medium |
+| `AI_MODEL_HAIKU` | No | No | Override haiku model string |
+| `AI_MODEL_SONNET` | No | No | Override sonnet model string |
+
+### 6-Stage Verification Pipeline
+
+```
+Stage 1: CONTEXT           → Audit history, security patterns, known protocols
+Stage 2: STATIC ANALYSIS   → Slither (90+ detectors) + Claude AI business logic
+Stage 3: FP FILTERING      → Known FP patterns + AI FP removal + dedup
+Stage 4: VERIFICATION      → PoC exploit on forked mainnet (requires Foundry — NOT INSTALLED)
+Stage 5: RISK SCORING      → Confidence 0-100, tool consensus, PoC results
+Stage 5b: VALUE ESTIMATE   → Real exploitable value (TVL ≠ exploitable)
+Stage 6: SMART ALERTING    → Value-gated, verified findings only
+```
+
+**Current limitation:** Stage 4 (PoC verification) requires Foundry (`forge`), which is not installed. Findings are scored on Slither confidence + AI analysis + context only. No PoC confirmation.
+
+### Verification Statuses
 
 | Status | Meaning | Will Alert? |
 |--------|---------|-------------|
@@ -42,504 +204,508 @@ PostgreSQL Storage ──► Full audit trail
 | **Likely False** | PoC failed or low confidence | No |
 | **False Positive** | Matches known FP pattern | No |
 
-## Tech Stack
+### Value-Based Alert Thresholds
 
-- **Language:** TypeScript (Node.js 20+)
-- **Static Analysis:** Slither via Docker (`trailofbits/eth-security-toolbox`)
-- **PoC Verification:** Foundry (forge) on forked mainnet
-- **Queue:** BullMQ + Redis
-- **Database:** PostgreSQL 15
-- **Blockchain API:** Etherscan V2 (unified multi-chain, single API key)
-- **DeFi Data:** DeFiLlama (free, unauthenticated)
-- **Alerts:** Telegram Bot API
-- **AI Analysis:** Anthropic Claude API
-- **Bot Framework:** Clawd bot (skills via SKILL.md)
-- **Containerization:** Docker Compose
-
-## Directory Structure
-
-```
-White-Rabbit/
-├── CLAUDE.md                  # This file - project guide
-├── README.md                  # Public documentation
-├── package.json               # Node dependencies
-├── tsconfig.json              # TypeScript configuration
-├── docker-compose.yml         # Service orchestration
-├── Dockerfile                 # Scanner container
-├── .env.example               # Environment variable template
-├── .gitignore
-├── scripts/
-│   ├── scan.sh                # Scan a network or top N chains (bash wrapper)
-│   ├── audit.sh               # Audit a contract (bash wrapper)
-│   ├── hunt.sh                # Start autonomous scanning (bash wrapper)
-│   ├── chains.sh              # Show top chains by TVL (bash wrapper)
-│   ├── status.sh              # Show status/findings (bash wrapper)
-│   ├── install-clawd.sh       # Clawd bot installation script
-│   └── clawdbot.json          # Clawd bot heartbeat config
-├── skills/
-│   └── contract-scanner/
-│       └── SKILL.md           # Clawd bot skill definition (NL commands)
-├── migrations/
-│   └── 001_initial_schema.sql # Database schema
-└── src/
-    ├── index.ts               # Main entry point (one-shot)
-    ├── worker.ts              # BullMQ worker entry point
-    ├── cli.ts                 # CLI interface (audit, scan, scan-top, chains, protocols, auto, stats, findings)
-    ├── config.ts              # Environment & configuration
-    ├── scanner.ts             # Orchestrator - 6-stage verification pipeline
-    ├── database.ts            # PostgreSQL client
-    ├── types/
-    │   └── index.ts           # Shared type definitions
-    ├── clients/
-    │   ├── etherscan.ts       # Etherscan V2 API client
-    │   └── defillama.ts       # DeFiLlama API client
-    ├── analyzers/
-    │   ├── slither.ts         # Slither subprocess runner
-    │   ├── ai-analyzer.ts     # Claude-based analysis
-    │   └── deduplicator.ts    # Cross-tool finding dedup
-    ├── services/
-    │   ├── chains.ts          # Dynamic chain discovery from DeFiLlama (top N by TVL)
-    │   ├── context.ts         # Audit history, FP pattern detection, confidence scoring
-    │   ├── crypto.ts          # AES-256-GCM encrypted mnemonic storage (scrypt KDF)
-    │   ├── exploitEstimator.ts # Exploitable value estimation (TVL ≠ exploitable)
-    │   ├── exploitVerifier.ts # 4-stage wallet-based verification pipeline
-    │   ├── forkHunter.ts      # Systematic fork detection across 20+ chains
-    │   ├── patternCache.ts    # SQLite vulnerability pattern learning brain
-    │   ├── selfEvolution.ts   # Self-improvement: refine patterns, analyze FPs
-    │   ├── verifier.ts        # PoC generation & Foundry fork testing with value measurement
-    │   ├── walletManager.ts   # Multi-chain HD wallet (simulation only, no mainnet)
-    │   └── state.ts           # File-based state persistence for Clawd integration
-    ├── alerts/
-    │   └── telegram.ts        # Telegram Bot API alerting (mobile-optimized)
-    ├── queue/
-    │   ├── queues.ts          # Queue definitions
-    │   └── workers.ts         # Worker processors
-    └── utils/
-        └── helpers.ts         # Shared utility functions
-```
-
-## Environment Variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `ETHERSCAN_API_KEY` | Yes | Etherscan V2 API key (works across all chains) |
-| `TELEGRAM_BOT_TOKEN` | Yes | Telegram bot token from @BotFather |
-| `TELEGRAM_CHAT_ID` | Yes | Target chat/channel ID for alerts |
-| `ANTHROPIC_API_KEY` | No | Claude API key for AI-augmented analysis |
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `REDIS_URL` | Yes | Redis connection string |
-| `ETH_RPC_URL` | No | Ethereum RPC for PoC fork testing |
-| `BASE_RPC_URL` | No | Base RPC for PoC fork testing |
-| `ARBITRUM_RPC_URL` | No | Arbitrum RPC for PoC fork testing |
-| `POLYGON_RPC_URL` | No | Polygon RPC for PoC fork testing |
-| `OPTIMISM_RPC_URL` | No | Optimism RPC for PoC fork testing |
-| `MIN_TVL_THRESHOLD` | No | Minimum TVL in USD to scan (default: 10000000) |
-| `SCAN_CHAINS` | No | Comma-separated chain names (default: ethereum,base,arbitrum) |
-| `ALERT_MIN_SEVERITY` | No | Minimum severity to alert on (default: medium) |
-| `CLAWD_AGENT_ID` | No | Clawd bot agent identifier (default: white-rabbit) |
-| `CLAWD_DELIVERY_CHANNEL` | No | Clawd delivery channel (default: telegram) |
-| `WALLET_ENCRYPTION_PASSWORD` | No | Password for wallet mnemonic encryption (or use WALLET_PASSWORD_FILE) |
-| `WALLET_PASSWORD_FILE` | No | Path to file containing wallet encryption password |
-| `BSC_RPC_URL` | No | BNB Chain RPC for wallet verification |
-| `AVALANCHE_RPC_URL` | No | Avalanche RPC for wallet verification |
-| `FANTOM_RPC_URL` | No | Fantom RPC for wallet verification |
-| `LINEA_RPC_URL` | No | Linea RPC for wallet verification |
-| `SCROLL_RPC_URL` | No | Scroll RPC for wallet verification |
-| `BLAST_RPC_URL` | No | Blast RPC for wallet verification |
-| `GNOSIS_RPC_URL` | No | Gnosis RPC for wallet verification |
-| `PATTERN_DB_PATH` | No | SQLite pattern learning DB path (default: ~/.etherscan-auditor/patterns.db) |
-| `EVOLUTION_INTERVAL_HOURS` | No | Hours between self-evolution cycles (default: 24) |
-| `MIN_PATTERNS_FOR_EVOLUTION` | No | Minimum patterns before evolution runs (default: 5) |
-| `MAX_CHAINS_TO_SEARCH` | No | Max chains to search during fork hunting (default: 20) |
-| `MIN_FORK_SIMILARITY` | No | Minimum similarity score for fork matching (default: 0.7) |
-
-## Key Commands
-
-```bash
-# Install dependencies
-npm install
-
-# Build TypeScript
-npm run build
-
-# Show top chains by TVL
-npx tsx src/cli.ts chains --top 10
-
-# Scan top 10 chains by TVL
-npx tsx src/cli.ts scan top10
-
-# Scan top N chains
-npx tsx src/cli.ts scan-top 5 --min-tvl 1000000
-
-# Scan a specific network
-npm run scan -- base
-
-# Audit a single contract
-npm run audit -- 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
-
-# Audit on a specific chain (supports 20+ chains)
-npx tsx src/cli.ts audit 0xADDRESS --chain bsc
-
-# List high-TVL protocols
-npm run protocols -- ethereum --min-tvl 10000000
-
-# Start autonomous scanning (top 10 chains)
-npm run dev -- auto --top-chains 10 --interval 30
-
-# Start autonomous scanning (specific networks)
-npm run dev -- auto --networks ethereum,base --interval 30
-
-# Show scanner status
-npx tsx src/cli.ts stats
-
-# Show recent findings
-npx tsx src/cli.ts findings --limit 20
-
-# Initialize verification wallet
-npx tsx src/cli.ts wallet:init
-
-# Check wallet balances across all chains
-npx tsx src/cli.ts wallet:balances
-
-# Show deposit address for a specific chain
-npx tsx src/cli.ts wallet:fund ethereum
-
-# Run scanner (one-shot, legacy)
-npm start
-
-# Run background worker
-npm run worker
-
-# Run with Docker
-docker compose up -d
-
-# Run database migrations
-npm run migrate
-```
-
-## Bash Wrapper Scripts
-
-```bash
-# Quick access scripts (chmod +x)
-./scripts/scan.sh ethereum           # Scan a network
-./scripts/audit.sh 0xADDRESS        # Audit a contract
-./scripts/hunt.sh                    # Start autonomous mode
-./scripts/hunt.sh --interval 15     # Custom scan interval
-./scripts/status.sh                  # Show status
-./scripts/status.sh findings         # Show findings
-./scripts/install-clawd.sh          # Install as Clawd skill
-```
-
-## Clawd Bot Integration
-
-White Rabbit integrates with Clawd bot for Telegram-controlled autonomous operation.
-
-### Setup
-
-```bash
-# Install as Clawd skill
-./scripts/install-clawd.sh
-```
-
-This creates:
-- `~/.clawdbot/clawdbot.json` — heartbeat config (30min interval, 6AM-midnight)
-- `~/.clawdbot/skills/contract-scanner/SKILL.md` — symlinked skill definition
-- `~/.etherscan-auditor/state.json` — scanner state persistence
-
-### Natural Language Commands
-
-Users can control the scanner through Telegram via Clawd:
-
-| Command | Action |
-|---------|--------|
-| "start hunting" / "hunt top 10" | Start autonomous scanning on top 10 chains |
-| "stop hunting" | Stop the scanner |
-| "scan top10" / "scan top chains" | Scan top 10 chains by TVL |
-| "scan ethereum" | Scan a specific network |
-| "show top chains" / "chain rankings" | Show current TVL rankings |
-| "audit 0x..." | Audit a single contract |
-| "audit 0x... on bsc" | Audit on a specific chain |
-| "status" | Show scanner status with per-chain breakdown |
-| "what did you find" | Show recent findings |
-| "add chain fantom" | Add chain to scan list |
-| "skip bsc" | Remove chain from scan list |
-| "protocols on base" | List high-TVL protocols |
-| "wallet status" / "wallet balances" | Show verification wallet balances across chains |
-| "fund ethereum" / "fund [chain]" | Show deposit address for a chain |
-| "init wallet" / "setup wallet" | Initialize new verification wallet |
-
-### Cron Jobs
-
-| Schedule | Scope | Description |
-|----------|-------|-------------|
-| Every 4 hours | Top 10 chains | Full TVL-ranked sweep |
-| Daily 9 AM | All | Rankings refresh + daily summary |
-
-### State Persistence
-
-Scanner state persists to `~/.etherscan-auditor/state.json`:
-- Autonomous mode status (active/inactive, PID)
-- Configuration (networks, TVL threshold, interval)
-- Cumulative stats (scans, contracts, findings, FPs filtered)
-- **Total exploitable value found (lifetime USD)**
-- **Exploitable value breakdown by chain**
-- Chain TVL rankings cache (1 hour TTL)
-- Per-chain last scan timestamps
-- Recent findings (last 100, verified/likely-real, with exploitable value and PoC extraction amounts)
-- Wallet state (initialized, address, chain count, balance, lock status)
-
-## 6-Stage Verification Pipeline
-
-### Stage 1: Context Gathering
-Before analysis, gather context about the contract:
-- Is this from a known audited protocol? (Uniswap, Aave, Compound, etc.)
-- Does it use security patterns? (ReentrancyGuard, AccessControl, Pausable)
-- Does it use oracles? TWAP?
-
-### Stage 2: Static Analysis
-- **Slither:** 90+ detectors, <1s execution, ~10.9% FP rate
-- **AI Analysis:** Claude contextualizes high/critical findings for business logic issues
-
-### Stage 3: False Positive Filtering
-Known FP patterns automatically filtered:
-- `reentrancy-eth` + ReentrancyGuard present = FP
-- `arbitrary-send-eth` + onlyOwner present = FP
-- `oracle-manipulation` + TWAP present = FP
-- Plus AI-identified false positives removed
-
-### Stage 4: PoC Verification
-For critical/high findings, generate exploit contracts and test on forked mainnet:
-- Uses Foundry (forge) with `--fork-url` against configured RPC
-- Templates for reentrancy, arbitrary sends, unchecked transfers
-- PoC success = **Verified** (100% confidence boost)
-- PoC failure = confidence reduced by 30%
-
-### Stage 5: Risk Scoring
-Confidence score (0-100) computed from:
-- Base tool confidence (high=60, medium=40, low=20)
-- Tool consensus bonus (+20 for 2 tools, +30 for 3+)
-- Context penalties (audited protocol: -20, battle-tested: -10)
-- Security pattern penalties (ReentrancyGuard + reentrancy detector: -30)
-- PoC result (+40 if succeeds, -30 if fails)
-
-### Stage 5b: Exploitable Value Estimation
-
-**Key insight: TVL ≠ Exploitable Value.** A protocol with $10M TVL may only have $267K actually exploitable.
-
-The `ExploitEstimator` service (`src/services/exploitEstimator.ts`) calculates real value at risk:
-- Fetches on-chain contract balances (ETH + tokens via RPC)
-- Applies vulnerability-type-specific extraction logic (reentrancy = full ETH, oracle manipulation = 5% of pool, etc.)
-- Detects timelocked/restricted funds and subtracts them
-- For flash loan attacks, calculates capital efficiency
-- Uses PoC simulation results when available (most accurate)
-
-**Vulnerability-specific estimators:**
-
-| Vulnerability | Exploitable Estimate | Confidence |
-|---|---|---|
-| reentrancy-eth | Full ETH balance (or 10% if withdrawal limits) | High |
-| reentrancy-no-eth | Full token balance | High |
-| arbitrary-send-eth | Full ETH balance | High |
-| oracle-manipulation | 5% of pool TVL | Medium |
-| price-manipulation | 10-30% of pool | Low |
-| access-control (mint) | 10x total balance (supply inflation) | Medium |
-| access-control (withdraw) | Full balance | Medium |
-| suicidal / unprotected-upgrade | Full balance | High |
-
-**Value-based alert thresholds:**
-
-| Exploitable Value | Alert Action |
+| Exploitable Value | Action |
 |---|---|
-| ≥ $100K or PoC verified | Immediate Telegram alert |
-| ≥ $25K | Alert during active hours |
-| ≥ $1K | Log only (queryable via "what did you find") |
-| < $1K | Ignore completely |
+| >= $100K or PoC verified | Immediate Telegram alert |
+| >= $25K | Alert during active hours |
+| >= $1K | Log only |
+| < $1K | Ignore |
 
-### Stage 6: Smart Alerting
-Only alerts on findings that are:
-- **Verified** or **Likely Real** verification status
-- Above the configured severity threshold
-- Above the exploitable value threshold ($25K+ for alerts, $100K+ for immediate)
-- Not already sent (24h dedup window)
+### Scanner State (Live)
 
-Alerts include: exploitable value, contract balance breakdown, PoC extraction results, bounty estimates, and capital requirements.
+From `~/.etherscan-auditor/state.json`:
+- **Autonomous mode:** ACTIVE (since 2026-01-28T03:30:42Z)
+- **Networks:** ethereum, bsc, base, arbitrum, polygon
+- **Total scans:** 26
+- **Contracts scanned:** 25
+- **Verified vulns:** 0
+- **False positives filtered:** 3
+- **Wallet:** Not initialized
 
-## Supported Chains
+### Self-Evolution Activity (Already Happened)
 
-Chains are dynamically ranked by TVL from DeFiLlama. The scanner supports 20+ EVM chains:
+Clawd has already self-evolved the scanner. The evolution log (`~/clawd/memory/evolution-log.json`) shows 6 modifications:
 
-| Chain | Chain ID | Explorer API | Tier |
-|---|---|---|---|
-| Ethereum | 1 | etherscan.io | Tier 1 |
-| BNB Chain | 56 | bscscan.com | Tier 1 |
-| Arbitrum | 42161 | arbiscan.io | Tier 1 |
-| Base | 8453 | basescan.org | Tier 1 |
-| Polygon | 137 | polygonscan.com | Tier 1 |
-| Optimism | 10 | etherscan.io | Tier 2 |
-| Avalanche | 43114 | snowtrace.io | Tier 2 |
-| Blast | 81457 | blastscan.io | Tier 2 |
-| Linea | 59144 | lineascan.build | Tier 2 |
-| Scroll | 534352 | scrollscan.com | Tier 2 |
-| Fantom | 250 | ftmscan.com | Tier 3 |
-| Cronos | 25 | cronoscan.com | Tier 3 |
-| Gnosis | 100 | gnosisscan.io | Tier 3 |
-| zkSync Era | 324 | zksync.network | Tier 3 |
-| Mantle | 5000 | mantlescan.xyz | Tier 3 |
-| Manta Pacific | 169 | mantascan.io | Tier 3 |
-| Mode | 34443 | modescan.io | Tier 3 |
-| Celo | 42220 | celoscan.io | Tier 3 |
-| Moonbeam | 1284 | moonscan.io | Tier 3 |
-| Moonriver | 1285 | moonscan.io | Tier 3 |
+1. **Contract discovery fix** — Scanner was finding 150+ protocols but scanning 0 contracts (missing address resolution)
+2. **Protocol-contracts.ts** — Created mapping of known protocol addresses to enable contract discovery
+3. **Slither file handling** — Fixed multi-file source handling from Etherscan
+4. **Full pipeline operational** — 10 contracts analyzed across 3 chains, 54 raw findings
+5. **Autonomous mode activation** — Expanded protocol database, launched aggressive scanning
+6. **Forensic analysis** — Transaction-level exploit forensics for Euler, Cream, Nomad attacks
 
-Use `npx tsx src/cli.ts chains` to see current TVL rankings. Non-EVM chains (Solana, Bitcoin, etc.) are identified but not scannable.
+**Files created by Clawd** (untracked in git):
+- `src/data/protocol-contracts.ts` — Protocol address mappings
+- `exploits/` — Exploit research contracts (ReentrancyExploit.sol, FlashLoanExploit.sol, etc.)
+- `forensics-engine.js` — Transaction analysis engine
+- Various research markdown files (hunt-targets.md, exploit-research.md, etc.)
 
-## Rate Limits
+### Supported Chains (20+)
+
+| Tier | Chains |
+|------|--------|
+| **Tier 1** | Ethereum, BNB Chain, Arbitrum, Base, Polygon |
+| **Tier 2** | Optimism, Avalanche, Blast, Linea, Scroll |
+| **Tier 3** | Fantom, Cronos, Gnosis, zkSync Era, Mantle, Manta, Mode, Celo, Moonbeam, Moonriver |
+
+### Rate Limits
 
 - **Etherscan V2:** 5 calls/sec, 100K calls/day (free tier)
-- **DeFiLlama:** No authentication, be respectful (cache 5 min)
+- **DeFiLlama:** No auth, 5-min cache
 - **Telegram Bot:** 1 msg/sec per chat, 30 msg/sec global
-- **Anthropic API:** Follows your plan's rate limits
+- **Anthropic API:** Per plan limits, cost-tracked in cost-tracker.ts
 
-## Intelligence Layer (Pattern Propagation & Self-Learning)
+---
 
-### Core Insight
+## 4. Clawdbot Configuration
 
-When a vulnerability is found in one contract, there are likely **dozens of forks** across all chains with the same vulnerability. One finding should cascade into finding ALL vulnerable forks.
+### Config File: `~/.clawdbot/clawdbot.json`
 
-### Architecture
+```json
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic/claude-sonnet-4-20250514",
+        "fallbacks": ["anthropic/claude-haiku-4-5-20251001"]
+      },
+      "workspace": "/home/ubuntu/clawd",
+      "heartbeat": {
+        "every": "30m",
+        "activeHours": { "start": "00:00", "end": "23:59", "timezone": "UTC" },
+        "target": "telegram"
+      },
+      "contextTokens": 120000,
+      "maxConcurrent": 4
+    },
+    "list": [{ "id": "white-rabbit", "identity": { "name": "White Rabbit", "emoji": "🐇" } }]
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "botToken": "<REDACTED>",
+      "dmPolicy": "pairing",
+      "allowFrom": ["1309504379"],
+      "groupPolicy": "allowlist",
+      "streamMode": "partial"
+    }
+  },
+  "tools": {
+    "exec": { "host": "gateway", "security": "full" },
+    "web": { "search": { "enabled": true }, "fetch": { "enabled": true } }
+  },
+  "gateway": { "port": 18789, "mode": "local", "bind": "loopback" },
+  "bindings": [{ "agentId": "white-rabbit", "match": { "channel": "telegram" } }]
+}
+```
+
+### System Prompt: `~/.clawdbot/templates/SOUL.md`
+
+Defines the White Rabbit agent identity, mission, strategy, tools, chains reference, communication style, self-learning protocol, autonomous loop, and self-evolution capabilities.
+
+Note: Clawdbot also auto-generates its own SOUL.md at `~/clawd/SOUL.md` from the framework defaults.
+
+### Installed Skills (18 total)
+
+**Custom skills** (`~/.clawdbot/skills/`):
+| Skill | Description |
+|-------|-------------|
+| `white-rabbit` | Scanner commands (scan, audit, chains, protocols, findings, etc.) |
+| `self-evolution` | Self-modification capabilities with safety rules |
+
+**ClawdHub skills** (`~/clawd/skills/` — 16 installed):
+| Skill | Purpose | API Key Needed |
+|-------|---------|----------------|
+| `brave-search` | Web search | BRAVE_API_KEY |
+| `tavily` | Web search | TAVILY_API_KEY |
+| `exa` | Semantic search | EXA_API_KEY |
+| `agent-browser` | Browser automation | No |
+| `sysadmin-toolbox` | System admin | No |
+| `github` | GitHub operations | No |
+| `jq` | JSON processing | No |
+| `tldr` | Command help | No |
+| `auto-updater` | Self-update | No |
+| `task-tracker` | Task management | No |
+| `todo-tracker` | Todo management | No |
+| `clawdbot-logs` | Log analysis | No |
+| `process-watch` | Process monitoring | No |
+| `oracle` | Knowledge base | No |
+| `clawddocs` | Clawdbot docs | No |
+| `clawdhub` | Skill marketplace | No |
+
+### Cron Jobs (5 active)
+
+| Name | Schedule | Purpose |
+|------|----------|---------|
+| `autonomous-hunt` | `*/30 * * * *` | Scan top 5 chains, check for hacks, alert on $25K+ findings |
+| `hack-monitor` | `0 */2 * * *` | Check DeFiLlama for new exploits, queue affected protocols |
+| `self-evolution-review` | `0 */6 * * *` | Analyze FPs, refine patterns, improve detection |
+| `daily-summary` | `0 9 * * *` | Daily metrics summary to Telegram |
+| `weekly-analysis` | `0 6 * * 1` | Deep strategy review with Sonnet, write reflection |
+
+All jobs use `--session isolated`, deliver to Telegram chat 1309504379.
+
+### Telegram Bot
+
+- **Bot username:** @WhiteRabbitClawdBot (verify via BotFather)
+- **Chat ID:** 1309504379
+- **Permissions:** Elevated (canExec, canModifySkills, canModifyCron)
+- **Features:** Natural language commands, streaming responses, skill integration
+
+---
+
+## 5. Memory & Learning System
+
+### Directory Structure (Verified)
 
 ```
-Verified Finding
-    │
-    ▼
-Pattern Learning (patternCache.ts)
-    │
-    ├── Extract code signatures (exact, regex, function layout)
-    ├── Generate contract fingerprint (code hash, structure hash)
-    └── Store in SQLite (~/.etherscan-auditor/patterns.db)
-    │
-    ▼
-Fork Hunting (forkHunter.ts) ──► Search 20+ chains
-    │
-    ├── Fingerprint cache lookup (exact, normalized, structure match)
-    ├── Protocol name similarity search via DeFiLlama
-    ├── Pattern code signature matching
-    └── Verify exploitable value on each match
-    │
-    ▼
-Self-Evolution (selfEvolution.ts) ──► Periodic improvement
-    │
-    ├── Analyze false positive patterns
-    ├── Refine low-accuracy patterns
-    ├── Discover new patterns from audit history
-    └── Track accuracy improvement over time
+~/clawd/
+├── SOUL.md                    # Clawdbot-generated identity (auto)
+├── IDENTITY.md                # Agent identity
+├── MEMORY.md                  # Memory instructions
+├── HEARTBEAT.md               # Heartbeat config
+├── TOOLS.md                   # Available tools
+├── USER.md                    # User preferences
+├── AGENTS.md                  # Agent config
+├── hunting-log.json           # Root-level hunt cycles log
+├── canvas/index.html          # Clawdbot canvas UI
+├── backups/                   # Pre-modification backups
+│   ├── scanner.ts.20260128-pre-evolution
+│   └── slither.ts.20260128-pre-fix
+├── memory/
+│   ├── hunting-log.json       # Hunting state (initialized, not yet populated by heartbeat)
+│   ├── evolution-log.json     # Self-modification audit trail (6 entries)
+│   ├── hack-checks.log        # Hack news check log (1 entry)
+│   ├── 2026-01-28.md          # Daily memory journal
+│   └── hunt-results-2026-01-28.md  # Hunt results
+├── skills/                    # ClawdHub installed skills (16)
+├── mind/                      # AGI reasoning framework
+│   ├── understanding-framework.md
+│   ├── hypothesis-engine.md
+│   ├── temporal-analysis.md
+│   ├── composability-engine.md
+│   ├── learning-system.md
+│   ├── intuition.md
+│   ├── red-team-self.md
+│   ├── agents/multi-agent-config.json
+│   ├── knowledge-graph/schema.md
+│   ├── hypotheses/.gitkeep
+│   ├── learning/.gitkeep
+│   └── reflections/.gitkeep
+├── defi_exploits/README.md    # [CLAWD-CREATED] Research
+├── mev_research/README.md     # [CLAWD-CREATED] Research
+├── bridge_exploit_analysis.md # [CLAWD-CREATED] Research
+└── governance-attacks-database.md  # [CLAWD-CREATED] Research
 ```
 
-### Key Components
+### hunting-log.json Schema
 
-- **`src/services/patternCache.ts`** — SQLite-backed learning brain. Stores vulnerability patterns with code signatures, contract fingerprints, similarity indexes, and learning events.
-- **`src/services/forkHunter.ts`** — Systematic fork detection. Searches all 20+ chains for matching contracts when a vulnerability is verified. One audit → many findings.
-- **`src/services/selfEvolution.ts`** — Self-improvement engine. Analyzes FP history, refines patterns, discovers new ones, tracks accuracy.
+```json
+{
+  "version": "1.0",
+  "lastUpdated": "ISO timestamp",
+  "stats": {
+    "totalScans": 0,
+    "totalContracts": 0,
+    "totalFindings": 0,
+    "verifiedExploits": 0,
+    "likelyReal": 0,
+    "falsePositives": 0,
+    "totalExploitableValue": 0,
+    "forkMatches": 0,
+    "patternsLearned": 0
+  },
+  "chainPriorities": { "ethereum": 1.0, "bsc": 0.9, ... },
+  "scanQueue": [],
+  "recentHacks": [],
+  "findings": [],
+  "patterns": [],
+  "lastScanByChain": {}
+}
+```
 
-### Pattern Matching Methods
+### evolution-log.json
 
-| Method | Similarity | Confidence | Use Case |
-|---|---|---|---|
-| Exact code hash | 100% | Highest | Exact same source code |
-| Normalized hash | ~95% | High | Same code, different comments/pragma |
-| Structure hash | ~80% | Medium | Same function layout, different implementation |
-| Interface hash | ~60% | Lower | Same external API, different internals |
-| Regex patterns | Variable | Medium | Vulnerability-specific code patterns |
+Tracks all self-modifications. Each entry has: timestamp, type, description, issue, solution, files modified, backup paths, build/test success, result. Currently has 6 entries from the first autonomous session.
 
-### CLI Commands
+---
+
+## 6. AGI Framework — Implementation Status
+
+### [IMPLEMENTED] — Files exist with structured content
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `understanding-framework.md` | Epistemological approach — 4 levels of understanding, invariant analysis | Written, reference doc |
+| `hypothesis-engine.md` | Hypothesis-driven hunting — fork, temporal, pattern, economic, governance hypotheses | Written, reference doc |
+| `temporal-analysis.md` | Time-dependent vulnerability patterns — daily/weekly/monthly scanning cycles | Written, reference doc |
+| `composability-engine.md` | Cross-protocol interaction risks — oracle chains, flash loans, cascading liquidations | Written, reference doc |
+| `learning-system.md` | Continuous improvement loop — scan→classify→feedback→update | Written, reference doc |
+| `intuition.md` | Anomaly detection — suspicion scoring system (0-100) | Written, reference doc |
+| `red-team-self.md` | Adversarial self-testing — blind spot checks, FN estimation, attack surface review | Written, reference doc |
+| `knowledge-graph/schema.md` | Entity/relationship schema for protocols, contracts, vulnerabilities, patterns | Written, reference doc |
+| `agents/multi-agent-config.json` | 4 agent archetypes: archaeologist, adversary, economist, synthesizer | Written, config only |
+
+### [PLANNED] — Not yet implemented in code
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Multi-agent routing | Config only | `multi-agent-config.json` defines archetypes but no code dispatches to them |
+| Knowledge graph database | Schema only | `schema.md` defines entities but no graph DB is implemented |
+| Hypothesis tracking | Directory only | `hypotheses/.gitkeep` — Clawd hasn't written hypotheses yet |
+| Weekly reflections | Directory only | `reflections/.gitkeep` — weekly-analysis cron job will populate |
+| Learning event tracking | Directory only | `learning/.gitkeep` — should be populated by scan outcomes |
+| Suspicion scoring | Doc only | `intuition.md` describes scoring but it's not integrated into scanner.ts |
+| Composability analysis | Doc only | No cross-protocol interaction analysis in scanner pipeline |
+
+### What IS implemented in scanner code
+
+The following intelligence features are **actually implemented** in TypeScript:
+
+- **PatternCache** (`patternCache.ts`, 860 lines) — SQLite-backed pattern learning with code signatures, fingerprints, similarity index
+- **ForkHunter** (`forkHunter.ts`, 489 lines + `fork-hunter-v2.ts`, 362 lines) — Cross-chain fork detection
+- **SelfEvolution** (`selfEvolution.ts`, 449 lines) — Pattern refinement, FP analysis, accuracy tracking
+- **ContextService** (`context.ts`, 255 lines) — Recognizes 13 audited protocols, 10 FP patterns
+- **ExploitEstimator** (`exploitEstimator.ts`, 526 lines) — Vulnerability-type-specific value estimation
+- **CostTracker** (`cost-tracker.ts`, 124 lines) — AI API cost tracking and budgeting
+
+---
+
+## 7. Commands Reference
+
+### Scanner Commands
 
 ```bash
-# Show learned patterns
-npx tsx src/cli.ts patterns [--top N] [--type reentrancy]
+# Build
+cd ~/White-Rabbit && npm run build
 
-# Show learning statistics
+# Audit a single contract
+npx tsx src/cli.ts audit 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+npx tsx src/cli.ts audit 0xADDRESS --chain bsc
+
+# Scan a network
+npx tsx src/cli.ts scan ethereum
+
+# Scan top N chains by TVL
+npx tsx src/cli.ts scan-top 5 --min-tvl 1000000
+
+# Show chain TVL rankings
+npx tsx src/cli.ts chains --top 20
+
+# List protocols on a chain
+npx tsx src/cli.ts protocols ethereum --min-tvl 10000000
+
+# Start autonomous scanning
+npx tsx src/cli.ts auto --networks ethereum,base --interval 30
+npx tsx src/cli.ts auto --top-chains 10 --interval 30
+
+# Show status and findings
+npx tsx src/cli.ts stats
+npx tsx src/cli.ts findings --limit 20
+
+# Intelligence commands
+npx tsx src/cli.ts patterns
 npx tsx src/cli.ts knowledge
-
-# Run self-evolution cycle
 npx tsx src/cli.ts evolve
+
+# Wallet commands
+npx tsx src/cli.ts wallet:init
+npx tsx src/cli.ts wallet:balances
+npx tsx src/cli.ts wallet:fund ethereum
+
+# Hack database build pipeline
+npm run build:hacks          # Full pipeline
+npm run build:hacks:scrape   # Scrape from DeFiLlama
+npm run build:hacks:extract  # Extract patterns
+npm run build:hacks:generate # Generate known-hacks.ts
 ```
 
-### Learning Database
+### Service Management
 
-Stored at `~/.etherscan-auditor/patterns.db` (SQLite with WAL mode):
-- `patterns` — Learned vulnerability signatures with code patterns and FP signatures
-- `pattern_instances` — Confirmed instances of each pattern across chains
-- `fingerprints` — Contract code/structure/interface hashes for fork detection
-- `similarity_index` — Pre-computed fork relationships
-- `learning_events` — True positives, false positives, pattern refinements
-- `audit_history` — Every audit result for learning analysis
+```bash
+# PM2
+pm2 status
+pm2 logs white-rabbit-scanner --lines 50
+pm2 logs white-rabbit-worker --lines 50
+pm2 restart white-rabbit-scanner
+pm2 restart all
+pm2 save
 
-## Wallet Infrastructure (4-Stage Verification)
+# OpenClaw (formerly Clawdbot)
+systemctl --user status clawdbot-gateway
+systemctl --user restart clawdbot-gateway
+openclaw cron list
+openclaw cron runs --id <JOB_ID>
+openclaw doctor
+openclaw models
+openclaw skills
 
-The scanner optionally uses an HD wallet for enhanced 4-stage exploit verification. The wallet is used for **simulation only** — mainnet execution is blocked at the code level.
+# PostgreSQL
+sudo -u postgres psql -d whiterabbit
+sudo -u postgres psql -d whiterabbit -c "SELECT count(*) FROM findings;"
 
-### Architecture
-
-```
-Finding (critical/high)
-    │
-    ▼
-Stage 1: Fork Simulation (Foundry/Anvil) ──► Free, always runs
-    │ (if succeeded)
-    ▼
-Stage 2: Wallet Simulation (eth_call) ──► Real wallet state, no gas
-    │ (if succeeded)
-    ▼
-Stage 3: Trace Analysis (debug_traceCall) ──► Exact value flows
-    │ (if $100K+ finding)
-    ▼
-Stage 4: Testnet Execution ──► Definitive proof, real tx
+# Redis
+redis-cli ping
+redis-cli info memory
 ```
 
-### Key Components
+### Bash Wrapper Scripts
 
-- **`src/services/crypto.ts`** — AES-256-GCM encryption with scrypt KDF for mnemonic storage
-- **`src/services/walletManager.ts`** — HD wallet from single mnemonic, same address on 12+ EVM chains
-- **`src/services/exploitVerifier.ts`** — 4-stage pipeline orchestrator with graceful degradation
+```bash
+./scripts/scan.sh ethereum          # Scan a network
+./scripts/audit.sh 0xADDRESS       # Audit a contract
+./scripts/hunt.sh                   # Start autonomous mode
+./scripts/chains.sh                 # Show chain rankings
+./scripts/status.sh                 # Show status
+./scripts/status.sh findings        # Show findings
+```
 
-### Security Model
+---
 
-- Mnemonic encrypted at rest (AES-256-GCM, scrypt N=2^14)
-- Stored at `~/.etherscan-auditor/wallet.enc` with 0o600 permissions
-- Auto-lock after 30 minutes of inactivity
-- Mainnet execution blocked — simulation only (eth_call, debug_traceCall)
-- Max balance enforcement ($1,000 per chain)
-- Testnet execution only for high-value ($100K+) findings
+## 8. API Keys & Secrets
 
-### Confidence Levels
+All secrets are in `~/White-Rabbit/.env` (not committed to git).
 
-| Confidence | Meaning |
-|---|---|
-| **Definitive** | Testnet execution succeeded (Stage 4) |
-| **High** | 2+ stages verified successfully |
-| **Medium** | Fork-only verification (Stage 1) |
-| **Low** | Fork failed or inconclusive |
+| Secret | Purpose | Set |
+|--------|---------|-----|
+| `ANTHROPIC_API_KEY` | Claude AI analysis | Yes |
+| `ETHERSCAN_API_KEY` | Etherscan V2 API (all chains) | Yes |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot | Yes |
+| `TELEGRAM_CHAT_ID` | Target chat | Yes (1309504379) |
+| `DATABASE_URL` | PostgreSQL connection | Yes |
+| `REDIS_URL` | Redis connection | Yes |
+| `BRAVE_API_KEY` | Brave search skill | No (skill installed, key not set) |
+| `TAVILY_API_KEY` | Tavily search skill | No |
+| `EXA_API_KEY` | Exa search skill | No |
+| `ETH_RPC_URL` | Ethereum RPC for PoC | No (PoC verification inactive) |
+
+The Clawdbot config (`~/.clawdbot/clawdbot.json`) contains the Telegram bot token inline. File permissions are set to 600.
+
+Anthropic auth is via OAuth (claude-cli profile), which expires and needs periodic `claude setup-token` renewal.
+
+---
+
+## 9. Troubleshooting
+
+### Common Issues
+
+**Scanner keeps restarting (PM2 restart count high)**
+This is normal. `index.ts` is a one-shot process — it runs a scan cycle, exits, and PM2 restarts it. The worker process should stay up continuously.
+
+**`ERR_DLOPEN_FAILED` for better-sqlite3**
+After Node.js upgrade, native modules need rebuilding:
+```bash
+pm2 stop all
+rm -rf node_modules/better-sqlite3/build
+npm install better-sqlite3
+pm2 start all
+```
+
+**`Unknown model` error in Clawdbot cron**
+Check model string format. Clawdbot uses `anthropic/claude-sonnet-4-20250514` (provider/model format). The scanner uses bare model names like `claude-haiku-4-5-20251001`.
+
+**Slither fails for a specific contract**
+Slither needs the matching solc version. The analyzer auto-installs via `solc-select` but some versions may fail. Check:
+```bash
+solc-select versions
+solc-select install 0.8.XX
+```
+
+**Anthropic API 404 for model**
+Current working model names:
+- Haiku: `claude-haiku-4-5-20251001`
+- Sonnet: `claude-sonnet-4-20250514`
+- Opus: `claude-opus-4-5-20251101`
+
+**Gateway timeout on `openclaw cron list`**
+Gateway may be busy processing an agent turn. Wait and retry, or increase timeout:
+```bash
+openclaw cron list --timeout 30000
+```
+
+### Log Locations
+
+| Log | Path |
+|-----|------|
+| PM2 scanner | `~/.pm2/logs/white-rabbit-scanner-out.log` |
+| PM2 scanner errors | `~/.pm2/logs/white-rabbit-scanner-error.log` |
+| PM2 worker | `~/.pm2/logs/white-rabbit-worker-out.log` |
+| OpenClaw gateway | `journalctl --user -u clawdbot-gateway` |
+| OpenClaw log file | `~/.clawdbot/clawdbot.log` |
+| Scanner state | `~/.etherscan-auditor/state.json` |
+| Pattern cache | `~/.etherscan-auditor/patterns.db` |
+| Clawd memory | `~/clawd/memory/` |
+| Clawd daily journal | `~/clawd/memory/YYYY-MM-DD.md` |
+
+---
+
+## 10. Roadmap
+
+### Done
+
+- [x] 6-stage verification pipeline (Slither + AI + FP filtering + scoring + alerting)
+- [x] Multi-chain scanning (20+ EVM chains, TVL-ranked)
+- [x] Etherscan V2 integration (single API key, all chains)
+- [x] DeFiLlama integration (TVL data, protocol discovery, hack database)
+- [x] AI analysis with Claude (Haiku for bulk, Sonnet for high-TVL)
+- [x] Telegram alerting (value-gated, mobile-optimized)
+- [x] Pattern learning (SQLite-backed, code signatures, fingerprints)
+- [x] Fork detection (cross-chain matching)
+- [x] Self-evolution engine (pattern refinement, FP analysis)
+- [x] Wallet infrastructure (HD wallet, encryption, simulation-only)
+- [x] Cost tracking (AI API budget management)
+- [x] Hack database (430+ entries from DeFiLlama)
+- [x] Clawdbot integration (gateway, Telegram, 30m heartbeat)
+- [x] 5 cron jobs (autonomous hunt, hack monitor, daily summary, weekly analysis, self-evolution)
+- [x] 18 skills installed (2 custom + 16 ClawdHub)
+- [x] AGI reasoning framework (7 reference docs + knowledge graph schema + multi-agent config)
+- [x] Protocol-to-address mapping (Clawd self-evolved this)
+- [x] Slither multi-file source handling (Clawd self-evolved this)
+- [x] First autonomous scan cycle completed (10 contracts, 54 findings, 3 chains)
+
+### Not Yet Done
+
+- [ ] **Install Foundry (forge)** — Required for PoC verification (Stage 4). Without it, findings can't be verified with exploit contracts on forked mainnet.
+- [ ] **RPC endpoints** — No ETH_RPC_URL configured. Needed for on-chain balance checks and PoC fork testing.
+- [ ] **Search API keys** — BRAVE_API_KEY, TAVILY_API_KEY, EXA_API_KEY not set. Web search skills installed but non-functional.
+- [ ] **Wallet initialization** — `wallet:init` not run. 4-stage enhanced verification unavailable.
+- [ ] **Real verified findings** — 0 verified or likely-real vulnerabilities found yet. System is working but hasn't triggered on a real exploitable contract.
+
+### Future Enhancements
+
+- [ ] Multi-agent dispatch (use archaeologist/adversary/economist archetypes from multi-agent-config.json)
+- [ ] Knowledge graph implementation (Neo4j or similar for protocol/vulnerability relationships)
+- [ ] Hypothesis tracking (active hypothesis files, automated validation)
+- [ ] Suspicion scoring integration (implement intuition.md scoring in scanner pipeline)
+- [ ] Cross-protocol composability analysis (detect multi-protocol attack vectors)
+- [ ] Automated Immunefi bounty matching (check if findings qualify for known bounties)
+- [ ] Docker Compose deployment (Dockerfile exists but not used — running directly on EC2)
+- [ ] Dashboard UI (Clawdbot canvas exists at ~/clawd/canvas/index.html but minimal)
+- [ ] Pattern accuracy tracking over time (grafana/prometheus metrics)
+
+---
 
 ## Security & Ethics
 
-- **Never test vulnerabilities on mainnet** — PoC verification uses forked state only
+- **Never test vulnerabilities on mainnet** — PoC uses forked state only
 - **Responsible disclosure:** 14-45 day timeline for DeFi vulnerabilities
 - **Check Immunefi** for existing bug bounty programs before contacting teams
-- **Document everything:** timestamp findings with blockchain tx hashes
-- **Legal compliance:** Follow CFAA good-faith security research guidelines
+- **Document everything:** Timestamp findings with evidence
+- **Legal compliance:** CFAA good-faith security research guidelines
+- **Wallet safety:** Simulation only, no mainnet transactions, max $1K per chain
+- **Self-evolution safety:** Max 5 changes/day, always backup, always test, stop after 3 failures
+
+---
 
 ## Development Notes
 
-- Slither requires `solc` version matching the contract's pragma. The Docker image (`trailofbits/eth-security-toolbox`) includes `solc-select` for version management.
-- The AI analyzer has ~40% standalone accuracy but excels at contextualizing static analysis results. Always use it as a supplement, not replacement.
-- BullMQ workers run with concurrency=3 and rate limiting (10 jobs per 60s) to stay within API limits.
-- PostgreSQL uses a UNIQUE constraint on (address, chain_id) to prevent duplicate contract entries.
-- PoC verification requires Foundry (`forge`) and at least one RPC URL configured. Without these, Stages 4-5 still run but without PoC confirmation — findings are scored on tool confidence and context alone.
-- The context service recognizes 13 known audited protocols and 10 false positive patterns. Extend these lists in `src/services/context.ts`.
-- The exploit estimator uses vulnerability-type-specific logic for 12+ detector types. Add new estimators in `src/services/exploitEstimator.ts` via the `EXPLOIT_ESTIMATORS` record. Native token prices are fetched from DeFiLlama with hardcoded fallbacks.
-- PoC verification now measures extracted value by parsing `EXTRACTED_WEI` and `TARGET_DRAINED_WEI` log entries from Foundry test output.
-- The wallet infrastructure requires `ethers` (v6). HD wallet derives the same address on all EVM chains from a single mnemonic (m/44'/60'/0'/0/0).
-- Wallet encryption uses scrypt (N=2^14, r=8, p=1) for key derivation. The encrypted mnemonic is stored at `~/.etherscan-auditor/wallet.enc`.
-- The 4-stage enhanced verifier gracefully degrades — if no wallet is configured, it falls back to fork-only verification (PoCVerifier).
-- The WalletManager supports 12 chains with RPC configuration via environment variables. Each chain has a minimum balance threshold for verification operations.
-- Stage 4 (testnet execution) only triggers for findings with $100K+ estimated exploitable value, to conserve testnet funds.
+- Slither runs natively via pip (not Docker). `solc-select` auto-installs missing compiler versions.
+- The AI analyzer has ~40% standalone accuracy. Use it as a supplement to Slither, not a replacement.
+- The scanner is a one-shot process (`index.ts`). PM2 restart loop provides continuous scanning.
+- BullMQ workers run with concurrency=3 and rate limiting (10 jobs per 60s).
+- PostgreSQL uses UNIQUE(address, chain_id) to prevent duplicate contract entries.
+- The context service recognizes 13 known audited protocols and 10 FP patterns. Extend in `src/services/context.ts`.
+- Clawd has already self-modified `scanner.ts`, `slither.ts`, and created `protocol-contracts.ts`. These changes are not committed to git.
+- The `better-sqlite3` native module must match the Node.js version. After any Node upgrade, run `npm install better-sqlite3` to rebuild.
+- Clawdbot auth uses OAuth via claude-cli profile. Token expires periodically — run `claude setup-token` to renew.

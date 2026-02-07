@@ -25,3 +25,21 @@ export function escapeHtml(text: string): string {
 export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
+
+/**
+ * Fetch with an AbortController-based timeout.
+ * Defaults to 30 seconds if no timeoutMs is provided.
+ */
+export async function fetchWithTimeout(
+  url: string,
+  options?: RequestInit & { timeoutMs?: number },
+): Promise<Response> {
+  const { timeoutMs = 30_000, ...fetchOptions } = options ?? {};
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...fetchOptions, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}

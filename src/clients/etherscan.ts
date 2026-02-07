@@ -1,6 +1,8 @@
 import type { EtherscanSourceResult } from '../types/index.js';
+import { fetchWithTimeout } from '../utils/helpers.js';
 
 const BASE_URL = 'https://api.etherscan.io/v2/api';
+const REQUEST_TIMEOUT_MS = 30_000;
 
 interface RateLimiter {
   lastRequestTime: number;
@@ -110,7 +112,7 @@ export class EtherscanClient {
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
-        const response = await fetch(url);
+        const response = await fetchWithTimeout(url, { timeoutMs: REQUEST_TIMEOUT_MS });
 
         if (response.status === 429) {
           const backoffMs = Math.min(1000 * Math.pow(2, attempt), 60_000);

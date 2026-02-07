@@ -1,0 +1,104 @@
+# White-Rabbit Memory Policy (YAML Reference)
+# NOTE: This repo uses JSON configs. This YAML is for reference only.
+# The active config is: white-rabbit.policy.json
+
+name: white-rabbit-memory-policy
+version: "1.0.0"
+description: Enforces memory-first analysis with deterministic confidence scoring
+
+policy:
+  memoryFirst:
+    enabled: true
+    tool: white_rabbit_memory_lookup
+    requiredParams:
+      includeSummaries: true
+      includeSimilar: true
+    confidenceThreshold: 0.75
+
+  contextConstraints:
+    whenLLMAllowed:
+      maxSummaryChars: 3000
+      maxFindings: 5
+      includeOnly:
+        - compressed_summaries
+        - top_findings
+        - minimal_metadata
+      exclude:
+        - raw_transaction_histories
+        - full_observation_logs
+        - large_decoded_traces
+        - prior_conversations
+
+  failureMode:
+    onMemoryUnavailable: proceed_conservatively
+    stateMemoryUnavailable: true
+    useMinimalContext: true
+
+systemPromptExtension:
+  title: WHITE-RABBIT MEMORY POLICY
+  content: |
+    ## WHITE-RABBIT MEMORY POLICY
+
+    ### MANDATORY TOOL SEQUENCE
+    Before analyzing ANY contract or token, you MUST:
+    1. Call: white_rabbit_memory_lookup(chain, address, includeSummaries=true, includeSimilar=true)
+    2. Wait for the response and evaluate the returned memory bundle
+
+    ### DETERMINISTIC CONFIDENCE RULE
+    The memory bundle includes a `confidence` object with:
+    - `score`: 0.0-1.0 confidence value
+    - `recommendation`: "use_memory" or "call_llm"
+    - `threshold`: configured threshold (default 0.75)
+
+    **Decision Logic:**
+    - If `confidence.recommendation === "use_memory"` (score >= threshold):
+      - DO NOT call any additional LLM for analysis
+      - Produce your explanation citing the memory evidence
+      - Reference specific tags, findings, and summaries from the bundle
+    - If `confidence.recommendation === "call_llm"` (score < threshold):
+      - LLM call is ALLOWED but with STRICT context constraints
+
+    ### CONTEXT CONSTRAINTS (When LLM is Allowed)
+    Provide the LLM ONLY:
+    - Compressed summaries (daily/weekly/lifetime text, max 3000 chars)
+    - Top 5 findings with 1-2 sentence summaries each
+    - Minimal metadata: chain, address, timestamps
+
+    MUST NOT include:
+    - Raw transaction histories
+    - Full observation logs or scan traces
+    - Large decoded call traces
+    - Entire prior conversations
+
+    ### FAILURE MODE
+    If the memory lookup fails or returns an error:
+    - State clearly: "Memory lookup unavailable"
+    - Proceed with MINIMAL context and CONSERVATIVE conclusions
+    - Do not make definitive claims without memory evidence
+
+    ### EFFICIENCY DIRECTIVE
+    - Prefer cached knowledge over new reasoning
+    - Prefer explanation over speculation
+    - Avoid repeating analysis already present in memory
+    - Goal: MAXIMUM recall with MINIMUM tokens and cost
+
+examples:
+  - scenario: "High confidence from memory (score=0.85)"
+    action: "Return decision citing memory evidence without calling AI"
+    response: |
+      Based on White-Rabbit memory (confidence: 85%):
+      - Tags: [honeypot, high_tax]
+      - 3 prior scans confirmed malicious behavior
+      - Similar contracts (2) all flagged as scams
+      Conclusion: This contract is a honeypot. Do not interact.
+
+  - scenario: "Low confidence (score=0.45)"
+    action: "Call AI with compressed context only"
+    llmContext:
+      summaries: "[lifetime] Analyzed 2 findings. 1 flagged as potentially vulnerable."
+      topFindings:
+        - title: "Reentrancy"
+          severity: "high"
+          summary: "Possible reentrancy..."
+      tags:
+        - unaudited

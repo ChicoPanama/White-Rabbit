@@ -1,0 +1,73 @@
+{
+  "$schema": "https://clawdbot.dev/schemas/agent-policy-v1.json",
+  "name": "white-rabbit-memory-policy",
+  "version": "1.0.0",
+  "description": "Enforces memory-first analysis with deterministic confidence scoring",
+
+  "policy": {
+    "memoryFirst": {
+      "enabled": true,
+      "tool": "white_rabbit_memory_lookup",
+      "requiredParams": {
+        "includeSummaries": true,
+        "includeSimilar": true
+      },
+      "confidenceThreshold": 0.75
+    },
+
+    "contextConstraints": {
+      "whenLLMAllowed": {
+        "maxSummaryChars": 2000,
+        "maxFindings": 5,
+        "maxTotalInputTokens": 40000,
+        "includeOnly": [
+          "compressed_summaries",
+          "top_findings",
+          "minimal_metadata"
+        ],
+        "exclude": [
+          "raw_transaction_histories",
+          "full_observation_logs",
+          "large_decoded_traces",
+          "prior_conversations",
+          "full_source_code"
+        ]
+      },
+      "outputBudget": {
+        "default": 2048,
+        "report": 4096,
+        "maximum": 8192
+      }
+    },
+
+    "failureMode": {
+      "onMemoryUnavailable": "proceed_conservatively",
+      "stateMemoryUnavailable": true,
+      "useMinimalContext": true
+    }
+  },
+
+  "systemPromptExtension": {
+    "title": "WHITE-RABBIT MEMORY POLICY",
+    "content": "## WHITE-RABBIT MEMORY POLICY\n\n### MANDATORY TOOL SEQUENCE\nBefore analyzing ANY contract or token, you MUST:\n1. Call: white_rabbit_memory_lookup(chain, address, includeSummaries=true, includeSimilar=true)\n2. Wait for the response and evaluate the returned memory bundle\n\n### DETERMINISTIC CONFIDENCE RULE\nThe memory bundle includes a `confidence` object with:\n- `score`: 0.0-1.0 confidence value\n- `recommendation`: \"use_memory\" or \"call_llm\"\n- `threshold`: configured threshold (default 0.75)\n\n**Decision Logic:**\n- If `confidence.recommendation === \"use_memory\"` (score >= threshold):\n  - DO NOT call any additional LLM for analysis\n  - Produce your explanation citing the memory evidence\n  - Reference specific tags, findings, and summaries from the bundle\n- If `confidence.recommendation === \"call_llm\"` (score < threshold):\n  - LLM call is ALLOWED but with STRICT context constraints\n\n### CONTEXT CONSTRAINTS (When LLM is Allowed)\nProvide the LLM ONLY:\n- Compressed summaries (daily/weekly/lifetime text, max 3000 chars)\n- Top 5 findings with 1-2 sentence summaries each\n- Minimal metadata: chain, address, timestamps\n\nMUST NOT include:\n- Raw transaction histories\n- Full observation logs or scan traces\n- Large decoded call traces\n- Entire prior conversations\n\n### FAILURE MODE\nIf the memory lookup fails or returns an error:\n- State clearly: \"Memory lookup unavailable\"\n- Proceed with MINIMAL context and CONSERVATIVE conclusions\n- Do not make definitive claims without memory evidence\n\n### EFFICIENCY DIRECTIVE\n- Prefer cached knowledge over new reasoning\n- Prefer explanation over speculation\n- Avoid repeating analysis already present in memory\n- Goal: MAXIMUM recall with MINIMUM tokens and cost"
+  },
+
+  "examples": [
+    {
+      "scenario": "High confidence from memory (score=0.85)",
+      "action": "Return decision citing memory evidence without calling AI",
+      "response": "Based on White-Rabbit memory (confidence: 85%):\n- Tags: [honeypot, high_tax]\n- 3 prior scans confirmed malicious behavior\n- Similar contracts (2) all flagged as scams\nConclusion: This contract is a honeypot. Do not interact."
+    },
+    {
+      "scenario": "Low confidence (score=0.45)",
+      "action": "Call AI with compressed context only",
+      "llmContext": {
+        "summaries": "[lifetime] Analyzed 2 findings. 1 flagged as potentially vulnerable.",
+        "topFindings": [
+          {"title": "Reentrancy", "severity": "high", "summary": "Possible reentrancy..."}
+        ],
+        "tags": ["unaudited"]
+      }
+    }
+  ]
+}

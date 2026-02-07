@@ -11,6 +11,9 @@ services:
       - MIN_TVL_THRESHOLD=${MIN_TVL_THRESHOLD:-10000000}
       - SCAN_CHAINS=${SCAN_CHAINS:-ethereum,base,arbitrum}
       - ALERT_MIN_SEVERITY=${ALERT_MIN_SEVERITY:-medium}
+      # AI queue mode - scanner enqueues, ai_worker processes
+      - WR_USE_AI_QUEUE=true
+      - WR_MODE=scanner
     depends_on:
       db:
         condition: service_healthy
@@ -28,7 +31,9 @@ services:
       - ETHERSCAN_API_KEY=${ETHERSCAN_API_KEY}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # Workers do NOT call Anthropic directly - AI worker handles it
+      - WR_USE_AI_QUEUE=true
+      - WR_MODE=worker
     depends_on:
       db:
         condition: service_healthy
@@ -38,10 +43,44 @@ services:
       - ./contracts:/app/contracts
       - /var/run/docker.sock:/var/run/docker.sock
     deploy:
-      replicas: 3
+      # Reduced from 3 to 1 - AI calls are now serialized via ai_worker
+      replicas: 1
       resources:
         limits:
           memory: 2G
+
+  ai_worker:
+    build: .
+    command: node dist/ai-worker.js
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      # Global rate limiting - shared across all ai_worker instances
+      - WR_AI_RPM=${WR_AI_RPM:-2}
+      - WR_AI_MIN_DELAY_MS=${WR_AI_MIN_DELAY_MS:-12000}
+      - WR_AI_MAX_ATTEMPTS=${WR_AI_MAX_ATTEMPTS:-5}
+      - WR_AI_COOLDOWN_MS=${WR_AI_COOLDOWN_MS:-120000}
+      - WR_AI_429_THRESHOLD=${WR_AI_429_THRESHOLD:-3}
+      # AI model configuration
+      - AI_MODEL_HAIKU=${AI_MODEL_HAIKU:-claude-haiku-4-5-20251001}
+      - AI_MODEL_SONNET=${AI_MODEL_SONNET:-claude-sonnet-4-20250514}
+      # Fallback provider (e.g., DeepSeek) - used when Anthropic fails
+      - WR_AI_FALLBACK_API_KEY=${WR_AI_FALLBACK_API_KEY:-}
+      - WR_AI_FALLBACK_BASE_URL=${WR_AI_FALLBACK_BASE_URL:-https://api.deepseek.com/v1}
+      - WR_AI_FALLBACK_MODEL=${WR_AI_FALLBACK_MODEL:-deepseek-chat}
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      # IMPORTANT: Keep at 1 replica for safe rate limiting
+      # Multiple replicas will still work (global Redis locks), but 1 is safest
+      replicas: 1
+      resources:
+        limits:
+          memory: 512M
+    restart: unless-stopped
 
   slither:
     image: trailofbits/eth-security-toolbox

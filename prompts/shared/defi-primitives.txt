@@ -1,0 +1,33 @@
+## Common DeFi Protocol Patterns
+
+### AMM (Automated Market Maker)
+- **Constant product:** x * y = k (Uniswap V2 style)
+- **Concentrated liquidity:** Uniswap V3 style with tick ranges
+- **Stable swaps:** Curve-style with amplification parameter
+- **Common vulnerabilities:** Price manipulation via reserve ratio, sandwich attacks, LP token inflation
+
+### Lending/Borrowing
+- **Overcollateralized:** Aave, Compound style with collateral factors
+- **Interest rate models:** Utilization-based (jump rate, kinked)
+- **Liquidation mechanics:** Health factor threshold triggers
+- **Common vulnerabilities:** Oracle manipulation for liquidation, bad debt from price crashes, interest rate manipulation
+
+### Vaults/Yield Aggregators
+- **Share-based accounting:** deposit(assets) -> shares, withdraw(shares) -> assets
+- **Strategy pattern:** Vault deploys funds to yield strategies
+- **Common vulnerabilities:** Share price manipulation (first depositor attack), strategy loss socialization, sandwich on deposit/withdraw
+
+### Staking
+- **Reward distribution:** Per-block/per-second reward accumulation
+- **Reward per token:** rewardPerToken = accumulated + (timeDelta * rewardRate / totalStaked)
+- **Common vulnerabilities:** Reward draining via stake/unstake timing, division by zero when totalStaked = 0
+
+### Bridges
+- **Lock and mint:** Lock on source chain, mint wrapped on destination
+- **Message passing:** Relayer-based with signature verification
+- **Common vulnerabilities:** Message replay, insufficient signature validation, relayer manipulation
+
+### Governance
+- **Token-weighted voting:** Votes proportional to token balance
+- **Timelock execution:** Proposals queued with delay before execution
+- **Common vulnerabilities:** Flash loan governance attacks, proposal front-running, timelock bypass

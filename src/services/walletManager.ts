@@ -181,10 +181,15 @@ export class WalletManager {
     const hdNode = ethers.HDNodeWallet.fromPhrase(mnemonic);
     const address = hdNode.address;
 
-    // Encrypt and store
+    // Encrypt and store atomically
     const encrypted = await encryptMnemonic(mnemonic, password);
-    fs.mkdirSync(WALLET_DIR, { recursive: true });
-    fs.writeFileSync(WALLET_FILE, encrypted, { mode: SECURITY_CONFIG.walletFilePermissions });
+    fs.mkdirSync(WALLET_DIR, { recursive: true, mode: 0o700 });
+    const fd = fs.openSync(WALLET_FILE, fs.constants.O_WRONLY | fs.constants.O_CREAT | fs.constants.O_EXCL, SECURITY_CONFIG.walletFilePermissions);
+    try {
+      fs.writeSync(fd, encrypted, 0, 'utf8');
+    } finally {
+      fs.closeSync(fd);
+    }
 
     return { mnemonic, address };
   }

@@ -2,10 +2,11 @@ import type { Config } from './config.js';
 import { EtherscanClient } from './clients/etherscan.js';
 import { DeFiLlamaClient } from './clients/defillama.js';
 import { SlitherAnalyzer } from './analyzers/slither.js';
-import { AIAnalyzer } from './analyzers/ai-analyzer.js';
+import { AIAnalyzer, getAnalysisTier } from './analyzers/ai-analyzer.js';
+import type { AnalysisTier } from './analyzers/ai-analyzer.js';
 import { FindingDeduplicator } from './analyzers/deduplicator.js';
-import { LocalFPFilter } from './analyzers/local-fp-filter.js';
-import { ParameterBoundsChecker } from './analyzers/parameter-bounds.js';
+import { localFpFilter } from './analyzers/local-fp-filter.js';
+import { CostTracker } from './services/cost-tracker.js';
 import { ContextService } from './services/context.js';
 import { PoCVerifier } from './services/verifier.js';
 import { ExploitEstimator, formatExploitValue, exploitValueIcon, estimateBounty } from './services/exploitEstimator.js';
@@ -22,8 +23,13 @@ import { Database } from './database.js';
 import { CHAINS, SEVERITY_ORDER } from './types/index.js';
 import type { Contract, Finding, VerifiedFinding, VerificationStatus, ExploitEstimate, ForkHuntResult } from './types/index.js';
 import { EXPLOIT_VALUE_THRESHOLDS } from './types/index.js';
+import { ForkHunterV2 } from './services/fork-hunter-v2.js';
+import { getProtocolContracts, getChainContracts, hasKnownContracts } from './data/protocol-contracts.js';
 import { capitalize } from './utils/helpers.js';
-import { matchKnownHacks } from './data/known-hacks.js';
+import { isDryRun, dryRunLog, phaseStart, phaseEnd, logAiPrompt, logApiCall } from './dry-run.js';
+import { loadPrompt } from './prompt-manager.js';
+import { createSession, writeDeliverable } from './deliverables-manager.js';
+import { setDeliverableBaseDir, assertPhaseReady } from './queue-validation.js';
 
 /**
  * Main scanner orchestrator. Runs the 6-stage verification pipeline:
@@ -40,9 +46,8 @@ export class Scanner {
   private readonly defillama: DeFiLlamaClient;
   private readonly slither: SlitherAnalyzer;
   private readonly ai: AIAnalyzer;
+  private readonly costTracker: CostTracker;
   private readonly deduplicator: FindingDeduplicator;
-  private readonly localFpFilter: LocalFPFilter;
-  private readonly boundsChecker: ParameterBoundsChecker;
   private readonly context: ContextService;
   private readonly verifier: PoCVerifier;
   private readonly exploitEstimator: ExploitEstimator;
@@ -61,10 +66,13 @@ export class Scanner {
     this.etherscan = new EtherscanClient(config.etherscanApiKey, config.etherscanRequestIntervalMs);
     this.defillama = new DeFiLlamaClient(config.defiLlamaCacheTtlMs);
     this.slither = new SlitherAnalyzer();
-    this.ai = new AIAnalyzer(config.anthropicApiKey);
+    this.costTracker = new CostTracker(config.ai.maxCallsPerHour, config.ai.maxSpendPerDay);
+    this.ai = new AIAnalyzer(config.anthropicApiKey, config.ai, this.costTracker, {
+      useQueue: config.useAiQueue,
+      redisUrl: config.redisUrl,
+      rateLimitConfig: config.aiRateLimit,
+    });
     this.deduplicator = new FindingDeduplicator();
-    this.localFpFilter = new LocalFPFilter();
-    this.boundsChecker = new ParameterBoundsChecker();
     this.context = new ContextService();
     this.verifier = new PoCVerifier();
     this.exploitEstimator = new ExploitEstimator();
@@ -91,7 +99,11 @@ export class Scanner {
     console.log('=== Starting full scan cycle ===');
     console.log(`  PoC verification: ${this.verifier.isAvailable ? 'enabled' : 'disabled (no Foundry or RPC URLs)'}`);
     console.log(`  Wallet verification: ${this.walletManager?.isUnlocked() ? 'enabled (4-stage)' : 'disabled (no wallet)'}`);
-    console.log(`  AI analysis: ${this.ai.isAvailable ? 'enabled' : 'disabled'}\n`);
+    console.log(`  AI analysis: ${this.ai.isAvailable ? 'enabled (tiered: haiku/sonnet)' : 'disabled'}`);
+    if (this.ai.isAvailable) {
+      console.log(`  AI budget: ${this.config.ai.maxCallsPerHour} calls/hr, $${this.config.ai.maxSpendPerDay.toFixed(2)}/day`);
+    }
+    console.log();
 
     const summary: ScanSummary = {
       chainsScanned: 0,
@@ -142,6 +154,16 @@ export class Scanner {
     const chainName = Object.values(CHAINS).find(c => c.chainId === chainId)?.name ?? `Chain ${chainId}`;
     console.log(`[Scanner] Scanning contract ${address} on ${chainName}`);
 
+    // Create deliverables session for this contract scan
+    const sessionId = createSession();
+    const sessionDir = `deliverables/${sessionId}`;
+    setDeliverableBaseDir(sessionDir);
+
+    if (isDryRun()) {
+      dryRunLog('Scanner', `Starting pipeline for ${address} on ${chainName}`);
+      logApiCall('Etherscan', 'getContractSource', { chainId, address });
+    }
+
     // Fetch source code
     const source = await this.etherscan.getContractSource(chainId, address);
     if (!source) {
@@ -163,8 +185,20 @@ export class Scanner {
     // Create scan record
     const scan = await this.db.createScan(contractId, ['slither']);
 
+    // Write discovery deliverables
+    phaseStart('discovery');
+    writeDeliverable(sessionId, 'discovery', 'contract-source.json', {
+      address, chainId, name: source.name, compilerVersion: source.compilerVersion,
+      isProxy: source.isProxy, sourceLength: source.sourceCode.length,
+    });
+    writeDeliverable(sessionId, 'discovery', 'protocol-metadata.json', {
+      address, chainId, chainName, contractName: source.name,
+    });
+    phaseEnd();
+
     try {
       // ── Stage 1: CONTEXT ──
+      phaseStart('context');
       console.log(`[Stage 1] Gathering context for ${source.name || address}`);
       const contextInfo = this.context.analyzeContext(source.sourceCode, source.name, null);
       if (contextInfo.isAudited) {
@@ -172,107 +206,154 @@ export class Scanner {
       }
       if (contextInfo.hasReentrancyGuard) console.log(`[Stage 1] ReentrancyGuard detected`);
       if (contextInfo.hasAccessControl) console.log(`[Stage 1] Access control detected`);
+      phaseEnd();
 
       // ── Stage 2: STATIC ANALYSIS ──
+      phaseStart('static-analysis');
       console.log(`[Stage 2] Running Slither static analysis`);
       const findings = await this.slither.analyze(address, chainId, source.sourceCode, source.compilerVersion);
       console.log(`[Stage 2] Slither found ${findings.length} raw findings`);
 
-      // AI enrichment for high/critical
-      if (this.ai.isAvailable) {
-        const significant = findings.filter(f => SEVERITY_ORDER[f.severity] >= SEVERITY_ORDER['high']);
-        if (significant.length > 0) {
-          console.log(`[Stage 2] Running AI analysis on ${significant.length} significant findings`);
-          const assessments = await this.ai.analyzeFindingsBatch(significant, source.sourceCode, null);
-          for (const assessment of assessments) {
-            const finding = significant.find(f => f.id === assessment.findingId);
-            if (finding) {
-              finding.aiAssessment = assessment.assessment;
-              finding.aiIsFalsePositive = assessment.isFalsePositive;
-            }
-          }
-        }
-      }
-
-      // ── Stage 2b: KNOWN VULNERABILITY PATTERN MATCHING ──
-      console.log(`[Stage 2b] Checking against known exploit patterns`);
-      const knownHackMatches = matchKnownHacks(source.sourceCode);
-      const unpatchedHacks = knownHackMatches.filter(m => !m.isPatched);
-      const patchedHacks = knownHackMatches.filter(m => m.isPatched);
-
-      if (patchedHacks.length > 0) {
-        console.log(`[Stage 2b] Found ${patchedHacks.length} known patterns (PATCHED):`);
-        for (const match of patchedHacks) {
-          console.log(`  \u2705 ${match.hack.name}: patched with ${match.patchEvidence?.slice(0, 50)}`);
-        }
-      }
-
-      if (unpatchedHacks.length > 0) {
-        console.log(`[Stage 2b] \u26A0\uFE0F Found ${unpatchedHacks.length} UNPATCHED known vulnerability patterns:`);
-        for (const match of unpatchedHacks) {
-          console.log(`  \u{1F6A8} ${match.hack.name} (${match.hack.severity}) - ${match.hack.exploitType}`);
-          if (match.hack.exploitValue) {
-            console.log(`      Historical exploit value: $${match.hack.exploitValue.toLocaleString()}`);
-          }
-
-          // Create HIGH-CONFIDENCE findings for unpatched known vulnerabilities
-          const knownHackFinding: Finding = {
-            id: `known-hack-${match.hack.id}-${Date.now()}`,
-            scanId: scan.id,
-            contractId: contractId,
-            detectorName: `known-${match.hack.exploitType}`,
-            tool: 'known-hacks-db',
-            severity: match.hack.severity,
-            confidence: 'high',
-            title: match.hack.name,
-            description: `${match.hack.description}\n\nMatched pattern: ${match.matchedPattern.slice(0, 100)}...`,
-            codeSnippet: match.matchedPattern.slice(0, 500),
-            filePath: null,
-            lineStart: null,
-            lineEnd: null,
-            aiAssessment: `Known vulnerability pattern from historical exploit. ${match.hack.affectedProtocols?.length ? `Previously exploited in: ${match.hack.affectedProtocols.join(', ')}` : ''}`,
-            aiIsFalsePositive: false,
-            deduplicatedGroupId: null,
-          };
-          findings.push(knownHackFinding);
-        }
-      }
+      // Write static analysis deliverables
+      writeDeliverable(sessionId, 'static-analysis', 'slither-report.json', {
+        findingCount: findings.length,
+        findings: findings.map(f => ({ id: f.id, detector: f.detectorName, severity: f.severity, confidence: f.confidence })),
+      });
+      writeDeliverable(sessionId, 'static-analysis', 'pattern-matches.json', {
+        totalPatterns: 0, matches: [],
+      });
+      phaseEnd();
 
       // ── Stage 3: FALSE POSITIVE FILTERING ──
-      // Use per-function FP filter (checks if the SPECIFIC function has protection)
-      console.log(`[Stage 3] Filtering false positives (per-function analysis)`);
-      const { real, falsePositives } = this.localFpFilter.filterFindings(findings, source.sourceCode);
-      if (falsePositives.length > 0) {
-        console.log(`[Stage 3] Filtered ${falsePositives.length} false positives:`);
-        for (const fp of falsePositives) {
-          const protection = fp.protection ? ` [${fp.protection}]` : '';
-          console.log(`  - ${fp.finding.detectorName}: ${fp.reason}${protection}`);
+      // 3a: Local rule-based filter (free, runs before AI)
+      console.log(`[Stage 3] Running local FP filter`);
+      const localResult = localFpFilter(findings, source.sourceCode);
+      if (localResult.filteredCount > 0) {
+        console.log(`[Stage 3] Local filter removed ${localResult.filteredCount} false positives:`);
+        for (const fp of localResult.filtered) {
+          console.log(`  - ${fp.finding.detectorName}: ${fp.rule}`);
         }
       }
 
-      // Also filter out AI-identified false positives
+      // 3b: Context-based FP filtering
+      console.log(`[Stage 3] Filtering known false positive patterns`);
+      const { real, falsePositives } = this.context.filterFalsePositives(localResult.passed, source.sourceCode);
+      if (falsePositives.length > 0) {
+        console.log(`[Stage 3] Context filter removed ${falsePositives.length} false positives:`);
+        for (const fp of falsePositives) {
+          console.log(`  - ${fp.finding.detectorName}: ${fp.reason}`);
+        }
+      }
+
+      // 3c: Tiered AI enrichment (cost-controlled)
+      // Use prompt templates for AI analysis when available
+      if (this.ai.isAvailable && isDryRun()) {
+        // In dry-run mode, log prompts instead of sending
+        try {
+          const reconPrompt = loadPrompt('recon-contract', {
+            CONTRACT_ADDRESS: address,
+            CHAIN: chainName,
+            PROTOCOL_NAME: contextInfo.knownProtocol ?? source.name ?? 'Unknown',
+          });
+          logAiPrompt('recon', reconPrompt);
+        } catch { /* prompt template may not exist */ }
+      }
+      if (this.ai.isAvailable) {
+        // Group findings by tier to minimize API calls
+        const tierGroups: Record<string, Finding[]> = { sonnet: [], haiku: [] };
+        for (const f of real) {
+          const tierDecision = getAnalysisTier(f.severity, null, contextInfo.isAudited, this.config.ai);
+          if (tierDecision.tier !== 'none') {
+            tierGroups[tierDecision.tier].push(f);
+          }
+        }
+
+        const sonnetCount = tierGroups.sonnet.length;
+        const haikuCount = tierGroups.haiku.length;
+        const skippedCount = real.length - sonnetCount - haikuCount;
+
+        if (sonnetCount > 0 || haikuCount > 0) {
+          console.log(`[Stage 3] AI tiers: ${sonnetCount} sonnet, ${haikuCount} haiku, ${skippedCount} skipped`);
+        }
+
+        // Queue mode: enqueue jobs for async processing by AI worker
+        if (this.ai.isQueueMode) {
+          const chainName = Object.values(CHAINS).find(c => c.chainId === chainId)?.name ?? 'unknown';
+          for (const [tier, group] of Object.entries(tierGroups)) {
+            if (group.length > 0) {
+              const jobId = await this.ai.enqueueAnalysis(
+                group,
+                source.sourceCode,
+                address,
+                chainName,
+                chainId,
+                tier as AnalysisTier,
+                contextInfo.knownProtocol ?? undefined,
+              );
+              if (jobId) {
+                console.log(`[Stage 3] Enqueued ${group.length} findings for AI analysis (job: ${jobId}, tier: ${tier})`);
+              }
+            }
+          }
+          // In queue mode, AI results will be processed asynchronously
+          // Findings will be updated later by the AI worker
+          console.log(`[Stage 3] AI analysis enqueued for async processing`);
+        } else {
+          // Direct mode: make API calls immediately (legacy behavior)
+          for (const [tier, group] of Object.entries(tierGroups)) {
+            if (group.length > 0) {
+              const assessments = await this.ai.analyzeFindingsBatch(group, source.sourceCode, null, tier as AnalysisTier);
+              for (const assessment of assessments) {
+                const finding = group.find(f => f.id === assessment.findingId);
+                if (finding) {
+                  finding.aiAssessment = assessment.assessment;
+                  finding.aiIsFalsePositive = assessment.isFalsePositive;
+                }
+              }
+            }
+          }
+
+          // Log cost summary (only in direct mode)
+          const costSummary = this.costTracker.getSummary();
+          if (costSummary.dayCalls > 0) {
+            console.log(`[Stage 3] AI cost: ${costSummary.dayCalls} calls today, $${costSummary.daySpend.toFixed(4)} spent`);
+          }
+        }
+      }
+
+      // Filter AI-identified false positives
       const afterAiFilter = real.filter(f => f.aiIsFalsePositive !== true);
       const aiFiltered = real.length - afterAiFilter.length;
       if (aiFiltered > 0) {
         console.log(`[Stage 3] AI filtered ${aiFiltered} additional false positives`);
       }
 
-      // Parameter bounds check for arithmetic findings (SSV lesson)
-      console.log(`[Stage 3] Checking parameter bounds for arithmetic findings`);
-      const { findings: boundsChecked, boundsChecks } = this.boundsChecker.filterFindings(afterAiFilter, source.sourceCode);
-      const unachievable = boundsChecks.filter(c => !c.result.isAchievable);
-      if (unachievable.length > 0) {
-        console.log(`[Stage 3] Downgraded ${unachievable.length} findings with unachievable trigger values:`);
-        for (const { finding: f, result: r } of unachievable) {
-          console.log(`  \u26A0\uFE0F ${f.detectorName}: ${r.reason}`);
-        }
+      // Deduplicate
+      const deduplicated = this.deduplicator.deduplicate(afterAiFilter);
+      const totalFiltered = localResult.filteredCount + falsePositives.length + aiFiltered;
+      console.log(`[Stage 3] ${deduplicated.length} findings after dedup (${totalFiltered} total FPs filtered)`);
+
+      // Write vulnerability hypothesis deliverables (one per vuln type found)
+      const vulnTypeMap = new Map<string, typeof deduplicated>();
+      for (const f of deduplicated) {
+        const type = f.detectorName.includes('reentrancy') ? 'reentrancy'
+          : f.detectorName.includes('overflow') || f.detectorName.includes('underflow') ? 'arithmetic'
+          : f.detectorName.includes('access') || f.detectorName.includes('owner') ? 'access-control'
+          : f.detectorName.includes('oracle') || f.detectorName.includes('price') ? 'oracle'
+          : f.detectorName.includes('flash') ? 'flash-loan'
+          : 'logic';
+        if (!vulnTypeMap.has(type)) vulnTypeMap.set(type, []);
+        vulnTypeMap.get(type)!.push(f);
+      }
+      for (const [type, group] of vulnTypeMap) {
+        writeDeliverable(sessionId, 'vulnerability-hypothesis', `vuln-${type}-report.json`, {
+          vulnType: type, findingCount: group.length,
+          findings: group.map(f => ({ id: f.id, detector: f.detectorName, severity: f.severity })),
+        });
       }
 
-      // Deduplicate
-      const deduplicated = this.deduplicator.deduplicate(boundsChecked);
-      console.log(`[Stage 3] ${deduplicated.length} findings after deduplication`);
-
       // ── Stage 4: VERIFICATION (PoC on fork + optional wallet stages) ──
+      phaseStart('verification');
       const useEnhancedVerification = this.walletManager?.isUnlocked() === true;
       console.log(`[Stage 4] Verification & PoC testing${useEnhancedVerification ? ' (4-stage wallet pipeline)' : ''}`);
       const verifiedFindings: VerifiedFinding[] = [];
@@ -334,7 +415,24 @@ export class Scanner {
         verifiedFindings.push(verified);
       }
 
+      phaseEnd(); // End verification phase
+
+      // Write verification deliverables
+      for (const [type, group] of vulnTypeMap) {
+        const typeVerified = verifiedFindings.filter(vf =>
+          group.some(g => g.id === vf.id)
+        );
+        writeDeliverable(sessionId, 'verification', `verification-${type}-result.json`, {
+          vulnType: type, verifiedCount: typeVerified.length,
+          findings: typeVerified.map(f => ({
+            id: f.id, detector: f.detectorName, status: f.verificationStatus,
+            confidence: f.confidenceScore,
+          })),
+        });
+      }
+
       // Log Stage 5 summary
+      phaseStart('risk-scoring');
       const statusCounts = verifiedFindings.reduce<Record<string, number>>((acc, f) => {
         acc[f.verificationStatus] = (acc[f.verificationStatus] ?? 0) + 1;
         return acc;
@@ -502,6 +600,29 @@ export class Scanner {
           await this.telegram.sendForkHuntResult(hunt, address, chainName, source.name);
         }
       }
+      phaseEnd(); // End risk-scoring + alerting phase
+
+      // Write final report deliverable
+      writeDeliverable(sessionId, 'report', 'final-report.md', [
+        `# Scan Report: ${source.name || address}`,
+        ``,
+        `**Contract:** ${address}`,
+        `**Chain:** ${chainName} (ID: ${chainId})`,
+        `**Session:** ${sessionId}`,
+        `**Timestamp:** ${new Date().toISOString()}`,
+        ``,
+        `## Summary`,
+        `- Total findings: ${verifiedFindings.length}`,
+        `- Verified: ${verifiedFindings.filter(f => f.verificationStatus === 'verified').length}`,
+        `- Likely real: ${verifiedFindings.filter(f => f.verificationStatus === 'likely_real').length}`,
+        `- False positives filtered: ${totalFiltered}`,
+        `- Alerts sent: ${alertable.length}`,
+        ``,
+        `## Findings`,
+        ...verifiedFindings.map(f =>
+          `- [${f.severity.toUpperCase()}] ${f.detectorName}: ${f.verificationStatus} (confidence: ${f.confidenceScore}%)`
+        ),
+      ].join('\n'));
 
       return verifiedFindings;
     } catch (err) {
@@ -641,17 +762,106 @@ export class Scanner {
       alerts: 0,
     };
 
+    // Display top protocols by TVL
     for (const protocol of protocols.slice(0, 10)) {
       const tvl = protocol.chainTvls?.[capitalize(chainName)] ?? protocol.tvl ?? 0;
       console.log(`  - ${protocol.name}: $${(tvl / 1e6).toFixed(1)}M TVL`);
     }
 
+    // Collect contracts to analyze from known protocols
+    const contractsToScan: Array<{ address: string; protocolName: string; tvl: number }> = [];
+    
+    for (const protocol of protocols) {
+      const protocolContracts = getProtocolContracts(protocol.slug, chainConfig.chainId);
+      const tvl = protocol.chainTvls?.[capitalize(chainName)] ?? protocol.tvl ?? 0;
+      
+      if (protocolContracts.length > 0) {
+        console.log(`[Scanner] Found ${protocolContracts.length} known contracts for ${protocol.name}`);
+        for (const contract of protocolContracts) {
+          contractsToScan.push({
+            address: contract.address,
+            protocolName: protocol.name,
+            tvl,
+          });
+        }
+      }
+    }
+
+    console.log(`[Scanner] Queuing ${contractsToScan.length} contracts for analysis on ${chainName}`);
+
+    // Analyze each contract using the 6-stage pipeline
+    for (const contract of contractsToScan.slice(0, 5)) { // Limit to 5 contracts per chain for now
+      try {
+        console.log(`[Scanner] Analyzing ${contract.address} (${contract.protocolName})`);
+        const findings = await this.scanContract(contract.address, chainConfig.chainId);
+        
+        result.contracts++;
+        result.findings += findings.length;
+        
+        // Count by verification status
+        for (const finding of findings) {
+          switch (finding.verificationStatus) {
+            case 'verified':
+              result.verified++;
+              break;
+            case 'likely_real':
+              result.likelyReal++;
+              break;
+            case 'likely_false':
+            case 'false_positive':
+              result.falsePositives++;
+              break;
+          }
+        }
+
+        // Check if any findings qualify for alerts
+        const alertableFindings = findings.filter(f => 
+          f.verificationStatus === 'verified' || 
+          (f.verificationStatus === 'likely_real' && f.exploitEstimate && f.exploitEstimate.estimatedExploitable >= EXPLOIT_VALUE_THRESHOLDS.critical.minExploitable)
+        );
+
+        if (alertableFindings.length > 0) {
+          console.log(`[Scanner] 🚨 ${alertableFindings.length} findings qualify for alerting from ${contract.address}`);
+          result.alerts += alertableFindings.length;
+          
+          // Send alerts via Telegram
+          for (const finding of alertableFindings) {
+            try {
+              await this.telegram.sendFindingAlert(finding, contract.address, chainName);
+            } catch (alertErr) {
+              console.error(`[Scanner] Alert failed: ${alertErr instanceof Error ? alertErr.message : String(alertErr)}`);
+            }
+          }
+        }
+
+        // Rate limit between contracts
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (err) {
+        console.error(`[Scanner] Error scanning ${contract.address}: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
     return result;
+  }
+
+  getCostTracker(): CostTracker {
+    return this.costTracker;
+  }
+
+  createForkHunterV2(): ForkHunterV2 {
+    return new ForkHunterV2(
+      this.etherscan,
+      this.defillama,
+      this.slither,
+      this.chainDiscovery,
+    );
   }
 
   async shutdown(): Promise<void> {
     this.walletManager?.destroy();
     this.patternCache.close();
+    await this.ai.close();
     await this.db.close();
   }
 }

@@ -1,0 +1,55 @@
+You are refining a structured security assessment for Immunefi bug bounty submission.
+
+{{>shared/defi-primitives}}
+
+## Structured Findings (pre-formatted by scanner)
+{{FINDINGS}}
+
+## Protocol
+- Protocol Name: {{PROTOCOL_NAME}}
+- Contract Address: {{CONTRACT_ADDRESS}}
+- Chain: {{CHAIN}}
+
+## Task
+
+The scanner has already:
+1. Mapped severity using Immunefi's impact classification
+2. Formatted proof-of-concept steps
+3. Estimated exploitable value
+4. Identified CWE identifiers
+5. Generated fix recommendations
+
+Your job is to refine the report for professional quality:
+1. Write a clear, professional executive summary (2-3 sentences)
+2. For each finding, refine the description for clarity and technical accuracy
+3. Ensure root cause explanations are precise and actionable
+4. Verify impact descriptions are realistic and well-justified
+5. Add references to similar historical exploits if applicable
+
+### Output Format
+
+Return a JSON object:
+```json
+{
+  "executiveSummary": "...",
+  "findingRefinements": [
+    {
+      "findingIndex": 0,
+      "refinedDescription": "...",
+      "refinedRootCause": "...",
+      "refinedImpact": "...",
+      "historicalReferences": ["..."],
+      "additionalNotes": "..."
+    }
+  ]
+}
+```
+
+### Quality Rules
+- Use clear, professional language suitable for a bug bounty reviewer
+- Be specific about function names, state variables, and code paths
+- Do NOT exaggerate impact — be conservative and credible
+- Do NOT include speculative or theoretical issues
+- Only refine findings with verification status "verified" or "likely_real"
+- Reference similar historical exploits when applicable
+- Ensure all technical claims are supported by the provided code and analysis
