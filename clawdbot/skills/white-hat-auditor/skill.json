@@ -1,0 +1,250 @@
+{
+  "name": "white-hat-auditor",
+  "version": "1.0.0",
+  "description": "White hat security research and audit report presentation skill based on White-Rabbit methodology",
+  "triggers": [
+    "security audit",
+    "vulnerability report",
+    "responsible disclosure",
+    "bug bounty",
+    "smart contract audit",
+    "audit report",
+    "white hat"
+  ],
+  "ethical_requirements": {
+    "mandatory": [
+      "Never test vulnerabilities on mainnet - use forked state only",
+      "Never exploit vulnerabilities for personal gain",
+      "Follow responsible disclosure timelines (14-45 days)",
+      "Document everything with timestamps",
+      "Operate within bug bounty program scope",
+      "Follow CFAA good-faith security research guidelines"
+    ],
+    "prohibited": [
+      "Mainnet exploitation",
+      "Blackmail or extortion",
+      "Unauthorized access beyond proving vulnerability",
+      "Public disclosure before timeline completion",
+      "Selling vulnerability information to malicious actors"
+    ]
+  },
+  "verification_pipeline": {
+    "stages": [
+      {
+        "stage": 1,
+        "name": "Context Gathering",
+        "actions": [
+          "Check protocol audit history",
+          "Review known security patterns",
+          "Analyze similar protocol exploits",
+          "Understand business logic"
+        ]
+      },
+      {
+        "stage": 2,
+        "name": "Static Analysis",
+        "actions": [
+          "Run Slither for automated detection",
+          "AI-assisted business logic review",
+          "Manual code review of critical paths",
+          "Dependency analysis"
+        ],
+        "tools": ["slither", "mythril", "echidna"]
+      },
+      {
+        "stage": 3,
+        "name": "False Positive Filtering",
+        "actions": [
+          "Apply known FP pattern matching",
+          "Cross-reference audit history",
+          "Verify exploitability conditions",
+          "Check existing mitigations"
+        ]
+      },
+      {
+        "stage": 4,
+        "name": "Verification",
+        "actions": [
+          "Build proof-of-concept exploit",
+          "Test on forked mainnet ONLY",
+          "Document reproduction steps",
+          "Calculate potential impact"
+        ],
+        "tools": ["foundry", "hardhat"],
+        "constraint": "FORKED_STATE_ONLY"
+      },
+      {
+        "stage": 5,
+        "name": "Risk Scoring",
+        "actions": [
+          "Assess exploitation likelihood",
+          "Estimate financial impact",
+          "Evaluate exploitation difficulty",
+          "Count affected users"
+        ]
+      },
+      {
+        "stage": 6,
+        "name": "Report Preparation",
+        "actions": [
+          "Professional documentation",
+          "Clear remediation guidance",
+          "Impact quantification",
+          "Evidence compilation"
+        ]
+      }
+    ]
+  },
+  "vulnerability_priorities": {
+    "critical": [
+      {
+        "category": "Logic Errors",
+        "historical_loss": "$12.5B",
+        "cases": 298,
+        "patterns": ["input validation bypass", "business logic flaws", "state transition errors"]
+      },
+      {
+        "category": "Access Control",
+        "historical_loss": "$4.4B",
+        "cases": 36,
+        "patterns": ["admin key compromise", "governance attacks", "multisig exploits"]
+      }
+    ],
+    "high": [
+      {
+        "category": "Reentrancy",
+        "historical_loss": "$419M",
+        "cases": 39,
+        "patterns": ["flash loan combos", "cross-function reentrancy"]
+      },
+      {
+        "category": "Signature Replay",
+        "historical_loss": "$407M",
+        "cases": 2,
+        "patterns": ["invalid signature validation", "bridge protocol attacks"]
+      },
+      {
+        "category": "Upgrade Vulnerabilities",
+        "historical_loss": "$328M",
+        "cases": 2,
+        "patterns": ["proxy implementation hijacking"]
+      }
+    ],
+    "medium": [
+      {
+        "category": "Compiler Bugs",
+        "historical_loss": "$201M",
+        "cases": 3
+      },
+      {
+        "category": "Donation Attacks",
+        "historical_loss": "$197M",
+        "cases": 2,
+        "patterns": ["exchange rate manipulation"]
+      }
+    ]
+  },
+  "report_template": {
+    "sections": [
+      {
+        "name": "Executive Summary",
+        "fields": ["auditor", "date", "scope", "severity_summary"]
+      },
+      {
+        "name": "Scope & Methodology",
+        "fields": ["contracts_reviewed", "commit_hash", "tools_used", "techniques"]
+      },
+      {
+        "name": "Findings",
+        "per_finding": {
+          "required": [
+            "severity",
+            "status",
+            "location",
+            "description",
+            "impact",
+            "proof_of_concept",
+            "recommended_remediation"
+          ],
+          "optional": ["references", "related_findings"]
+        }
+      },
+      {
+        "name": "Appendix",
+        "fields": ["test_environment", "verification_results", "disclaimer"]
+      }
+    ],
+    "severity_levels": {
+      "critical": "Direct theft of funds possible, protocol-wide impact, no user action required",
+      "high": "Funds at risk under conditions, major disruption possible",
+      "medium": "Limited funds exposure, requires unlikely conditions",
+      "low": "No direct fund risk, best practice violations",
+      "informational": "Code quality, gas optimizations, documentation"
+    }
+  },
+  "disclosure_process": {
+    "pre_disclosure_checklist": [
+      "Verify vulnerability is real (PoC on fork)",
+      "Document full reproduction steps",
+      "Estimate financial impact",
+      "Check for existing bug bounty program",
+      "Prepare professional report"
+    ],
+    "contact_priority": [
+      {
+        "priority": 1,
+        "channel": "Bug Bounty Platform",
+        "examples": ["Immunefi", "HackerOne", "Code4rena"]
+      },
+      {
+        "priority": 2,
+        "channel": "Direct Security Contact",
+        "methods": ["security@domain.com", "security.txt", "PGP encrypted"]
+      },
+      {
+        "priority": 3,
+        "channel": "Official Channels",
+        "methods": ["Discord (private)", "Official website contact"]
+      }
+    ],
+    "timeline": {
+      "day_0": "Initial report submitted",
+      "day_1_3": "Await acknowledgment",
+      "day_7": "Follow up if no response",
+      "day_14": "Standard minimum disclosure window",
+      "day_45": "Maximum disclosure window for critical DeFi",
+      "day_45_plus": "Public disclosure if unresolved"
+    }
+  },
+  "communication_guidelines": {
+    "do": [
+      "Be professional and courteous",
+      "Provide clear reproduction steps",
+      "Offer remediation suggestions",
+      "Maintain confidentiality",
+      "Document all communications"
+    ],
+    "dont": [
+      "Threaten or demand payment",
+      "Set unreasonable deadlines",
+      "Disclose to third parties",
+      "Exploit the vulnerability",
+      "Exaggerate impact"
+    ]
+  },
+  "resources": {
+    "tools": {
+      "static_analysis": ["Slither", "Mythril", "Echidna"],
+      "testing": ["Foundry", "Hardhat"],
+      "simulation": ["Tenderly"]
+    },
+    "platforms": {
+      "bug_bounty": ["Immunefi", "HackerOne", "Code4rena"],
+      "research": ["DeFiLlama", "Rekt News", "DeFi Safety"]
+    }
+  },
+  "source": {
+    "repository": "https://github.com/ChicoPanama/White-Rabbit",
+    "description": "Based on White-Rabbit autonomous smart contract vulnerability scanner methodology"
+  }
+}
