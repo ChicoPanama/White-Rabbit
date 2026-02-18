@@ -6,6 +6,7 @@ import { AIAnalyzer, getAnalysisTier } from './analyzers/ai-analyzer.js';
 import type { AnalysisTier } from './analyzers/ai-analyzer.js';
 import { FindingDeduplicator } from './analyzers/deduplicator.js';
 import { localFpFilter } from './analyzers/local-fp-filter.js';
+import { AnalysisPipeline, PipelineOptions } from './analyzers/analysis-pipeline.js';
 import { CostTracker } from './services/cost-tracker.js';
 import { ContextService } from './services/context.js';
 import { PoCVerifier } from './services/verifier.js';
@@ -21,6 +22,7 @@ import type { DynamicChainConfig } from './services/chains.js';
 import { TelegramAlertService } from './alerts/telegram.js';
 import { Database } from './database.js';
 import { CHAINS, SEVERITY_ORDER } from './types/index.js';
+import { getChainKey } from './config/chains.js';
 import type { Contract, Finding, VerifiedFinding, VerificationStatus, ExploitEstimate, ForkHuntResult } from './types/index.js';
 import { EXPLOIT_VALUE_THRESHOLDS } from './types/index.js';
 import { ForkHunterV2 } from './services/fork-hunter-v2.js';
@@ -46,6 +48,7 @@ export class Scanner {
   private readonly defillama: DeFiLlamaClient;
   private readonly slither: SlitherAnalyzer;
   private readonly ai: AIAnalyzer;
+  private readonly analysisPipeline: AnalysisPipeline;
   private readonly costTracker: CostTracker;
   private readonly deduplicator: FindingDeduplicator;
   private readonly context: ContextService;
@@ -66,6 +69,7 @@ export class Scanner {
     this.etherscan = new EtherscanClient(config.etherscanApiKey, config.etherscanRequestIntervalMs);
     this.defillama = new DeFiLlamaClient(config.defiLlamaCacheTtlMs);
     this.slither = new SlitherAnalyzer();
+    this.analysisPipeline = new AnalysisPipeline();
     this.costTracker = new CostTracker(config.ai.maxCallsPerHour, config.ai.maxSpendPerDay);
     this.ai = new AIAnalyzer(config.anthropicApiKey, config.ai, this.costTracker, {
       useQueue: config.useAiQueue,
@@ -182,8 +186,13 @@ export class Scanner {
       implementationAddress: source.implementationAddress,
     });
 
+    // Determine which tools will be used
+    const toolsUsed = this.config.enableDeepAnalysis 
+      ? ['slither', 'pattern', ...(this.config.enableMythril ? ['mythril'] : []), ...(this.config.enableSecurify ? ['securify'] : []), ...(this.config.enableMaian ? ['maian'] : [])]
+      : ['slither', 'pattern'];
+    
     // Create scan record
-    const scan = await this.db.createScan(contractId, ['slither']);
+    const scan = await this.db.createScan(contractId, toolsUsed);
 
     // Write discovery deliverables
     phaseStart('discovery');
@@ -208,11 +217,57 @@ export class Scanner {
       if (contextInfo.hasAccessControl) console.log(`[Stage 1] Access control detected`);
       phaseEnd();
 
-      // ── Stage 2: STATIC ANALYSIS ──
+      // ── Stage 2: STATIC ANALYSIS (via Analysis Pipeline) ──
       phaseStart('static-analysis');
-      console.log(`[Stage 2] Running Slither static analysis`);
-      const findings = await this.slither.analyze(address, chainId, source.sourceCode, source.compilerVersion);
-      console.log(`[Stage 2] Slither found ${findings.length} raw findings`);
+      
+      // Build contract object for pipeline
+      const contract: Contract = {
+        id: contractId,
+        address,
+        chainId,
+        name: source.name,
+        sourceCode: source.sourceCode,
+        abi: [],
+        compilerVersion: source.compilerVersion,
+        isProxy: source.isProxy,
+        implementationAddress: source.implementationAddress,
+        tvlUsd: null,
+        protocolName: contextInfo.knownProtocol,
+      };
+
+      // Determine pipeline mode based on config
+      const pipelineOptions: PipelineOptions = this.config.enableDeepAnalysis ? {
+        enableSlither: true,
+        enablePattern: true,
+        enableMythril: this.config.enableMythril ?? false,
+        enableSecurify: this.config.enableSecurify ?? false,
+        enableMaian: this.config.enableMaian ?? false,
+        enableAI: this.ai.isAvailable,
+        continueOnError: true,
+      } : {
+        // Quick mode: Slither + Pattern only
+        enableSlither: true,
+        enablePattern: true,
+        enableMythril: false,
+        enableSecurify: false,
+        enableMaian: false,
+        enableAI: false,
+        continueOnError: true,
+      };
+
+      console.log(`[Stage 2] Running analysis pipeline (${this.config.enableDeepAnalysis ? 'deep' : 'quick'} mode)`);
+      const pipelineResult = await this.analysisPipeline.analyze(contract, pipelineOptions);
+      
+      let findings = pipelineResult.findings;
+      console.log(`[Stage 2] Pipeline found ${findings.length} findings from ${Object.keys(pipelineResult.stats.byTool).join(', ')}`);
+      
+      // Log tool-specific results
+      for (const [tool, count] of Object.entries(pipelineResult.stats.byTool)) {
+        console.log(`  - ${tool}: ${count} findings`);
+      }
+      if (pipelineResult.errors.length > 0) {
+        console.log(`  - Errors: ${pipelineResult.errors.map(e => e.tool).join(', ')}`);
+      }
 
       // Write static analysis deliverables
       writeDeliverable(sessionId, 'static-analysis', 'slither-report.json', {
@@ -380,7 +435,9 @@ export class Scanner {
 
         // ── Stage 5: RISK SCORING ──
         const isFPPattern = this.context.checkFalsePositive(finding, source.sourceCode) !== null;
-        const toolsAgreeing = [finding.tool]; // Extend when more analysis tools added
+        // Use corroboratedBy from pipeline if available, otherwise default to finding's tool
+        const toolsAgreeing = (finding as Finding & { corroboratedBy?: string[] }).corroboratedBy 
+          || [finding.tool];
 
         // If enhanced verification failed at wallet_sim stage, reduce confidence
         const enhancedResult = enhancedResults.get(finding.id);
@@ -732,7 +789,9 @@ export class Scanner {
   }
 
   private async scanChain(chainName: string): Promise<ChainScanResult> {
-    const chainConfig = CHAINS[chainName.toLowerCase()];
+    // Resolve chain key from display name or key (e.g., "Arbitrum One" -> "arbitrum")
+    const chainKey = getChainKey(chainName) || chainName.toLowerCase();
+    const chainConfig = CHAINS[chainKey];
     if (!chainConfig) {
       // Try dynamic chain discovery
       const dynChain = this.chainDiscovery.getChainConfig(chainName);
@@ -742,15 +801,15 @@ export class Scanner {
       throw new Error(`Unknown chain: ${chainName}`);
     }
 
-    console.log(`\n[Scanner] Discovering protocols on ${chainName} (min TVL: $${this.config.minTvlThreshold})`);
+    console.log(`\n[Scanner] Discovering protocols on ${chainConfig.name} (min TVL: $${this.config.minTvlThreshold})`);
 
     const protocols = await this.defillama.getTopProtocols(
-      chainName.toLowerCase(),
+      chainKey,
       this.config.minTvlThreshold,
       50,
     );
 
-    console.log(`[Scanner] Found ${protocols.length} protocols on ${chainName}`);
+    console.log(`[Scanner] Found ${protocols.length} protocols on ${chainConfig.name}`);
 
     const result: ChainScanResult = {
       protocols: protocols.length,
@@ -764,16 +823,16 @@ export class Scanner {
 
     // Display top protocols by TVL
     for (const protocol of protocols.slice(0, 10)) {
-      const tvl = protocol.chainTvls?.[capitalize(chainName)] ?? protocol.tvl ?? 0;
+      const tvl = protocol.chainTvls?.[chainConfig.name] ?? protocol.chainTvls?.[capitalize(chainKey)] ?? protocol.tvl ?? 0;
       console.log(`  - ${protocol.name}: $${(tvl / 1e6).toFixed(1)}M TVL`);
     }
 
     // Collect contracts to analyze from known protocols
     const contractsToScan: Array<{ address: string; protocolName: string; tvl: number }> = [];
-    
+
     for (const protocol of protocols) {
       const protocolContracts = getProtocolContracts(protocol.slug, chainConfig.chainId);
-      const tvl = protocol.chainTvls?.[capitalize(chainName)] ?? protocol.tvl ?? 0;
+      const tvl = protocol.chainTvls?.[chainConfig.name] ?? protocol.chainTvls?.[capitalize(chainKey)] ?? protocol.tvl ?? 0;
       
       if (protocolContracts.length > 0) {
         console.log(`[Scanner] Found ${protocolContracts.length} known contracts for ${protocol.name}`);

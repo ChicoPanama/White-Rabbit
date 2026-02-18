@@ -15,6 +15,17 @@ import { getProtocolContracts } from './data/protocol-contracts.js';
 import { ethers } from 'ethers';
 import { Database } from './database.js';
 import { initRedisCache } from './services/redis-cache.js';
+// Research Pipeline imports
+import {
+  isAuditOrResearchTask,
+  isAuditPipelineEnabled,
+  parseTaskContext,
+  getClassificationReason,
+} from './utils/task_classifier.js';
+import {
+  runAuditPipeline,  // Keep original name as alias for API compatibility
+  AuditContext,
+} from './pipelines/research_pipeline.js';
 import { isDryRun, resetTimings } from './dry-run.js';
 import { loadScanConfig } from './config-parser.js';
 import { loadPrompt, listTemplates } from './prompt-manager.js';
@@ -36,6 +47,13 @@ Usage:
   npx tsx src/cli.ts sessions [--list]
   npx tsx src/cli.ts stats
   npx tsx src/cli.ts findings [--limit <n>]
+  npx tsx src/cli.ts router <task> [--lane <L1|L2|L3>]
+  npx tsx src/cli.ts router-audit <address> [--chain <name>]
+  npx tsx src/cli.ts router-budget
+  npx tsx src/cli.ts twitter-test
+  npx tsx src/cli.ts tweet <message>
+  npx tsx src/cli.ts tweet-milestone
+  npx tsx src/cli.ts tweet-stats
 
 Commands:
   audit       Audit a single contract address
@@ -58,6 +76,7 @@ Commands:
   knowledge        Show learning statistics and evolution history
   evolve           Run self-evolution cycle (refine patterns, analyze FPs)
   debrief          Run post-hunt debrief analysis
+  research         Deep research pipeline (6-stage verification, requires OPENCLAW_AUDIT_PIPELINE_ENABLED=true)
 
 Options:
   --chain <name>       Chain name (default: ethereum, micro default: base)
@@ -156,6 +175,44 @@ async function main() {
     return;
   }
 
+  // Research Pipeline: explicit /research command
+  if (command === 'research') {
+    await runResearchPipeline(args.slice(1));
+    return;
+  }
+
+  // Reasoning Router commands
+  if (command === 'router') {
+    await runRouter(args.slice(1));
+    return;
+  }
+  if (command === 'router-audit') {
+    await runRouterAudit(args.slice(1));
+    return;
+  }
+  if (command === 'router-budget') {
+    await runRouterBudget();
+    return;
+  }
+
+  // Twitter/X logging commands
+  if (command === 'twitter-test') {
+    await runTwitterTest();
+    return;
+  }
+  if (command === 'tweet') {
+    await runTweet(args.slice(1));
+    return;
+  }
+  if (command === 'tweet-milestone') {
+    await runTweetMilestone();
+    return;
+  }
+  if (command === 'tweet-stats') {
+    await runTweetStats();
+    return;
+  }
+
   const config = loadConfig();
   
   // Initialize wallet manager if wallet exists and password available
@@ -193,7 +250,13 @@ async function main() {
   try {
     switch (command) {
       case 'audit':
-        await runAudit(scanner, args.slice(1));
+        // Research pipeline ONLY with explicit --research or --deep-audit flag
+        // Normal audit flow is NEVER auto-routed to pipeline
+        if (hasExplicitResearchFlag(args.slice(1))) {
+          await runAuditWithPipeline(scanner, args.slice(1));
+        } else {
+          await runAudit(scanner, args.slice(1));
+        }
         break;
       case 'scan':
         await runScan(scanner, args.slice(1), config);
@@ -239,6 +302,187 @@ async function runChains(args: string[]) {
   const scannable = chains.filter(c => c.scannable).length;
   console.log(`\n${scannable} of ${Math.min(topN, chains.length)} chains are scannable.`);
   console.log('Run "scan top10" to scan all supported chains.');
+}
+
+// ── research pipeline helpers ──
+
+/**
+ * Check for EXPLICIT --research or --deep-audit flag only.
+ * NO automatic classification - pipeline is opt-in only.
+ * Normal audit flow is NEVER altered unless user explicitly requests it.
+ */
+function hasExplicitResearchFlag(args: string[]): boolean {
+  // Feature flag must be enabled
+  if (!isAuditPipelineEnabled()) {
+    return false;
+  }
+
+  // ONLY explicit flags trigger the pipeline - no auto-classification
+  return args.includes('--research') || args.includes('--deep-audit');
+}
+
+/**
+ * Run audit with the research pipeline
+ */
+async function runAuditWithPipeline(scanner: Scanner, args: string[]) {
+  const address = args[0];
+  if (!address) {
+    console.error('Error: contract address required');
+    console.error('Usage: audit <address> [--chain <name>] [--research]');
+    process.exit(1);
+  }
+  if (!isValidEthAddress(address)) {
+    console.error('Error: invalid Ethereum address (expected 0x + 40 hex characters)');
+    process.exit(1);
+  }
+
+  const chainName = getFlag(args, '--chain') ?? getFlag(args, '-n') ?? 'ethereum';
+  const depth = getFlag(args, '--depth') as 'quick' | 'standard' | 'deep' ?? 'standard';
+
+  // Get chain ID
+  let chainId: number;
+  const staticChain = CHAINS[chainName.toLowerCase()];
+  if (staticChain) {
+    chainId = staticChain.chainId;
+  } else {
+    const dynChain = scanner.chainDiscovery.getChainConfig(chainName);
+    if (!dynChain) {
+      console.error(`Unknown chain: ${chainName}`);
+      process.exit(1);
+    }
+    chainId = dynChain.chainId;
+  }
+
+  console.log('🔬 Running Research Pipeline...');
+  console.log(`Target: ${address} on ${chainName} (chain ID: ${chainId})`);
+
+  const context: AuditContext = {
+    target: {
+      address,
+      chainId,
+      chainName,
+    },
+    mode: 'audit',
+    depth,
+    tags: ['audit', 'contract'],
+  };
+
+  try {
+    const result = await runAuditPipeline(context, scanner);
+
+    if (result.success) {
+      console.log('\n' + '='.repeat(60));
+      console.log('✅ Research Pipeline Complete');
+      console.log('='.repeat(60));
+      console.log(result.summary);
+    } else {
+      console.error('\n❌ Research Pipeline Failed');
+      console.error(`See report: ${result.reportPath}`);
+
+      // Graceful fallback to standard audit
+      console.log('\n📋 Falling back to standard audit...');
+      await runAudit(scanner, args.filter(a => a !== '--research' && a !== '--deep-audit'));
+    }
+  } catch (error) {
+    console.error('[Pipeline] Error:', error);
+
+    // Graceful fallback
+    console.log('\n📋 Falling back to standard audit...');
+    await runAudit(scanner, args.filter(a => a !== '--research' && a !== '--deep-audit'));
+  }
+}
+
+/**
+ * Run explicit research pipeline command
+ */
+async function runResearchPipeline(args: string[]) {
+  // Check feature flag
+  if (!isAuditPipelineEnabled()) {
+    console.error('❌ Research Pipeline is disabled.');
+    console.error('Enable with: export OPENCLAW_AUDIT_PIPELINE_ENABLED=true');
+    process.exit(1);
+  }
+
+  const target = args[0];
+  if (!target) {
+    console.error('Error: target required (address, repo URL, or audit PDF path)');
+    console.error('Usage: research <target> [--depth quick|standard|deep]');
+    process.exit(1);
+  }
+
+  const depth = getFlag(args, '--depth') as 'quick' | 'standard' | 'deep' ?? 'standard';
+  const chainName = getFlag(args, '--chain') ?? 'ethereum';
+
+  // Determine target type
+  const isAddress = isValidEthAddress(target);
+  const isRepo = target.startsWith('http') && (target.includes('github') || target.includes('gitlab'));
+  const isPdf = target.endsWith('.pdf');
+
+  let context: AuditContext;
+
+  if (isAddress) {
+    const staticChain = CHAINS[chainName.toLowerCase()];
+    const chainId = staticChain?.chainId ?? 1;
+
+    context = {
+      target: {
+        address: target,
+        chainId,
+        chainName,
+      },
+      mode: 'research',
+      depth,
+      tags: ['research', 'deep-dive'],
+    };
+  } else if (isRepo) {
+    context = {
+      target: {
+        repoUrl: target,
+      },
+      mode: 'research',
+      depth,
+      tags: ['research', 'repository'],
+    };
+  } else if (isPdf) {
+    context = {
+      target: {
+        auditPdf: target,
+      },
+      mode: 'research',
+      depth,
+      tags: ['research', 'audit-review'],
+    };
+  } else {
+    // Generic target (protocol name, etc.)
+    context = {
+      target: {
+        protocol: target,
+      },
+      mode: 'research',
+      depth,
+      tags: ['research'],
+    };
+  }
+
+  console.log('🔬 Starting Research Pipeline...');
+  console.log(`Target: ${target}`);
+  console.log(`Mode: research, Depth: ${depth}`);
+
+  try {
+    const result = await runAuditPipeline(context);
+
+    console.log('\n' + '='.repeat(60));
+    if (result.success) {
+      console.log('✅ Research Complete');
+    } else {
+      console.log('⚠️ Research Completed with Issues');
+    }
+    console.log('='.repeat(60));
+    console.log(result.summary);
+  } catch (error) {
+    console.error('❌ Research Pipeline Failed:', error);
+    process.exit(1);
+  }
 }
 
 // ── audit ──
@@ -1656,6 +1900,149 @@ function formatTvlCompact(tvl: number): string {
   if (tvl >= 1e6) return `${(tvl / 1e6).toFixed(0)}M`;
   if (tvl >= 1e3) return `${(tvl / 1e3).toFixed(0)}K`;
   return String(tvl);
+}
+
+// ── Reasoning Router Commands ──
+
+async function runRouter(args: string[]) {
+  const { routeScan, routeResearch, routeQuick, formatResult } = require('./router-integration');
+  
+  const task = args.join(' ');
+  if (!task) {
+    console.log('Usage: npx tsx src/cli.ts router <task description>');
+    console.log('\nExamples:');
+    console.log('  npx tsx src/cli.ts router "Scan Base chain for unaudited protocols"');
+    console.log('  npx tsx src/cli.ts router "Research Compound fork vulnerabilities"');
+    console.log('  npx tsx src/cli.ts router "What is the current ETH price?"');
+    return;
+  }
+  
+  console.log('🐇 WhiteRabbit Reasoning Router');
+  console.log(`Task: ${task}`);
+  console.log('Routing through L1/L2/L3 lanes...\n');
+  
+  try {
+    const result = await routeQuick(task);
+    console.log(formatResult(result, 'router'));
+  } catch (error) {
+    console.error('Router error:', error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function runRouterAudit(args: string[]) {
+  const { routeAudit, formatResult } = require('./router-integration');
+  
+  const address = args[0];
+  const chain = getFlag(args, '--chain') || 'ethereum';
+  
+  if (!address || !isValidEthAddress(address)) {
+    console.log('Usage: npx tsx src/cli.ts router-audit <address> [--chain <name>]');
+    console.log('\nThis forces L3 (deep reasoning) lane for security audits.');
+    return;
+  }
+  
+  console.log('🐇 WhiteRabbit Router Audit (L3 Lane)');
+  console.log(`Target: ${address} on ${chain}\n`);
+  
+  try {
+    const result = await routeAudit(address, chain);
+    console.log(formatResult(result, 'audit'));
+    
+    // Also suggest running the actual scanner
+    console.log('\n⚡ To run full scanner:');
+    console.log(`  npx tsx src/cli.ts audit ${address} --chain ${chain}`);
+  } catch (error) {
+    console.error('Router audit error:', error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function runRouterBudget() {
+  const { getBudgetStatus } = require('./router-integration');
+  
+  const budget = getBudgetStatus();
+  
+  console.log('💰 WhiteRabbit Router Budget Status');
+  console.log('═══════════════════════════════════════\n');
+  
+  console.log('Lane Usage:');
+  console.log(`  L1 (Gemini Flash):  ${budget.L1.calls} calls, ${budget.L1.tokens} tokens`);
+  console.log(`  L2 (Moonshot Code): ${budget.L2.calls} calls, ${budget.L2.tokens} tokens`);
+  console.log(`  L3 (Paid):          ${budget.L3.used}/${budget.L3.max} (${budget.L3.percentage}%)`);
+  console.log();
+  
+  console.log('Search Usage:');
+  console.log(`  S1 (Serper): ${budget.search.S1} queries`);
+  console.log(`  S2 (Brave):  ${budget.search.S2} queries`);
+  console.log();
+  
+  if (budget.L3.percentage >= 80) {
+    console.log('⚠️  WARNING: L3 budget at 80%+ - auto-escalation disabled');
+    console.log('   Reserve maintained for L4 (critical) tasks only.');
+  } else if (budget.L3.percentage >= 60) {
+    console.log('⚡ NOTE: L3 budget at 60%+ - monitor usage');
+  } else {
+    console.log('✅ Budget healthy');
+  }
+}
+
+// ── Twitter/X Logging Commands ──
+
+async function runTwitterTest() {
+  try {
+    const { whiteRabbitLogger } = require('../clawd/skills/reasoning-router/logger');
+    console.log('🐦 Testing Twitter connection...\n');
+    const result = await whiteRabbitLogger.testConnection();
+    if (result.success) {
+      console.log(`✅ Connected as @${result.username}`);
+    } else {
+      console.log(`❌ Failed: ${result.error}`);
+    }
+  } catch (error) {
+    console.error('Twitter module not available:', error instanceof Error ? error.message : String(error));
+    console.log('Make sure the reasoning-router skill is built.');
+  }
+}
+
+async function runTweet(args: string[]) {
+  try {
+    const { whiteRabbitLogger } = require('../clawd/skills/reasoning-router/logger');
+    const message = args.join(' ');
+    
+    if (!message) {
+      console.log('Usage: npx tsx src/cli.ts tweet <message>');
+      console.log('\nExamples:');
+      console.log('  npx tsx src/cli.ts tweet "Daily hunt complete! 5 protocols scanned."');
+      console.log('  npx tsx src/cli.ts tweet-milestone');
+      console.log('  npx tsx src/cli.ts tweet-stats');
+      return;
+    }
+    
+    console.log('Posting tweet...');
+    await whiteRabbitLogger.logInsight(message);
+    console.log('✅ Posted to Twitter!');
+  } catch (error) {
+    console.error('Failed to tweet:', error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function runTweetMilestone() {
+  try {
+    const { whiteRabbitLogger } = require('../clawd/skills/reasoning-router/logger');
+    await whiteRabbitLogger.logMilestone('WhiteRabbit Reasoning Router v2.1 now live! Three lanes (L1/L2/L3) + search layer (S1/S2) for intelligent vulnerability hunting. Autonomous DeFi security. 🐇');
+    console.log('✅ Milestone posted!');
+  } catch (error) {
+    console.error('Failed to tweet:', error instanceof Error ? error.message : String(error));
+  }
+}
+
+async function runTweetStats() {
+  try {
+    const { whiteRabbitLogger } = require('../clawd/skills/reasoning-router/logger');
+    await whiteRabbitLogger.logDailyStats();
+    console.log('✅ Daily stats posted!');
+  } catch (error) {
+    console.error('Failed to tweet:', error instanceof Error ? error.message : String(error));
+  }
 }
 
 main().catch((err) => {

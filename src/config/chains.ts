@@ -266,13 +266,44 @@ export const CHAIN_CONFIGS: Record<string, ChainConfig> = {
 };
 
 /**
+ * Get chain key from display name (e.g., "Arbitrum One" -> "arbitrum")
+ */
+export function getChainKey(nameOrKey: string): string | undefined {
+  const lower = nameOrKey.toLowerCase();
+  // Direct key match
+  if (CHAIN_CONFIGS[lower]) {
+    return lower;
+  }
+  // Search by display name
+  for (const [key, config] of Object.entries(CHAIN_CONFIGS)) {
+    if (config.name.toLowerCase() === lower) {
+      return key;
+    }
+  }
+  return undefined;
+}
+
+/**
  * Get chain configuration by name or ID
  */
 export function getChainConfig(chainIdentifier: string | number): ChainConfig | undefined {
   if (typeof chainIdentifier === 'string') {
-    return CHAIN_CONFIGS[chainIdentifier];
+    // Try direct key lookup first
+    if (CHAIN_CONFIGS[chainIdentifier]) {
+      return CHAIN_CONFIGS[chainIdentifier];
+    }
+    // Try lowercase key
+    if (CHAIN_CONFIGS[chainIdentifier.toLowerCase()]) {
+      return CHAIN_CONFIGS[chainIdentifier.toLowerCase()];
+    }
+    // Try matching by display name
+    const key = getChainKey(chainIdentifier);
+    if (key) {
+      return CHAIN_CONFIGS[key];
+    }
+    return undefined;
   }
-  
+
   return Object.values(CHAIN_CONFIGS).find(config => config.chainId === chainIdentifier);
 }
 
