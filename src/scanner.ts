@@ -6,6 +6,7 @@ import { AIAnalyzer, getAnalysisTier } from './analyzers/ai-analyzer.js';
 import type { AnalysisTier } from './analyzers/ai-analyzer.js';
 import { FindingDeduplicator } from './analyzers/deduplicator.js';
 import { localFpFilter } from './analyzers/local-fp-filter.js';
+import { AnalysisPipeline, PipelineOptions } from './analyzers/analysis-pipeline.js';
 import { CostTracker } from './services/cost-tracker.js';
 import { ContextService } from './services/context.js';
 import { PoCVerifier } from './services/verifier.js';
@@ -43,6 +44,7 @@ export class Scanner {
   private readonly defillama: DeFiLlamaClient;
   private readonly slither: SlitherAnalyzer;
   private readonly ai: AIAnalyzer;
+  private readonly analysisPipeline: AnalysisPipeline;
   private readonly costTracker: CostTracker;
   private readonly deduplicator: FindingDeduplicator;
   private readonly context: ContextService;
@@ -63,6 +65,7 @@ export class Scanner {
     this.etherscan = new EtherscanClient(config.etherscanApiKey, config.etherscanRequestIntervalMs);
     this.defillama = new DeFiLlamaClient(config.defiLlamaCacheTtlMs);
     this.slither = new SlitherAnalyzer();
+    this.analysisPipeline = new AnalysisPipeline();
     this.costTracker = new CostTracker(config.ai.maxCallsPerHour, config.ai.maxSpendPerDay);
     this.ai = new AIAnalyzer(config.anthropicApiKey, config.ai, this.costTracker, {
       useQueue: config.useAiQueue,
@@ -169,8 +172,13 @@ export class Scanner {
       implementationAddress: source.implementationAddress,
     });
 
+    // Determine which tools will be used
+    const toolsUsed = this.config.enableDeepAnalysis 
+      ? ['slither', 'pattern', ...(this.config.enableMythril ? ['mythril'] : []), ...(this.config.enableSecurify ? ['securify'] : []), ...(this.config.enableMaian ? ['maian'] : [])]
+      : ['slither', 'pattern'];
+    
     // Create scan record
-    const scan = await this.db.createScan(contractId, ['slither']);
+    const scan = await this.db.createScan(contractId, toolsUsed);
 
     try {
       // ── Stage 1: CONTEXT ──
@@ -182,10 +190,55 @@ export class Scanner {
       if (contextInfo.hasReentrancyGuard) console.log(`[Stage 1] ReentrancyGuard detected`);
       if (contextInfo.hasAccessControl) console.log(`[Stage 1] Access control detected`);
 
-      // ── Stage 2: STATIC ANALYSIS ──
-      console.log(`[Stage 2] Running Slither static analysis`);
-      const findings = await this.slither.analyze(address, chainId, source.sourceCode, source.compilerVersion);
-      console.log(`[Stage 2] Slither found ${findings.length} raw findings`);
+      // ── Stage 2: STATIC ANALYSIS (via Analysis Pipeline) ──
+      // Build contract object for pipeline
+      const contract: Contract = {
+        id: contractId,
+        address,
+        chainId,
+        name: source.name,
+        sourceCode: source.sourceCode,
+        abi: [],
+        compilerVersion: source.compilerVersion,
+        isProxy: source.isProxy,
+        implementationAddress: source.implementationAddress,
+        tvlUsd: null,
+        protocolName: contextInfo.knownProtocol,
+      };
+
+      // Determine pipeline mode based on config
+      const pipelineOptions: PipelineOptions = this.config.enableDeepAnalysis ? {
+        enableSlither: true,
+        enablePattern: true,
+        enableMythril: this.config.enableMythril ?? false,
+        enableSecurify: this.config.enableSecurify ?? false,
+        enableMaian: this.config.enableMaian ?? false,
+        enableAI: this.ai.isAvailable,
+        continueOnError: true,
+      } : {
+        // Quick mode: Slither + Pattern only
+        enableSlither: true,
+        enablePattern: true,
+        enableMythril: false,
+        enableSecurify: false,
+        enableMaian: false,
+        enableAI: false,
+        continueOnError: true,
+      };
+
+      console.log(`[Stage 2] Running analysis pipeline (${this.config.enableDeepAnalysis ? 'deep' : 'quick'} mode)`);
+      const pipelineResult = await this.analysisPipeline.analyze(contract, pipelineOptions);
+      
+      let findings = pipelineResult.findings;
+      console.log(`[Stage 2] Pipeline found ${findings.length} findings from ${Object.keys(pipelineResult.stats.byTool).join(', ')}`);
+      
+      // Log tool-specific results
+      for (const [tool, count] of Object.entries(pipelineResult.stats.byTool)) {
+        console.log(`  - ${tool}: ${count} findings`);
+      }
+      if (pipelineResult.errors.length > 0) {
+        console.log(`  - Errors: ${pipelineResult.errors.map(e => e.tool).join(', ')}`);
+      }
 
       // ── Stage 3: FALSE POSITIVE FILTERING ──
       // 3a: Local rule-based filter (free, runs before AI)
@@ -311,7 +364,9 @@ export class Scanner {
 
         // ── Stage 5: RISK SCORING ──
         const isFPPattern = this.context.checkFalsePositive(finding, source.sourceCode) !== null;
-        const toolsAgreeing = [finding.tool]; // Extend when more analysis tools added
+        // Use corroboratedBy from pipeline if available, otherwise default to finding's tool
+        const toolsAgreeing = (finding as Finding & { corroboratedBy?: string[] }).corroboratedBy 
+          || [finding.tool];
 
         // If enhanced verification failed at wallet_sim stage, reduce confidence
         const enhancedResult = enhancedResults.get(finding.id);

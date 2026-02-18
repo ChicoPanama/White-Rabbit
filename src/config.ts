@@ -51,6 +51,11 @@ export interface Config {
   workerMode: WorkerMode;
   useAiQueue: boolean; // If true, enqueue AI jobs instead of direct calls
   microProtocol: MicroProtocolConfig; // Added: micro-protocol hunting config
+  // Analysis Pipeline Configuration
+  enableDeepAnalysis: boolean;       // Enable full 6-tool pipeline (vs quick Slither+Pattern)
+  enableMythril: boolean;            // Enable Mythril symbolic execution
+  enableSecurify: boolean;           // Enable Securify2 formal verification
+  enableMaian: boolean;              // Enable MAIAN dynamic analysis
 }
 
 export function loadConfig(): Config {
@@ -131,6 +136,12 @@ export function loadConfig(): Config {
 
   const effectiveMaxTvl = Number(process.env.MAX_TVL_THRESHOLD) || (microProtocolEnabled ? microProtocol.maxTvl : Number.MAX_SAFE_INTEGER);
 
+  // Analysis pipeline configuration (deep analysis disabled by default)
+  const enableDeepAnalysis = process.env.WR_ENABLE_DEEP_ANALYSIS === 'true';
+  const enableMythril = process.env.WR_ENABLE_MYTHRIL === 'true';
+  const enableSecurify = process.env.WR_ENABLE_SECURIFY === 'true';
+  const enableMaian = process.env.WR_ENABLE_MAIAN === 'true';
+
   return {
     etherscanApiKey: process.env.ETHERSCAN_API_KEY!,
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN!,
@@ -150,6 +161,10 @@ export function loadConfig(): Config {
     workerMode,
     useAiQueue,
     microProtocol,
+    enableDeepAnalysis,
+    enableMythril,
+    enableSecurify,
+    enableMaian,
   };
 }
 

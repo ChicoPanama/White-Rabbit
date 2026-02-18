@@ -26,7 +26,11 @@
     "memory": "tsx src/cli.ts memory",
     "memory:server": "WR_MEMORY_HTTP_ENABLED=true tsx src/memory-server.ts",
     "ai:worker": "tsx src/ai-worker.ts",
-    "test-deps": "node test-dependencies.js",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "tsx tests/unit/run-all.ts",
+    "test:e2e": "tsx tests/e2e/run-all.ts",
+    "test:pipeline": "tsx tests/e2e/test_analysis_pipeline.ts",
+    "test:deps": "node test-dependencies.js",
     "fix-deps": "bash setup-dependencies.sh"
   },
   "keywords": [
@@ -47,6 +51,7 @@
     "ethers": "^6.16.0",
     "ioredis": "^5.4.0",
     "pg": "^8.13.0",
+    "ulid": "^3.0.2",
     "uuid": "^10.0.0"
   },
   "devDependencies": {

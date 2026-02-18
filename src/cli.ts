@@ -1972,7 +1972,7 @@ async function runTwitterTest() {
       console.log(`❌ Failed: ${result.error}`);
     }
   } catch (error) {
-    console.error('Twitter module not available:', error.message);
+    console.error('Twitter module not available:', error instanceof Error ? error.message : String(error));
     console.log('Make sure the reasoning-router skill is built.');
   }
 }

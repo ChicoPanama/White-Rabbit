@@ -93,16 +93,27 @@ export interface SlitherElement {
 
 // ── Findings ──
 
-export interface Finding {
-  id: string;
-  scanId: string;
-  contractId: string;
+/** Base finding properties - common across all finding types */
+export interface BaseFinding {
   detectorName: string;
   tool: string;
   severity: Severity;
+  confidence?: Confidence;
+  title?: string;
+  description: string;
+  codeSnippet?: string | null;
+  filePath?: string | null;
+  lineStart?: number | null;
+  lineEnd?: number | null;
+}
+
+/** Full Finding type with database identifiers */
+export interface Finding extends BaseFinding {
+  id: string;
+  scanId: string;
+  contractId: string;
   confidence: Confidence;
   title: string;
-  description: string;
   codeSnippet: string | null;
   filePath: string | null;
   lineStart: number | null;
@@ -110,6 +121,8 @@ export interface Finding {
   aiAssessment: string | null;
   aiIsFalsePositive: boolean | null;
   deduplicatedGroupId: string | null;
+  /** Optional metadata for tool-specific findings (e.g., MAIAN, Mythril, Securify) */
+  metadata?: Record<string, unknown>;
 }
 
 // ── Scan ──
