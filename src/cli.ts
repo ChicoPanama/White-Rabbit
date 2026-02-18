@@ -26,6 +26,10 @@ import {
   runAuditPipeline,  // Keep original name as alias for API compatibility
   AuditContext,
 } from './pipelines/research_pipeline.js';
+import { isDryRun, resetTimings } from './dry-run.js';
+import { loadScanConfig } from './config-parser.js';
+import { loadPrompt, listTemplates } from './prompt-manager.js';
+import { getPipelineStatus } from './queue-validation.js';
 
 const HELP = `
 White-Rabbit: Autonomous Smart Contract Vulnerability Scanner
@@ -86,17 +90,39 @@ Options:
   --max-spend <usd>    Max daily AI spend in USD for hunt mode (default: 1.00)
   --networks <list>    Comma-separated networks (default: ethereum,base,arbitrum)
   --interval <min>     Minutes between scan cycles in auto mode (default: 30)
+  --config <path>      Path to YAML config file (default: env vars)
   --limit <n>          Number of findings to show (default: 10)
   --help               Show this help
+
+Environment Variables:
+  DRY_RUN=true         Skip external calls (API, RPC, AI) for pipeline testing
+  PIPELINE_TESTING=true  Alias for DRY_RUN
 `;
 
 async function main() {
   const args = process.argv.slice(2);
   const command = args[0];
 
+  if (isDryRun()) {
+    console.log('[DRY_RUN] Pipeline testing mode active — no external calls will be made\n');
+    resetTimings();
+  }
+
   if (!command || command === '--help' || command === '-h') {
     console.log(HELP);
     process.exit(0);
+  }
+
+  // Load YAML config if --config flag provided (available to all commands)
+  const configPath = getFlag(args, '--config');
+  if (configPath) {
+    try {
+      const scanConfig = loadScanConfig(configPath);
+      console.log(`Loaded config from: ${configPath}\n`);
+    } catch (err) {
+      console.warn(`Config load warning: ${err instanceof Error ? err.message : String(err)}`);
+      console.warn('Falling back to environment variables\n');
+    }
   }
 
   // Lightweight commands that don't need the full scanner

@@ -1,0 +1,62 @@
+# White-Rabbit Scanner — Default Configuration
+# Copy this file and customize for your setup.
+
+target:
+  chain: "ethereum"
+  contract_address: ""        # Set to scan a specific contract
+  protocol_name: ""           # Optional protocol name for context enrichment
+  tvl_range: [10000000, 0]    # Min $10M TVL, no max (0 = unlimited)
+
+scanner:
+  scan_frequency_minutes: 30
+  max_concurrent_scans: 3
+  enabled_vuln_types:
+    - arithmetic
+    - reentrancy
+    - access-control
+    - oracle
+    - flash-loan
+    - logic
+
+verification:
+  foundry_fork: true
+  mainnet_rpc: ""             # Set your RPC endpoint (e.g., https://eth.llamarpc.com)
+  gas_limit: 30000000
+  require_compilation_check: true
+  require_parameter_bounds: true
+
+# AI Provider Configuration
+# ========================
+# You MUST configure your own AI provider. No defaults are provided.
+# Supports any OpenAI-compatible API endpoint.
+#
+# Examples:
+#   Anthropic:    provider_endpoint: "https://api.anthropic.com"
+#                 api_key_env: "ANTHROPIC_API_KEY"
+#                 model: "claude-sonnet-4-20250514"
+#
+#   OpenRouter:   provider_endpoint: "https://openrouter.ai/api/v1"
+#                 api_key_env: "OPENROUTER_API_KEY"
+#                 model: "anthropic/claude-sonnet-4"
+#
+#   Local/Custom: provider_endpoint: "http://localhost:8000/v1"
+#                 api_key_env: "LOCAL_API_KEY"
+#                 model: "my-local-model"
+ai:
+  provider_endpoint: ""       # REQUIRED: Set your AI provider endpoint
+  api_key_env: ""             # REQUIRED: Env var name for API key
+  model: ""                   # REQUIRED: Primary model identifier
+  fallback_model: ""          # Optional: Fallback model
+  response_token_limit: 2000
+  context_window_guard: 100000
+  tiered_analysis: true
+
+reporting:
+  format: "immunefi"
+  min_severity: "medium"
+  include_poc: true
+
+filtering:
+  skip_design_choices: true
+  skip_solidity_08_overflow: true
+  min_exploitable_value_usd: 1000

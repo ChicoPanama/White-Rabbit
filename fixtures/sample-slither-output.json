@@ -1,0 +1,48 @@
+{
+  "success": true,
+  "findings": [
+    {
+      "id": "fixture-001",
+      "detectorName": "reentrancy-eth",
+      "tool": "slither",
+      "severity": "high",
+      "confidence": "medium",
+      "title": "Reentrancy in SampleVault.withdraw(uint256)",
+      "description": "SampleVault.withdraw(uint256) (contracts/SampleVault.sol#50-60) sends eth to arbitrary user. Dangerous calls: token.safeTransfer(msg.sender,amount) (contracts/SampleVault.sol#56)",
+      "codeSnippet": "function withdraw(uint256 amount) external nonReentrant {\n    require(amount > 0, \"Amount must be > 0\");\n    require(balances[msg.sender] >= amount, \"Insufficient balance\");\n    balances[msg.sender] -= amount;\n    totalDeposited -= amount;\n    token.safeTransfer(msg.sender, amount);\n}",
+      "filePath": "contracts/SampleVault.sol",
+      "lineStart": 50,
+      "lineEnd": 60
+    },
+    {
+      "id": "fixture-002",
+      "detectorName": "missing-zero-check",
+      "tool": "slither",
+      "severity": "low",
+      "confidence": "high",
+      "title": "SampleVault.constructor(address,uint256,address)._token lacks a zero-check",
+      "description": "SampleVault.constructor(address,uint256,address)._token (contracts/SampleVault.sol#30) lacks a zero-check on: token = IERC20(_token)",
+      "codeSnippet": "constructor(address _token, uint256 _feeRate, address _feeRecipient) {\n    token = IERC20(_token);\n    feeRate = _feeRate;\n    feeRecipient = _feeRecipient;\n}",
+      "filePath": "contracts/SampleVault.sol",
+      "lineStart": 30,
+      "lineEnd": 34
+    },
+    {
+      "id": "fixture-003",
+      "detectorName": "centralization-risk",
+      "tool": "slither",
+      "severity": "medium",
+      "confidence": "high",
+      "title": "SampleVault.setFeeRate(uint256) allows owner to change fee rate",
+      "description": "SampleVault.setFeeRate(uint256) (contracts/SampleVault.sol#62-65) allows the owner to change the fee rate up to 10%, which could be used to extract value from depositors.",
+      "codeSnippet": "function setFeeRate(uint256 _feeRate) external onlyOwner {\n    require(_feeRate <= 1000, \"Fee too high\");\n    feeRate = _feeRate;\n}",
+      "filePath": "contracts/SampleVault.sol",
+      "lineStart": 62,
+      "lineEnd": 65
+    }
+  ],
+  "contractName": "SampleVault",
+  "compilerVersion": "0.8.19",
+  "detectorCount": 90,
+  "duration": 3.2
+}

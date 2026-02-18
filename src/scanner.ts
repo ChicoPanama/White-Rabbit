@@ -28,6 +28,10 @@ import { EXPLOIT_VALUE_THRESHOLDS } from './types/index.js';
 import { ForkHunterV2 } from './services/fork-hunter-v2.js';
 import { getProtocolContracts, getChainContracts, hasKnownContracts } from './data/protocol-contracts.js';
 import { capitalize } from './utils/helpers.js';
+import { isDryRun, dryRunLog, phaseStart, phaseEnd, logAiPrompt, logApiCall } from './dry-run.js';
+import { loadPrompt } from './prompt-manager.js';
+import { createSession, writeDeliverable } from './deliverables-manager.js';
+import { setDeliverableBaseDir, assertPhaseReady } from './queue-validation.js';
 
 /**
  * Main scanner orchestrator. Runs the 6-stage verification pipeline:
@@ -154,6 +158,16 @@ export class Scanner {
     const chainName = Object.values(CHAINS).find(c => c.chainId === chainId)?.name ?? `Chain ${chainId}`;
     console.log(`[Scanner] Scanning contract ${address} on ${chainName}`);
 
+    // Create deliverables session for this contract scan
+    const sessionId = createSession();
+    const sessionDir = `deliverables/${sessionId}`;
+    setDeliverableBaseDir(sessionDir);
+
+    if (isDryRun()) {
+      dryRunLog('Scanner', `Starting pipeline for ${address} on ${chainName}`);
+      logApiCall('Etherscan', 'getContractSource', { chainId, address });
+    }
+
     // Fetch source code
     const source = await this.etherscan.getContractSource(chainId, address);
     if (!source) {
@@ -180,8 +194,20 @@ export class Scanner {
     // Create scan record
     const scan = await this.db.createScan(contractId, toolsUsed);
 
+    // Write discovery deliverables
+    phaseStart('discovery');
+    writeDeliverable(sessionId, 'discovery', 'contract-source.json', {
+      address, chainId, name: source.name, compilerVersion: source.compilerVersion,
+      isProxy: source.isProxy, sourceLength: source.sourceCode.length,
+    });
+    writeDeliverable(sessionId, 'discovery', 'protocol-metadata.json', {
+      address, chainId, chainName, contractName: source.name,
+    });
+    phaseEnd();
+
     try {
       // ── Stage 1: CONTEXT ──
+      phaseStart('context');
       console.log(`[Stage 1] Gathering context for ${source.name || address}`);
       const contextInfo = this.context.analyzeContext(source.sourceCode, source.name, null);
       if (contextInfo.isAudited) {
@@ -189,8 +215,11 @@ export class Scanner {
       }
       if (contextInfo.hasReentrancyGuard) console.log(`[Stage 1] ReentrancyGuard detected`);
       if (contextInfo.hasAccessControl) console.log(`[Stage 1] Access control detected`);
+      phaseEnd();
 
       // ── Stage 2: STATIC ANALYSIS (via Analysis Pipeline) ──
+      phaseStart('static-analysis');
+      
       // Build contract object for pipeline
       const contract: Contract = {
         id: contractId,
@@ -240,6 +269,16 @@ export class Scanner {
         console.log(`  - Errors: ${pipelineResult.errors.map(e => e.tool).join(', ')}`);
       }
 
+      // Write static analysis deliverables
+      writeDeliverable(sessionId, 'static-analysis', 'slither-report.json', {
+        findingCount: findings.length,
+        findings: findings.map(f => ({ id: f.id, detector: f.detectorName, severity: f.severity, confidence: f.confidence })),
+      });
+      writeDeliverable(sessionId, 'static-analysis', 'pattern-matches.json', {
+        totalPatterns: 0, matches: [],
+      });
+      phaseEnd();
+
       // ── Stage 3: FALSE POSITIVE FILTERING ──
       // 3a: Local rule-based filter (free, runs before AI)
       console.log(`[Stage 3] Running local FP filter`);
@@ -262,6 +301,18 @@ export class Scanner {
       }
 
       // 3c: Tiered AI enrichment (cost-controlled)
+      // Use prompt templates for AI analysis when available
+      if (this.ai.isAvailable && isDryRun()) {
+        // In dry-run mode, log prompts instead of sending
+        try {
+          const reconPrompt = loadPrompt('recon-contract', {
+            CONTRACT_ADDRESS: address,
+            CHAIN: chainName,
+            PROTOCOL_NAME: contextInfo.knownProtocol ?? source.name ?? 'Unknown',
+          });
+          logAiPrompt('recon', reconPrompt);
+        } catch { /* prompt template may not exist */ }
+      }
       if (this.ai.isAvailable) {
         // Group findings by tier to minimize API calls
         const tierGroups: Record<string, Finding[]> = { sonnet: [], haiku: [] };
@@ -337,7 +388,27 @@ export class Scanner {
       const totalFiltered = localResult.filteredCount + falsePositives.length + aiFiltered;
       console.log(`[Stage 3] ${deduplicated.length} findings after dedup (${totalFiltered} total FPs filtered)`);
 
+      // Write vulnerability hypothesis deliverables (one per vuln type found)
+      const vulnTypeMap = new Map<string, typeof deduplicated>();
+      for (const f of deduplicated) {
+        const type = f.detectorName.includes('reentrancy') ? 'reentrancy'
+          : f.detectorName.includes('overflow') || f.detectorName.includes('underflow') ? 'arithmetic'
+          : f.detectorName.includes('access') || f.detectorName.includes('owner') ? 'access-control'
+          : f.detectorName.includes('oracle') || f.detectorName.includes('price') ? 'oracle'
+          : f.detectorName.includes('flash') ? 'flash-loan'
+          : 'logic';
+        if (!vulnTypeMap.has(type)) vulnTypeMap.set(type, []);
+        vulnTypeMap.get(type)!.push(f);
+      }
+      for (const [type, group] of vulnTypeMap) {
+        writeDeliverable(sessionId, 'vulnerability-hypothesis', `vuln-${type}-report.json`, {
+          vulnType: type, findingCount: group.length,
+          findings: group.map(f => ({ id: f.id, detector: f.detectorName, severity: f.severity })),
+        });
+      }
+
       // ── Stage 4: VERIFICATION (PoC on fork + optional wallet stages) ──
+      phaseStart('verification');
       const useEnhancedVerification = this.walletManager?.isUnlocked() === true;
       console.log(`[Stage 4] Verification & PoC testing${useEnhancedVerification ? ' (4-stage wallet pipeline)' : ''}`);
       const verifiedFindings: VerifiedFinding[] = [];
@@ -401,7 +472,24 @@ export class Scanner {
         verifiedFindings.push(verified);
       }
 
+      phaseEnd(); // End verification phase
+
+      // Write verification deliverables
+      for (const [type, group] of vulnTypeMap) {
+        const typeVerified = verifiedFindings.filter(vf =>
+          group.some(g => g.id === vf.id)
+        );
+        writeDeliverable(sessionId, 'verification', `verification-${type}-result.json`, {
+          vulnType: type, verifiedCount: typeVerified.length,
+          findings: typeVerified.map(f => ({
+            id: f.id, detector: f.detectorName, status: f.verificationStatus,
+            confidence: f.confidenceScore,
+          })),
+        });
+      }
+
       // Log Stage 5 summary
+      phaseStart('risk-scoring');
       const statusCounts = verifiedFindings.reduce<Record<string, number>>((acc, f) => {
         acc[f.verificationStatus] = (acc[f.verificationStatus] ?? 0) + 1;
         return acc;
@@ -569,6 +657,29 @@ export class Scanner {
           await this.telegram.sendForkHuntResult(hunt, address, chainName, source.name);
         }
       }
+      phaseEnd(); // End risk-scoring + alerting phase
+
+      // Write final report deliverable
+      writeDeliverable(sessionId, 'report', 'final-report.md', [
+        `# Scan Report: ${source.name || address}`,
+        ``,
+        `**Contract:** ${address}`,
+        `**Chain:** ${chainName} (ID: ${chainId})`,
+        `**Session:** ${sessionId}`,
+        `**Timestamp:** ${new Date().toISOString()}`,
+        ``,
+        `## Summary`,
+        `- Total findings: ${verifiedFindings.length}`,
+        `- Verified: ${verifiedFindings.filter(f => f.verificationStatus === 'verified').length}`,
+        `- Likely real: ${verifiedFindings.filter(f => f.verificationStatus === 'likely_real').length}`,
+        `- False positives filtered: ${totalFiltered}`,
+        `- Alerts sent: ${alertable.length}`,
+        ``,
+        `## Findings`,
+        ...verifiedFindings.map(f =>
+          `- [${f.severity.toUpperCase()}] ${f.detectorName}: ${f.verificationStatus} (confidence: ${f.confidenceScore}%)`
+        ),
+      ].join('\n'));
 
       return verifiedFindings;
     } catch (err) {

@@ -1,0 +1,17 @@
+{
+  "name": "SampleProtocol",
+  "slug": "sample-protocol",
+  "chain": "ethereum",
+  "chainId": 1,
+  "tvl": 5000000,
+  "category": "Yield",
+  "address": "0x1234567890abcdef1234567890abcdef12345678",
+  "isAudited": false,
+  "auditedBy": [],
+  "deployedAt": "2025-06-15T00:00:00.000Z",
+  "contractCount": 3,
+  "hasProxy": false,
+  "compilerVersion": "0.8.19",
+  "isFork": false,
+  "forkOf": null
+}
