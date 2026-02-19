@@ -2,10 +2,10 @@
   "$schema": "./pattern-schema.json",
   "registry": {
     "name": "White-Rabbit Vulnerability Pattern Registry",
-    "version": "1.0.0",
-    "description": "Curated collection of smart contract vulnerability detection patterns",
-    "lastUpdated": "2024-02-19",
-    "patternCount": 7
+    "version": "2.0.0",
+    "description": "Curated collection of smart contract vulnerability detection patterns with EVMBench training",
+    "lastUpdated": "2026-02-19",
+    "patternCount": 9
   },
   "patterns": [
     {
@@ -14,7 +14,7 @@
       "name": "Reentrancy",
       "severity": "critical",
       "cwe": "CWE-841",
-      "detectorCount": 4
+      "detectorCount": 6
     },
     {
       "id": "access-control",
@@ -22,7 +22,7 @@
       "name": "Access Control",
       "severity": "critical",
       "cwe": "CWE-284",
-      "detectorCount": 5
+      "detectorCount": 17
     },
     {
       "id": "oracle-manipulation",
@@ -30,7 +30,7 @@
       "name": "Oracle Manipulation",
       "severity": "critical",
       "cwe": "CWE-20",
-      "detectorCount": 4
+      "detectorCount": 9
     },
     {
       "id": "flash-loan",
@@ -63,6 +63,22 @@
       "severity": "high",
       "cwe": "CWE-20",
       "detectorCount": 4
+    },
+    {
+      "id": "accounting-error",
+      "file": "accounting-error.json",
+      "name": "Accounting Error",
+      "severity": "high",
+      "cwe": "CWE-682",
+      "detectorCount": 8
+    },
+    {
+      "id": "logic-error",
+      "file": "logic-error.json",
+      "name": "Logic Error",
+      "severity": "high",
+      "cwe": "CWE-840",
+      "detectorCount": 10
     }
   ],
   "categories": {
@@ -85,6 +101,14 @@
     "economic": {
       "name": "Economic Attacks",
       "patterns": ["flash-loan"]
+    },
+    "accounting": {
+      "name": "Accounting Errors",
+      "patterns": ["accounting-error"]
+    },
+    "logic": {
+      "name": "Logic Errors",
+      "patterns": ["logic-error"]
     }
   },
   "severities": {
@@ -92,7 +116,7 @@
       "patterns": ["reentrancy", "access-control", "oracle-manipulation", "governance-attack"]
     },
     "high": {
-      "patterns": ["flash-loan", "integer-overflow", "price-manipulation"]
+      "patterns": ["flash-loan", "integer-overflow", "price-manipulation", "accounting-error", "logic-error"]
     }
   }
 }

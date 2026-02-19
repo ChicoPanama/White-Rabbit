@@ -2,8 +2,8 @@
   "$schema": "./pattern-schema.json",
   "id": "reentrancy",
   "name": "Reentrancy",
-  "version": "1.0.0",
-  "description": "Vulnerability allowing recursive external calls before state updates",
+  "version": "1.1.0",
+  "description": "Vulnerability allowing recursive external calls before state updates (EVMBench-trained)",
   "cwe": "CWE-841",
   "severity": "critical",
   "confidence": "medium",
@@ -55,13 +55,62 @@
       "description": "View functions that rely on state modified by reentrant functions",
       "pattern": "function\\s+\\w+.*view.*\\{[^}]*getReserves\\(|totalSupply\\(|balanceOf\\(",
       "flags": "is"
+    },
+    {
+      "id": "evmbench-erc1155-hijack",
+      "name": "ERC1155 Token Hijack via Reentrancy (EVMBench C4-2024-01-renft)",
+      "description": "Attacker can hijack ERC1155 token during rental due to reentrancy in design",
+      "pattern": "ERC1155.*rent|onERC1155Received.*rent|safeTransferFrom.*rent",
+      "flags": "i",
+      "contextPatterns": [
+        "ERC1155",
+        "rental",
+        "reNFT",
+        "callback"
+      ],
+      "safePatterns": [
+        "ReentrancyGuard",
+        "nonReentrant",
+        "rentedAt"
+      ],
+      "evmbench": {
+        "task_id": "2024-01-renft-H-03",
+        "source_audit": "2024-01-renft",
+        "award_usd": 1559.47,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-burn-reentrancy",
+      "name": "Burn Reentrancy Pool Drain (EVMBench C4-2026-01-tempo-feeamm)",
+      "description": "Reentrancy in burn function allows stablecoin pool drainage",
+      "pattern": "function\\s+burn\\s*\\([^)]*\\).*public|external",
+      "flags": "i",
+      "contextPatterns": [
+        "burn",
+        "stablecoin",
+        "pool",
+        "drain"
+      ],
+      "safePatterns": [
+        "ReentrancyGuard",
+        "nonReentrant",
+        "burnFrom"
+      ],
+      "evmbench": {
+        "task_id": "2026-01-tempo-feeamm-H-01",
+        "source_audit": "2026-01-tempo-feeamm",
+        "award_usd": 0,
+        "modes": ["detect", "exploit"]
+      }
     }
   ],
-  "remediation": "Use ReentrancyGuard (nonReentrant modifier) or implement checks-effects-interactions pattern",
+  "remediation": "Use ReentrancyGuard (nonReentrant modifier) or implement checks-effects-interactions pattern. For ERC1155/ERC777 tokens, be especially careful with callback functions.",
   "references": [
     "https://consensys.github.io/smart-contract-best-practices/attacks/reentrancy/",
     "https://swcregistry.io/docs/SWC-107",
-    "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/security/ReentrancyGuard.sol"
+    "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/security/ReentrancyGuard.sol",
+    "https://code4rena.com/reports/2024-01-renft"
   ],
   "historical": [
     {
@@ -75,6 +124,12 @@
       "date": "2020-04-18",
       "loss": "$25M",
       "description": "Read-only reentrancy in ERC777 hook"
+    },
+    {
+      "protocol": "reNFT",
+      "date": "2024-01-01",
+      "loss": "$1.5K (EVMBench)",
+      "description": "ERC1155 token hijack via rental callback reentrancy"
     }
   ]
 }

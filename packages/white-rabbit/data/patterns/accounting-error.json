@@ -1,0 +1,181 @@
+{
+  "$schema": "./pattern-schema.json",
+  "id": "accounting-error",
+  "name": "Accounting Error",
+  "version": "1.0.0",
+  "description": "Incorrect calculations in TVL, rewards, or other accounting functions (EVMBench-trained)",
+  "cwe": "CWE-682",
+  "severity": "high",
+  "confidence": "medium",
+  "detectors": [
+    {
+      "id": "tvl-calculation-incorrect",
+      "name": "TVL Calculation Error",
+      "description": "Total Value Locked calculation is incomplete or incorrect",
+      "pattern": "(getPositionTVL|_getPositionTVL|calculateTVL|getTVL)",
+      "flags": "i",
+      "contextPatterns": [
+        "TVL",
+        "position",
+        "connector"
+      ],
+      "examples": [
+        "_getPositionTVL(position)",
+        "calculateTVL(token, amount)"
+      ],
+      "evmbench": {
+        "task_count": 5,
+        "source_audits": ["2024-04-noya"],
+        "total_award_usd": 1622.42,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "market-weight-incorrect",
+      "name": "Market Weight Calculation Error",
+      "description": "Market weight calculation in update_market is incorrect",
+      "pattern": "update_market|market.*weight|nextEpoch",
+      "flags": "i",
+      "contextPatterns": [
+        "market",
+        "epoch",
+        "weight"
+      ],
+      "evmbench": {
+        "task_count": 2,
+        "source_audits": ["2024-01-canto"],
+        "total_award_usd": 0,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "gas-issuance-inflation",
+      "name": "Gas Issuance Inflation",
+      "description": "Gas issuance calculation is inflated leading to chain halt or incorrect base fee",
+      "pattern": "gas.*issuance|baseFee|calculateGas",
+      "flags": "i",
+      "contextPatterns": [
+        "gas",
+        "issuance",
+        "base fee"
+      ],
+      "evmbench": {
+        "task_id": "2024-03-taiko-H-01",
+        "source_audit": "2024-03-taiko",
+        "award_usd": 19856,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "bond-burning-incorrect",
+      "name": "Bond Burning Calculation Error",
+      "description": "Validity and contests bond can be incorrectly burned",
+      "pattern": "bond.*burn|burnBond|contestBond",
+      "flags": "i",
+      "contextPatterns": [
+        "bond",
+        "burn",
+        "contest"
+      ],
+      "evmbench": {
+        "task_id": "2024-03-taiko-H-02",
+        "source_audit": "2024-03-taiko",
+        "award_usd": 7045.06,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "pendle-token-send-incorrect",
+      "name": "Pendle Token Send Error",
+      "description": "PendleConnector incorrectly sends redeemed PT tokens to wrong destination",
+      "pattern": "PendleConnector|sendTokens|redeemed.*PT",
+      "flags": "i",
+      "contextPatterns": [
+        "Pendle",
+        "PT",
+        "redeem",
+        "market"
+      ],
+      "evmbench": {
+        "task_id": "2024-04-noya-H-07",
+        "source_audit": "2024-04-noya",
+        "award_usd": 300.81,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "accounting-manager-reset",
+      "name": "Accounting Manager Reset Error",
+      "description": "AccountingManager::resetMiddle does not behave as expected",
+      "pattern": "resetMiddle|AccountingManager",
+      "flags": "i",
+      "contextPatterns": [
+        "accounting",
+        "reset",
+        "manager"
+      ],
+      "evmbench": {
+        "task_id": "2024-04-noya-H-10",
+        "source_audit": "2024-04-noya",
+        "award_usd": 17.99,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "balancer-total-supply-error",
+      "name": "Balancer Total Supply Calculation Error",
+      "description": "BalancerConnector has incorrect implementation of totalSupply affecting position TVL",
+      "pattern": "BalancerConnector|totalSupply|positionTVL",
+      "flags": "i",
+      "contextPatterns": [
+        "Balancer",
+        "totalSupply",
+        "positionTVL"
+      ],
+      "evmbench": {
+        "task_count": 2,
+        "source_audits": ["2024-04-noya"],
+        "total_award_usd": 261.12,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "silo-position-tvl-error",
+      "name": "Silo Position TVL Miscalculation",
+      "description": "SiloConnector _getPositionTVL miscalculates the TVL position",
+      "pattern": "SiloConnector|_getPositionTVL|silo",
+      "flags": "i",
+      "contextPatterns": [
+        "Silo",
+        "TVL",
+        "position"
+      ],
+      "evmbench": {
+        "task_id": "2024-04-noya-H-15",
+        "source_audit": "2024-04-noya",
+        "award_usd": 300.81,
+        "modes": ["detect"]
+      }
+    }
+  ],
+  "remediation": "Thoroughly test all accounting calculations, use formal verification for critical math, implement proper decimal handling, and verify all edge cases in TVL/reward calculations.",
+  "references": [
+    "https://code4rena.com/reports/2024-04-noya",
+    "https://code4rena.com/reports/2024-03-taiko",
+    "https://code4rena.com/reports/2024-01-canto"
+  ],
+  "historical": [
+    {
+      "protocol": "Noya",
+      "date": "2024-04-01",
+      "loss": "$1.6K (EVMBench)",
+      "description": "Multiple TVL calculation errors in various connectors"
+    },
+    {
+      "protocol": "Taiko",
+      "date": "2024-03-01",
+      "loss": "$27K (EVMBench)",
+      "description": "Gas issuance inflation and bond burning errors"
+    }
+  ]
+}

@@ -1,0 +1,246 @@
+{
+  "$schema": "./pattern-schema.json",
+  "id": "logic-error",
+  "name": "Logic Error",
+  "version": "1.0.0",
+  "description": "Business logic errors leading to unintended behavior (EVMBench-trained)",
+  "cwe": "CWE-840",
+  "severity": "high",
+  "confidence": "low",
+  "detectors": [
+    {
+      "id": "mint-yield-fee-unrestricted",
+      "name": "Unrestricted Mint Yield Fee",
+      "description": "Vault.mintYieldFee can be called by anyone to mint shares arbitrarily",
+      "pattern": "mintYieldFee|mint.*fee.*public",
+      "flags": "i",
+      "contextPatterns": [
+        "Vault",
+        "mint",
+        "yield",
+        "fee"
+      ],
+      "safePatterns": [
+        "onlyOwner",
+        "onlyFeeRecipient",
+        "require.*authorized"
+      ],
+      "evmbench": {
+        "task_id": "2023-07-pooltogether-H-04",
+        "source_audit": "2023-07-pooltogether",
+        "award_usd": 2.25,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "reenter-mint-supply",
+      "name": "Reenter to Mint Supply",
+      "description": "Attacker can reenter to mint all collection supply",
+      "pattern": "mint.*reenter|reenter.*mint|collection.*supply",
+      "flags": "i",
+      "contextPatterns": [
+        "mint",
+        "collection",
+        "supply",
+        "NextGen"
+      ],
+      "safePatterns": [
+        "nonReentrant",
+        "ReentrancyGuard"
+      ],
+      "evmbench": {
+        "task_id": "2023-10-nextgen-H-01",
+        "source_audit": "2023-10-nextgen",
+        "award_usd": 0.15,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "auction-demo-drain",
+      "name": "Auction Demo ETH Drain",
+      "description": "Attacker can drain all ETH from AuctionDemo when block.timestamp equals auctionEndTime",
+      "pattern": "AuctionDemo|auctionEndTime|block\\.timestamp.*==.*end",
+      "flags": "i",
+      "contextPatterns": [
+        "auction",
+        "demo",
+        "ETH",
+        "drain"
+      ],
+      "safePatterns": [
+        "block\\.timestamp.*>=",
+        "auctionEnded",
+        "require.*ended"
+      ],
+      "evmbench": {
+        "task_id": "2023-10-nextgen-H-02",
+        "source_audit": "2023-10-nextgen",
+        "award_usd": 0,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "profit-index-not-set",
+      "name": "Profit Index Not Set Correctly",
+      "description": "userGaugeProfitIndex not set correctly, allowing reward manipulation",
+      "pattern": "userGaugeProfitIndex|gaugeProfitIndex|profitIndex",
+      "flags": "i",
+      "contextPatterns": [
+        "gauge",
+        "profit",
+        "index",
+        "reward"
+      ],
+      "evmbench": {
+        "task_id": "2023-12-ethereumcreditguild-H-01",
+        "source_audit": "2023-12-ethereumcreditguild",
+        "award_usd": 46.85,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "fee-splitter-missing-update",
+      "name": "Fee Splitter Missing Balance Update",
+      "description": "Unrestricted fee claiming due to missing balance updates in FeeSplitter",
+      "pattern": "FeeSplitter|claimFees|fee.*balance.*not.*update",
+      "flags": "i",
+      "contextPatterns": [
+        "fee",
+        "splitter",
+        "claim",
+        "balance"
+      ],
+      "safePatterns": [
+        "updateBalance",
+        "claimed",
+        "hasClaimed"
+      ],
+      "evmbench": {
+        "task_id": "2024-01-curves-H-02",
+        "source_audit": "2024-01-curves",
+        "award_usd": 0.18,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "order-hijack-lock",
+      "name": "Order Hijack Lock Forever",
+      "description": "Orders can be hijacked to lock rental assets forever by tipping malicious token",
+      "pattern": "order.*hijack|lock.*rental|tip.*malicious",
+      "flags": "i",
+      "contextPatterns": [
+        "order",
+        "rental",
+        "lock",
+        "hijack"
+      ],
+      "evmbench": {
+        "task_id": "2024-01-renft-H-01",
+        "source_audit": "2024-01-renft",
+        "award_usd": 2988.99,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "erc721-guard-missing",
+      "name": "ERC721 Guard Missing",
+      "description": "Attacker can hijack borrowed ERC721/ERC1155 because guard is missing",
+      "pattern": "ERC721.*guard|ERC1155.*guard|hijack.*borrow",
+      "flags": "i",
+      "contextPatterns": [
+        "ERC721",
+        "ERC1155",
+        "guard",
+        "borrow"
+      ],
+      "safePatterns": [
+        "setGuard",
+        "onlyGuarded",
+        "require.*guard"
+      ],
+      "evmbench": {
+        "task_id": "2024-01-renft-H-02",
+        "source_audit": "2024-01-renft",
+        "award_usd": 88.09,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "holding-position-id-incorrect",
+      "name": "Holding Position ID Calculation Error",
+      "description": "Registry holdingPositionId calculated incorrectly using wrong connector",
+      "pattern": "holdingPositionId|calculatorConnector|ownerConnector",
+      "flags": "i",
+      "contextPatterns": [
+        "holding",
+        "position",
+        "registry",
+        "connector"
+      ],
+      "evmbench": {
+        "task_id": "2024-04-noya-H-12",
+        "source_audit": "2024-04-noya",
+        "award_usd": 125.31,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "dolomite-holding-not-updated",
+      "name": "Dolomite Holding Position Not Updated",
+      "description": "Holding position never updated in transferBetweenAccounts due to removePosition flag",
+      "pattern": "DolomiteConnector|transferBetweenAccounts|removePosition",
+      "flags": "i",
+      "contextPatterns": [
+        "Dolomite",
+        "transfer",
+        "holding",
+        "position"
+      ],
+      "evmbench": {
+        "task_id": "2024-04-noya-H-23",
+        "source_audit": "2024-04-noya",
+        "award_usd": 445.65,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "pendle-stake-removed",
+      "name": "Pendle Position Removed Prematurely",
+      "description": "Decreasing position removes it even if still staked at Penpie",
+      "pattern": "PendleConnector|decreasePosition|stake.*Penpie",
+      "flags": "i",
+      "contextPatterns": [
+        "Pendle",
+        "position",
+        "stake",
+        "Penpie"
+      ],
+      "evmbench": {
+        "task_id": "2024-04-noya-H-21",
+        "source_audit": "2024-04-noya",
+        "award_usd": 2145.72,
+        "modes": ["detect"]
+      }
+    }
+  ],
+  "remediation": "Thoroughly review all state transitions, ensure proper access controls, validate edge cases, and test all code paths including reentrancy scenarios.",
+  "references": [
+    "https://code4rena.com/reports/2024-04-noya",
+    "https://code4rena.com/reports/2024-01-renft",
+    "https://code4rena.com/reports/2023-10-nextgen"
+  ],
+  "historical": [
+    {
+      "protocol": "reNFT",
+      "date": "2024-01-01",
+      "loss": "$3K (EVMBench)",
+      "description": "Logic errors allowed order hijacking and asset locking"
+    },
+    {
+      "protocol": "Noya",
+      "date": "2024-04-01",
+      "loss": "$2.7K (EVMBench)",
+      "description": "Multiple logic errors in position management and holding tracking"
+    }
+  ]
+}
