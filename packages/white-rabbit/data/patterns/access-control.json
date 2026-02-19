@@ -2,8 +2,8 @@
   "$schema": "./pattern-schema.json",
   "id": "access-control",
   "name": "Access Control",
-  "version": "1.0.0",
-  "description": "Missing or improper access control on privileged functions",
+  "version": "1.1.0",
+  "description": "Missing or improper access control on privileged functions (EVMBench-trained)",
   "cwe": "CWE-284",
   "severity": "critical",
   "confidence": "high",
@@ -72,13 +72,289 @@
         "onlyOwner",
         "initializer"
       ]
+    },
+    {
+      "id": "evmbench-steal-deposits",
+      "name": "Deposit Theft via Missing Access Control (EVMBench C4-2023-07-pooltogether)",
+      "description": "Malicious user can steal other users' deposits due to missing access control on deposit-related functions",
+      "pattern": "function\\s+(deposit|withdraw|claim).*Vault|steal.*deposit",
+      "flags": "i",
+      "contextPatterns": [
+        "Vault",
+        "deposit",
+        "user"
+      ],
+      "safePatterns": [
+        "onlyOwner",
+        "onlyAdmin",
+        "msg\\.sender.*==",
+        "require.*owner"
+      ],
+      "evmbench": {
+        "task_id": "2023-07-pooltogether-H-02",
+        "source_audit": "2023-07-pooltogether",
+        "award_usd": 2181.44,
+        "modes": ["detect", "exploit"]
+      }
+    },
+    {
+      "id": "evmbench-reward-theft",
+      "name": "Reward Theft (EVMBench C4-2023-12-ethereumcreditguild)",
+      "description": "Anyone can steal distributed rewards due to missing access control",
+      "pattern": "function\\s+(claim|distribute).*reward|reward.*anyone",
+      "flags": "i",
+      "contextPatterns": [
+        "reward",
+        "distribute",
+        "claim"
+      ],
+      "safePatterns": [
+        "onlyRole",
+        "onlyDistributor",
+        "require.*hasRole"
+      ],
+      "evmbench": {
+        "task_id": "2023-12-ethereumcreditguild-H-02",
+        "source_audit": "2023-12-ethereumcreditguild",
+        "award_usd": 237.72,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-unauthorized-setter",
+      "name": "Unauthorized Setter Function (EVMBench C4-2024-01-curves)",
+      "description": "Critical setter function (setCurves, setConfig, etc.) lacks access control",
+      "pattern": "function\\s+set(Curves|Config|Params|Value)\\s*\\([^)]*\\)\\s*(public|external)",
+      "flags": "i",
+      "safePatterns": [
+        "onlyOwner",
+        "onlyAdmin",
+        "governance",
+        "timelock"
+      ],
+      "examples": [
+        "function setCurves(address curves) public",
+        "function setConfig(uint256 param) external"
+      ],
+      "evmbench": {
+        "task_id": "2024-01-curves-H-04",
+        "source_audit": "2024-01-curves",
+        "award_usd": 0,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-update-order-missing-ac",
+      "name": "Update Order Missing Access Control (EVMBench C4-2024-01-init-capital)",
+      "description": "Order update functions lack proper access control, allowing unauthorized modifications",
+      "pattern": "function\\s+updateOrder|updateTrade\\s*\\([^)]*\\).*public|external",
+      "flags": "i",
+      "contextPatterns": [
+        "order",
+        "MarginTrading",
+        "Hook"
+      ],
+      "safePatterns": [
+        "onlyOrderOwner",
+        "require.*orderOwner",
+        "msg\\.sender.*order\\.owner"
+      ],
+      "evmbench": {
+        "task_id": "2024-01-init-capital-invitational-H-01",
+        "source_audit": "2024-01-init-capital-invitational",
+        "award_usd": 0,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-nft-rental-theft",
+      "name": "NFT Rental Theft (EVMBench C4-2024-01-renft)",
+      "description": "Malicious actor can steal rented NFT or freeze rental payments due to access control issues",
+      "pattern": "function\\s+(rent|claim|endRental|stopLending)\\s*\\([^)]*\\).*public|external",
+      "flags": "i",
+      "contextPatterns": [
+        "rental",
+        "NFT",
+        "escrow",
+        "lending"
+      ],
+      "safePatterns": [
+        "onlyRenter",
+        "onlyLender",
+        "require.*isRenter"
+      ],
+      "evmbench": {
+        "task_id": "2024-01-renft-H-05",
+        "source_audit": "2024-01-renft",
+        "award_usd": 15.95,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-escrow-drain",
+      "name": "Escrow Contract Drain (EVMBench C4-2024-01-renft)",
+      "description": "Escrow can be drained by creating rentals that bypass execution invariants",
+      "pattern": "escrow.*drain|createRental.*bypass|execution.*invariant",
+      "flags": "i",
+      "contextPatterns": [
+        "escrow",
+        "rental",
+        "payment"
+      ],
+      "evmbench": {
+        "task_id": "2024-01-renft-H-06",
+        "source_audit": "2024-01-renft",
+        "award_usd": 2988.99,
+        "modes": ["detect", "exploit"]
+      }
+    },
+    {
+      "id": "evmbench-flash-loan-vault-theft",
+      "name": "Cross-Vault Theft via Flash Loan (EVMBench C4-2024-04-noya)",
+      "description": "Vault can steal funds from another Vault through Registry's flash loan due to insufficient access control",
+      "pattern": "flashLoan.*sendTokens|sendTokensToTrustedAddress|Registry.*flash",
+      "flags": "i",
+      "contextPatterns": [
+        "Vault",
+        "Registry",
+        "flash loan",
+        "sendTokens"
+      ],
+      "safePatterns": [
+        "onlyConnector",
+        "onlyVault",
+        "require.*trusted"
+      ],
+      "examples": [
+        "sendTokensToTrustedAddress(token, amount, data)",
+        "BalancerFlashLoan.receiveFlashLoan"
+      ],
+      "evmbench": {
+        "task_id": "2024-04-noya-H-08",
+        "source_audit": "2024-04-noya",
+        "award_usd": 854.16,
+        "modes": ["detect", "exploit"]
+      }
+    },
+    {
+      "id": "evmbench-insolvent-position",
+      "name": "Insolvent Position Creation (EVMBench C4-2024-04-noya)",
+      "description": "Can open insolvent position in connector due to missing check in borrow function",
+      "pattern": "function\\s+borrow\\s*\\([^)]*\\).*public|external",
+      "flags": "i",
+      "contextPatterns": [
+        "Silo",
+        "connector",
+        "borrow",
+        "position"
+      ],
+      "safePatterns": [
+        "require.*collateral",
+        "checkSolvency",
+        "require.*healthy"
+      ],
+      "evmbench": {
+        "task_id": "2024-04-noya-H-16",
+        "source_audit": "2024-04-noya",
+        "award_usd": 63.95,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-invariant-bypass",
+      "name": "Deposit Invariant Bypass (EVMBench C4-2024-05-loop)",
+      "description": "Availability of deposit invariant can be bypassed",
+      "pattern": "deposit.*invariant|bypass.*invariant|availability",
+      "flags": "i",
+      "contextPatterns": [
+        "deposit",
+        "invariant",
+        "check"
+      ],
+      "evmbench": {
+        "task_id": "2024-05-loop-H-01",
+        "source_audit": "2024-05-loop",
+        "award_usd": 213.33,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-signature-replay",
+      "name": "Signature Replay Attack (EVMBench C4-2024-08-phi)",
+      "description": "Signature replay in signatureClaim allows unauthorized claiming of rewards",
+      "pattern": "signatureClaim|claim.*signature|replay.*signature",
+      "flags": "i",
+      "safePatterns": [
+        "nonce",
+        "usedSignatures",
+        "replay protection"
+      ],
+      "contextPatterns": [
+        "signature",
+        "claim",
+        "reward"
+      ],
+      "evmbench": {
+        "task_id": "2024-08-phi-H-01",
+        "source_audit": "2024-08-phi",
+        "award_usd": 938.08,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-thorchain-vault-theft",
+      "name": "Vault Money Theft (EVMBench C4-2024-06-thorchain)",
+      "description": "Malicious user can steal money out of vault and from other users",
+      "pattern": "function\\s+(swap|transfer|withdraw).*Vault|vault.*steal",
+      "flags": "i",
+      "contextPatterns": [
+        "vault",
+        "swap",
+        "THORChain"
+      ],
+      "safePatterns": [
+        "onlyVault",
+        "require.*isVault"
+      ],
+      "evmbench": {
+        "task_id": "2024-06-thorchain-H-01",
+        "source_audit": "2024-06-thorchain",
+        "award_usd": 3033.62,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-nft-auction-bypass",
+      "name": "NFT Auction Bypass (EVMBench C4-2024-07-benddao)",
+      "description": "Anyone can get NFT collateral after auction without bidding due to missing check",
+      "pattern": "auction.*NFT|getCollateral|claim.*without.*bid",
+      "flags": "i",
+      "contextPatterns": [
+        "auction",
+        "NFT",
+        "collateral",
+        "benddao"
+      ],
+      "safePatterns": [
+        "require.*bidder",
+        "onlyWinner",
+        "auctionEnded"
+      ],
+      "evmbench": {
+        "task_id": "2024-07-benddao-H-07",
+        "source_audit": "2024-07-benddao",
+        "award_usd": 0,
+        "modes": ["detect"]
+      }
     }
   ],
-  "remediation": "Use msg.sender instead of tx.origin, implement Ownable/AccessControl, use modifiers for privileged functions",
+  "remediation": "Use msg.sender instead of tx.origin, implement Ownable/AccessControl, use modifiers for privileged functions, validate all critical state transitions",
   "references": [
     "https://consensys.github.io/smart-contract-best-practices/development-recommendations/precautions/tx-origin/",
     "https://swcregistry.io/docs/SWC-115",
-    "https://docs.openzeppelin.com/contracts/4.x/access-control"
+    "https://docs.openzeppelin.com/contracts/4.x/access-control",
+    "https://code4rena.com/reports/2024-04-noya",
+    "https://code4rena.com/reports/2023-07-pooltogether"
   ],
   "historical": [
     {
@@ -92,6 +368,12 @@
       "date": "2022-08-01",
       "loss": "$190M",
       "description": "Improper access control in replica contract"
+    },
+    {
+      "protocol": "reNFT",
+      "date": "2024-01-01",
+      "loss": "$3K (EVMBench)",
+      "description": "Escrow drained due to missing access control on rental creation"
     }
   ]
 }

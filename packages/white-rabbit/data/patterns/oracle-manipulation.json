@@ -2,8 +2,8 @@
   "$schema": "./pattern-schema.json",
   "id": "oracle-manipulation",
   "name": "Oracle Manipulation",
-  "version": "1.0.0",
-  "description": "Price or other data can be manipulated due to reliance on manipulable sources",
+  "version": "1.1.0",
+  "description": "Price or other data can be manipulated due to reliance on manipulable sources (EVMBench-trained)",
   "cwe": "CWE-20",
   "severity": "critical",
   "confidence": "medium",
@@ -48,13 +48,127 @@
       "description": "Pricing LP tokens based on underlying reserves (vulnerable to donation attacks)",
       "pattern": "(totalSupply.*balance|balance.*totalSupply|reserve.*totalSupply)",
       "flags": "i"
+    },
+    {
+      "id": "evmbench-twap-staleness",
+      "name": "TWAP Staleness (EVMBench C4-2024-03-abracadabra)",
+      "description": "TWAP oracle may return stale prices leading to incorrect price determination",
+      "pattern": "(getPrice|twap|observation).*(block\\.timestamp|period|elapsed)",
+      "flags": "i",
+      "safePatterns": [
+        "require.*period",
+        "staleness",
+        "heartbeat",
+        "updatedAt"
+      ],
+      "examples": [
+        "consult(token, period)",
+        "getTWAP(token0, token1)"
+      ],
+      "evmbench": {
+        "task_id": "2024-03-abracadabra-money-H-01",
+        "source_audit": "2024-03-abracadabra-money",
+        "award_usd": 725.1,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-chainlink-stale",
+      "name": "Chainlink Stale Price (EVMBench C4-2024-04-noya)",
+      "description": "Chainlink oracle price not validated for staleness, using outdated ETH/USD price",
+      "pattern": "(latestRoundData|getPrice|price).*chainlink|aggregator",
+      "flags": "i",
+      "safePatterns": [
+        "updatedAt",
+        "answeredInRound",
+        "require.*updated",
+        "staleness",
+        "heartbeat"
+      ],
+      "contextPatterns": [
+        "ETH/USD",
+        "priceFeed",
+        "oracle"
+      ],
+      "examples": [
+        "AggregatorV3Interface(oracle).latestRoundData()",
+        "chainlinkOracle.latestAnswer()"
+      ],
+      "evmbench": {
+        "task_id": "2024-04-noya-H-01",
+        "source_audit": "2024-04-noya",
+        "award_usd": 854.16,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-oracle-front-run",
+      "name": "Oracle Front-Running (EVMBench C4-2024-01-init-capital)",
+      "description": "Order executor can be front-run by order creator changing limitPrice",
+      "pattern": "(fillOrder|executeOrder|limitPrice).*executor|front",
+      "flags": "i",
+      "safePatterns": [
+        "commit-reveal",
+        "signature",
+        "nonce",
+        "orderHash"
+      ],
+      "examples": [
+        "fillOrder(order, signature)",
+        "executeTrade(limitPrice, amount)"
+      ],
+      "evmbench": {
+        "task_id": "2024-01-init-capital-invitational-H-03",
+        "source_audit": "2024-01-init-capital-invitational",
+        "award_usd": 0,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-multi-token-route",
+      "name": "Multi-Token Route Price Error (EVMBench C4-2024-04-noya)",
+      "description": "Oracle returns incorrect price when multi-token route is used for value calculation",
+      "pattern": "(getValue|getPrice|route).*(multi|path|route).*token",
+      "flags": "i",
+      "contextPatterns": [
+        "NoyaValueOracle",
+        "multi-hop",
+        "route"
+      ],
+      "evmbench": {
+        "task_id": "2024-04-noya-H-03",
+        "source_audit": "2024-04-noya",
+        "award_usd": 8.21,
+        "modes": ["detect"]
+      }
+    },
+    {
+      "id": "evmbench-oracle-manipulation-generic",
+      "name": "Generic Oracle Manipulation (EVMBench C4-2024-03-abracadabra)",
+      "description": "Oracle price can be manipulated through flash loan or other means",
+      "pattern": "(oracle|price).*(manipulat|flash|attack|drain)",
+      "flags": "i",
+      "safePatterns": [
+        "TWAP",
+        "Chainlink",
+        "multiple sources",
+        "aggregation"
+      ],
+      "evmbench": {
+        "task_id": "2024-03-abracadabra-money-H-04",
+        "source_audit": "2024-03-abracadabra-money",
+        "award_usd": 2446.85,
+        "modes": ["detect", "exploit"]
+      }
     }
   ],
-  "remediation": "Use Chainlink or other robust oracle networks, implement TWAP with sufficient period, use multiple oracle sources with aggregation",
+  "remediation": "Use Chainlink or other robust oracle networks, implement TWAP with sufficient period, use multiple oracle sources with aggregation, validate price staleness and round completeness",
   "references": [
     "https://blog.chain.link/flash-loans-and-the-importance-of-tamper-proof-oracles/",
     "https://rekt.news/alpha-homora-v2/",
-    "https://docs.uniswap.org/protocol/V2/concepts/core-concepts/oracles"
+    "https://docs.uniswap.org/protocol/V2/concepts/core-concepts/oracles",
+    "https://code4rena.com/reports/2024-04-noya",
+    "https://code4rena.com/reports/2024-03-abracadabra-money"
   ],
   "historical": [
     {
@@ -68,6 +182,12 @@
       "date": "2020-12-17",
       "loss": "$8M",
       "description": "DAI-ETH LP token pricing manipulation"
+    },
+    {
+      "protocol": "Abracadabra Money",
+      "date": "2024-03-01",
+      "loss": "$2.4K (EVMBench)",
+      "description": "MagicLP TWAP staleness led to incorrect pricing"
     }
   ]
 }
