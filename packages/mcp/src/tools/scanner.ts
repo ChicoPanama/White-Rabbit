@@ -204,7 +204,7 @@ async function handleScanContract(args: any) {
     critical: 4, high: 3, medium: 2, low: 1, informational: 0,
   };
   const minLevel = severityOrder[minSeverity] || 0;
-  const filtered = findings.filter(f => severityOrder[f.severity] >= minLevel);
+  const filtered = findings.filter((f: Finding) => severityOrder[f.severity] >= minLevel);
 
   const content: TextContent[] = [{
     type: 'text',

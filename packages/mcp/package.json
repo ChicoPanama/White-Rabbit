@@ -34,7 +34,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "@whiteclaws/white-rabbit": "file:../white-rabbit"
+    "@whiteclaws/white-rabbit": "^2.0.0-alpha.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

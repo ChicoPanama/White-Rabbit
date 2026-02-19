@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspace=@whiteclaws/white-rabbit && npm run build --workspace=@whiteclaws/mcp-white-rabbit",
     "build:watch": "npm run build:watch --workspaces",
     "test": "npm run test --workspaces",
     "test:core": "npm run test --workspace=@whiteclaws/white-rabbit",
