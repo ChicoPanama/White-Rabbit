@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "description": "Curated collection of smart contract vulnerability detection patterns",
     "lastUpdated": "2024-02-19",
-    "patternCount": 0
+    "patternCount": 7
   },
   "patterns": [
     {
