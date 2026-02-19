@@ -1,0 +1,79 @@
+{
+  "lending": {
+    "name": "Lending Protocol",
+    "keywords": ["lend", "borrow", "collateral", "liquidat", "interest", "supply", "repay", "debt", "loan", "credit"],
+    "commonVulnerabilities": ["oracle_manipulation", "flash_loan_attack", "reentrancy", "liquidation_logic", "interest_rate_manipulation"],
+    "importPatterns": ["@aave", "@compound", "@morpho", "@silo", "@prisma", "@liquity"],
+    "interfacePatterns": ["ILendingPool", "IBorrowing", "ICollateralManager"]
+  },
+  "dex": {
+    "name": "Decentralized Exchange",
+    "keywords": ["swap", "pool", "liquidity", "amm", "router", "pair", "trading", "exchange", "orderbook"],
+    "commonVulnerabilities": ["price_manipulation", "sandwich_attack", "reentrancy", "slippage", "front_running"],
+    "importPatterns": ["@uniswap", "@sushiswap", "@curve", "@balancer", "@pancakeswap"],
+    "interfacePatterns": ["IUniswapV2", "IUniswapV3", "ICurvePool", "IBalancerVault"]
+  },
+  "vault": {
+    "name": "Yield Vault",
+    "keywords": ["vault", "yield", "strategy", "harvest", "deposit", "withdraw", "share", "convertToShares", "convertToAssets"],
+    "commonVulnerabilities": ["share_price_manipulation", "reentrancy", "first_depositor", "donation_attack", "rounding_error"],
+    "importPatterns": ["@yearn", "@stargate", "@lido", "@rocketpool"],
+    "interfacePatterns": ["IERC4626", "IVault", "IStrategy"]
+  },
+  "governance": {
+    "name": "Governance System",
+    "keywords": ["governor", "vote", "proposal", "timelock", "delegate", "quorum", "voting"],
+    "commonVulnerabilities": ["flash_loan_governance", "vote_manipulation", "timelock_bypass", "proposal_manipulation"],
+    "importPatterns": ["@openzeppelin/governance", "@tally"],
+    "interfacePatterns": ["IGovernor", "ITimelock", "IVoteDelegate"]
+  },
+  "bridge": {
+    "name": "Cross-Chain Bridge",
+    "keywords": ["bridge", "cross-chain", "relay", "message", "verify", "mint", "burn", "lock", "unlock"],
+    "commonVulnerabilities": ["message_replay", "invalid_proof", "access_control", "signature_bypass", "relay_manipulation"],
+    "importPatterns": ["@layerzero", "@axelar", "@wormhole", "@stargate", "@multichain"],
+    "interfacePatterns": ["IBridge", "IMessageRelay", "IVerifier"]
+  },
+  "oracle": {
+    "name": "Price Oracle",
+    "keywords": ["oracle", "price", "feed", "twap", "chainlink", "aggregator", "stale", "heartbeat"],
+    "commonVulnerabilities": ["stale_price", "manipulation", "decimal_mismatch", "oracle_twap_attack"],
+    "importPatterns": ["@chainlink", "@uniswap/v3-periphery"],
+    "interfacePatterns": ["IAggregatorV3", "IOracle", "ITwapOracle"]
+  },
+  "staking": {
+    "name": "Staking Protocol",
+    "keywords": ["stake", "unstake", "validator", "delegation", "reward", "epoch", "slash", "withdrawal"],
+    "commonVulnerabilities": ["reward_calculation", "slashing_logic", "withdrawal_delay", "delegation_hijack"],
+    "importPatterns": ["@lido", "@rocketpool", "@stakewise"],
+    "interfacePatterns": ["IStaking", "IValidator", "IDelegation"]
+  },
+  "token": {
+    "name": "Token Contract",
+    "keywords": ["token", "erc20", "rebase", "wrap", "fee-on-transfer", "rebasing", "deflationary"],
+    "commonVulnerabilities": ["fee_on_transfer", "rebase_accounting", "approval_race", "inflation_attack"],
+    "importPatterns": [],
+    "interfacePatterns": ["IERC20", "IERC20Metadata", "IRebaseToken"]
+  },
+  "perpetuals": {
+    "name": "Perpetuals/Derivatives",
+    "keywords": ["perp", "futures", "margin", "leverage", "funding", "position", "liquidation", "pnl"],
+    "commonVulnerabilities": ["oracle_manipulation", "liquidation_logic", "funding_rate", "margin_error"],
+    "importPatterns": ["@gmx", "@gains", "@synthetix"],
+    "interfacePatterns": ["IPerpetual", "IMarket", "IPositionManager"]
+  },
+  "insurance": {
+    "name": "Insurance Protocol",
+    "keywords": ["insurance", "coverage", "premium", "claim", "risk", "pool", "underwriting"],
+    "commonVulnerabilities": ["claim_manipulation", "risk_assessment", "premium_calculation"],
+    "importPatterns": ["@nexusmutual", "@insurace"],
+    "interfacePatterns": ["IInsurance", "ICoverage", "IClaim"]
+  },
+  "aggregator": {
+    "name": "Yield/DeFi Aggregator",
+    "keywords": ["aggregator", "connector", "adapter", "strategy", "route", "optimize"],
+    "commonVulnerabilities": ["connector_exposure", "reentrancy", "access_control", "accounting_error"],
+    "importPatterns": [],
+    "interfacePatterns": ["IConnector", "IAdapter", "IAggregator"]
+  }
+}
