@@ -1,0 +1,94 @@
+{
+  "name": "@whiteclaws/white-rabbit",
+  "version": "2.0.0-alpha.1",
+  "description": "Smart contract security scanner - portable npm package for whiteclaws.app",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "white-rabbit": "dist/bin/cli.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    },
+    "./scanner": {
+      "import": "./dist/core/scanner.js",
+      "types": "./dist/core/scanner.d.ts"
+    },
+    "./engines": {
+      "import": "./dist/engines/index.js",
+      "types": "./dist/engines/index.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types.js",
+      "types": "./dist/types.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "data",
+    "SKILL.md",
+    "README.md",
+    "API.md",
+    "SECURITY.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "test": "node --test dist/tests/**/*.test.js",
+    "test:unit": "node --test dist/tests/*.test.js",
+    "test:integration": "node --test dist/tests/integration.test.js",
+    "lint": "eslint src/**/*.ts",
+    "typecheck": "tsc --noEmit",
+    "benchmark": "node --experimental-specifier-resolution=node benchmarks/performance.bench.js",
+    "prepublishOnly": "npm run build && npm test",
+    "publish:alpha": "npm version prerelease --preid=alpha && npm publish --tag alpha",
+    "publish:beta": "npm version prerelease --preid=beta && npm publish --tag beta",
+    "publish:stable": "npm publish --access public"
+  },
+  "keywords": [
+    "smart-contract",
+    "security",
+    "vulnerability-scanner",
+    "defi",
+    "slither",
+    "whiteclaws"
+  ],
+  "author": "WhiteClaws Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@shazow/whatsabi": "^0.25.0",
+    "@supabase/supabase-js": "^2.97.0",
+    "dotenv": "^17.2.3",
+    "ethers": "^6.16.0",
+    "ulid": "^3.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.39.0"
+  },
+  "peerDependencies": {
+    "mythril": "*",
+    "securify2": "*",
+    "slither-analyzer": "*"
+  },
+  "peerDependenciesMeta": {
+    "slither-analyzer": {
+      "optional": true
+    },
+    "mythril": {
+      "optional": true
+    },
+    "securify2": {
+      "optional": true
+    }
+  }
+}

@@ -1,0 +1,51 @@
+# Source files (not needed in published package)
+src/
+tsconfig.json
+
+# Tests
+dist/tests/
+*.test.js
+*.test.d.ts
+
+# Build artifacts that aren't needed
+*.map
+
+# Development files
+.eslintrc
+.prettierrc
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment (should never be published)
+.env
+.env.local
+.env.*.local
+
+# Cache
+.cache/
+*.tsbuildinfo
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# Documentation source (README.md is included via files array)
+docs/
+
+# Benchmarks
+benchmarks/
+
+# Misc
+*.md
+!README.md
+!API.md
+!SECURITY.md
+!SKILL.md

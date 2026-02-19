@@ -1,0 +1,60 @@
+{
+  "$schema": "./pattern-schema.json",
+  "id": "price-manipulation",
+  "name": "Price Manipulation",
+  "version": "1.0.0",
+  "description": "Contract logic can be exploited via price manipulation",
+  "cwe": "CWE-20",
+  "severity": "high",
+  "confidence": "low",
+  "detectors": [
+    {
+      "id": "balance-dependent-price",
+      "name": "Balance-Dependent Price Calculation",
+      "description": "Price depends on current balance which can be manipulated",
+      "pattern": "balanceOf\\(address\\(this\\)\\).*price|price.*balanceOf",
+      "flags": "i"
+    },
+    {
+      "id": "single-source-price",
+      "name": "Single Source Price Dependency",
+      "description": "Only one price source used without validation",
+      "pattern": "(getPrice|latestAnswer|decimals).*==.*(0|1)",
+      "flags": "i"
+    },
+    {
+      "id": "slippage-missing",
+      "name": "Missing Slippage Protection",
+      "description": "Swap/trade without minimum output amount",
+      "pattern": "(swap|exchange|trade)\\s*\\([^)]*\\)(?!.*min|.*slippage|.*amountOutMin)",
+      "flags": "i"
+    },
+    {
+      "id": "donation-attack",
+      "name": "Donation Attack Vector",
+      "description": "Share price can be manipulated via direct token transfer",
+      "pattern": "(totalSupply|_totalSupply).*(balanceOf|_balance)|balanceOf.*totalSupply",
+      "flags": "i"
+    }
+  ],
+  "remediation": "Use multiple price sources with aggregation, implement slippage protection, use time-weighted prices, consider donation attacks in share calculations",
+  "references": [
+    "https://cmichel.io/pricing-oracles-and-attacks/",
+    "https://blog.openzeppelin.com/secure-smart-contract-guidelines-the-dangers-of-price-oracles/",
+    "https://defillama.com/oracles"
+  ],
+  "historical": [
+    {
+      "protocol": "Harvest Finance",
+      "date": "2020-10-26",
+      "loss": "$24M",
+      "description": "Curve pool price manipulation via flash loan"
+    },
+    {
+      "protocol": "Value DeFi",
+      "date": "2020-11-14",
+      "loss": "$6M",
+      "description": "Aave flash loan price manipulation"
+    }
+  ]
+}

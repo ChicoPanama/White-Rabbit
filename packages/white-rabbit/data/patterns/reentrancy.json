@@ -1,0 +1,80 @@
+{
+  "$schema": "./pattern-schema.json",
+  "id": "reentrancy",
+  "name": "Reentrancy",
+  "version": "1.0.0",
+  "description": "Vulnerability allowing recursive external calls before state updates",
+  "cwe": "CWE-841",
+  "severity": "critical",
+  "confidence": "medium",
+  "detectors": [
+    {
+      "id": "reentrancy-no-guard",
+      "name": "Reentrancy (No ReentrancyGuard)",
+      "description": "External call with value found without ReentrancyGuard protection",
+      "pattern": "\\.call\\{value:[^}]+\\}\\s*\\([^)]*\\)",
+      "flags": "i",
+      "safePatterns": [
+        "ReentrancyGuard",
+        "nonReentrant",
+        "checks-effects-interactions"
+      ],
+      "examples": [
+        "(bool success, ) = msg.sender.call{value: amount}(\"\");",
+        "payable(msg.sender).transfer(amount);"
+      ]
+    },
+    {
+      "id": "reentrancy-eth-send",
+      "name": "Reentrancy via send/transfer",
+      "description": "Using send() or transfer() can still be reentrant in some cases",
+      "pattern": "\\.(send|transfer)\\s*\\(",
+      "flags": "i",
+      "safePatterns": [
+        "ReentrancyGuard",
+        "nonReentrant"
+      ],
+      "examples": [
+        "msg.sender.transfer(amount);",
+        "payable(addr).send(amount);"
+      ]
+    },
+    {
+      "id": "reentrancy-cross-function",
+      "name": "Cross-Function Reentrancy",
+      "description": "State changes after external calls across multiple functions",
+      "pattern": "function\\s+\\w+\\s*\\([^)]*\\)[^;]*\\{[^}]*call\\{[^}]*\\}[^}]*balances",
+      "flags": "is",
+      "safePatterns": [
+        "ReentrancyGuard"
+      ]
+    },
+    {
+      "id": "reentrancy-read-only",
+      "name": "Read-Only Reentrancy",
+      "description": "View functions that rely on state modified by reentrant functions",
+      "pattern": "function\\s+\\w+.*view.*\\{[^}]*getReserves\\(|totalSupply\\(|balanceOf\\(",
+      "flags": "is"
+    }
+  ],
+  "remediation": "Use ReentrancyGuard (nonReentrant modifier) or implement checks-effects-interactions pattern",
+  "references": [
+    "https://consensys.github.io/smart-contract-best-practices/attacks/reentrancy/",
+    "https://swcregistry.io/docs/SWC-107",
+    "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/security/ReentrancyGuard.sol"
+  ],
+  "historical": [
+    {
+      "protocol": "The DAO",
+      "date": "2016-06-17",
+      "loss": "$60M",
+      "description": "Recursive call exploit drained 3.6M ETH"
+    },
+    {
+      "protocol": "Uniswap/Lendf.Me",
+      "date": "2020-04-18",
+      "loss": "$25M",
+      "description": "Read-only reentrancy in ERC777 hook"
+    }
+  ]
+}

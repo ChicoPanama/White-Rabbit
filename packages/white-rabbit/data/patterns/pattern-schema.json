@@ -1,0 +1,131 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://whiteclaws.app/schemas/pattern.json",
+  "title": "White-Rabbit Vulnerability Pattern",
+  "description": "Schema for vulnerability detection patterns",
+  "type": "object",
+  "required": ["id", "name", "version", "description", "cwe", "severity", "detectors"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "description": "Unique pattern identifier",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable pattern name"
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Pattern description"
+    },
+    "cwe": {
+      "type": "string",
+      "description": "CWE identifier",
+      "pattern": "^CWE-\\d+$"
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low", "informational"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low"]
+    },
+    "detectors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/detector"
+      }
+    },
+    "remediation": {
+      "type": "string",
+      "description": "How to fix the vulnerability"
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "historical": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/historicalCase"
+      }
+    }
+  },
+  "definitions": {
+    "detector": {
+      "type": "object",
+      "required": ["id", "name", "description", "pattern"],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "pattern": {
+          "type": "string",
+          "description": "Regex pattern for detection"
+        },
+        "flags": {
+          "type": "string",
+          "description": "Regex flags (i, g, m, s)"
+        },
+        "safePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Patterns that indicate safety"
+        },
+        "contextPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Additional context patterns"
+        },
+        "examples": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "historicalCase": {
+      "type": "object",
+      "required": ["protocol", "date", "description"],
+      "properties": {
+        "protocol": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "loss": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

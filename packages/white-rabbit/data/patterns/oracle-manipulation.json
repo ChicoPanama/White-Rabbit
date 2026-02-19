@@ -1,0 +1,73 @@
+{
+  "$schema": "./pattern-schema.json",
+  "id": "oracle-manipulation",
+  "name": "Oracle Manipulation",
+  "version": "1.0.0",
+  "description": "Price or other data can be manipulated due to reliance on manipulable sources",
+  "cwe": "CWE-20",
+  "severity": "critical",
+  "confidence": "medium",
+  "detectors": [
+    {
+      "id": "spot-price-usage",
+      "name": "Spot Price Usage",
+      "description": "Using spot price from DEX as price oracle (manipulable)",
+      "pattern": "(getReserves\\(\\)|token0\\(\\)|token1\\(\\)|balance0|balance1)",
+      "flags": "i",
+      "contextPatterns": [
+        "price",
+        "getPrice",
+        "oracle",
+        "calculate"
+      ]
+    },
+    {
+      "id": "no-twaptwap",
+      "name": "No TWAP/TWAP Insufficient",
+      "description": "No time-weighted average price protection or insufficient period",
+      "pattern": "(price|getAmount|quote).*(0|block\\.timestamp)",
+      "flags": "i",
+      "safePatterns": [
+        "TWAP",
+        "timeWeighted",
+        "cumulative",
+        "period",
+        " Chainlink"
+      ]
+    },
+    {
+      "id": "single-oracle",
+      "name": "Single Oracle Dependency",
+      "description": "Protocol relies on single price source without fallback",
+      "pattern": "(oracle|price).*(only|single|main)",
+      "flags": "i"
+    },
+    {
+      "id": "lp-token-pricing",
+      "name": "LP Token Pricing Vulnerability",
+      "description": "Pricing LP tokens based on underlying reserves (vulnerable to donation attacks)",
+      "pattern": "(totalSupply.*balance|balance.*totalSupply|reserve.*totalSupply)",
+      "flags": "i"
+    }
+  ],
+  "remediation": "Use Chainlink or other robust oracle networks, implement TWAP with sufficient period, use multiple oracle sources with aggregation",
+  "references": [
+    "https://blog.chain.link/flash-loans-and-the-importance-of-tamper-proof-oracles/",
+    "https://rekt.news/alpha-homora-v2/",
+    "https://docs.uniswap.org/protocol/V2/concepts/core-concepts/oracles"
+  ],
+  "historical": [
+    {
+      "protocol": "Alpha Homora V2",
+      "date": "2021-02-13",
+      "loss": "$37M",
+      "description": "Saddle Finance sUSD price manipulation via flash loan"
+    },
+    {
+      "protocol": "Warp Finance",
+      "date": "2020-12-17",
+      "loss": "$8M",
+      "description": "DAI-ETH LP token pricing manipulation"
+    }
+  ]
+}

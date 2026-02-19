@@ -1,0 +1,144 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# PR Workflow - Automated checks for pull requests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+name: PR Checks
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  # ═════════════════════════════════════════════════════════════════════════════
+  # Build verification
+  # ═════════════════════════════════════════════════════════════════════════════
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build all packages
+        run: npm run build
+
+  # ═════════════════════════════════════════════════════════════════════════════
+  # Test verification
+  # ═════════════════════════════════════════════════════════════════════════════
+  test:
+    name: Test Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: packages/white-rabbit/dist/tests/
+          retention-days: 7
+
+  # ═════════════════════════════════════════════════════════════════════════════
+  # Secret scanning
+  # ═════════════════════════════════════════════════════════════════════════════
+  secret-scan:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+  # ═════════════════════════════════════════════════════════════════════════════
+  # Dependency review
+  # ═════════════════════════════════════════════════════════════════════════════
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v3
+        with:
+          fail-on-severity: high
+
+  # ═════════════════════════════════════════════════════════════════════════════
+  # PR comment with results
+  # ═════════════════════════════════════════════════════════════════════════════
+  comment:
+    name: PR Comment
+    needs: [build, test]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    steps:
+      - name: Comment PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const build = '${{ needs.build.result }}';
+            const test = '${{ needs.test.result }}';
+            
+            const buildEmoji = build === 'success' ? '✅' : '❌';
+            const testEmoji = test === 'success' ? '✅' : '❌';
+            
+            const body = `## PR Check Results
+            
+            | Check | Status |
+            |-------|--------|
+            | Build | ${buildEmoji} ${build} |
+            | Test | ${testEmoji} ${test} |
+            
+            ${build !== 'success' || test !== 'success' ? '> ⚠️ Please fix the failing checks before merging.' : '> ✅ All checks passed!'}
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });

@@ -1,0 +1,75 @@
+{
+  "$schema": "./pattern-schema.json",
+  "id": "governance-attack",
+  "name": "Governance Attack",
+  "version": "1.0.0",
+  "description": "Weaknesses in governance mechanisms allowing malicious proposal execution",
+  "cwe": "CWE-284",
+  "severity": "critical",
+  "confidence": "low",
+  "detectors": [
+    {
+      "id": "no-quorum",
+      "name": "No Quorum Requirement",
+      "description": "Governance proposals can pass with minimal participation",
+      "pattern": "(quorum|threshold).*(0|1\\s*vote)",
+      "flags": "i",
+      "safePatterns": [
+        "quorumNumerator",
+        "quorumDenominator",
+        "minVotes"
+      ]
+    },
+    {
+      "id": "no-timelock",
+      "name": "No Timelock on Execution",
+      "description": "Proposals execute immediately after passing without delay",
+      "pattern": "function\\s+execute\\s*\\([^)]*\\)[^}]*proposal\\.execute|execute\\(proposal",
+      "flags": "i",
+      "safePatterns": [
+        "timelock",
+        "delay",
+        "ETA",
+        "queued"
+      ]
+    },
+    {
+      "id": "flash-loan-governance",
+      "name": "Flash Loan Governance Manipulation",
+      "description": "Voting power can be flash loaned at proposal snapshot",
+      "pattern": "(snapshot|getVotes).*(block\\.number|block\\.timestamp)|checkpoint",
+      "flags": "i"
+    },
+    {
+      "id": "proposal-cancel",
+      "name": "Proposal Cancelation Issues",
+      "description": "Proposers can cancel their own proposals after voting starts",
+      "pattern": "function\\s+cancel\\s*\\([^)]*\\).*proposalId",
+      "flags": "i",
+      "safePatterns": [
+        "state.*Executed",
+        "state.*Expired"
+      ]
+    }
+  ],
+  "remediation": "Implement proper quorum requirements, use timelock for proposal execution, take snapshots before voting begins, require tokens to be held for a period before voting",
+  "references": [
+    "https://docs.openzeppelin.com/contracts/4.x/governance",
+    "https://medium.com/immunefi/how-to-safely-upgrade-governance-contracts-a-comprehensive-guide-5c9d4f9e3d2e",
+    "https://blog.tally.xyz/governance-security-patterns-8e41c3b5b9a5"
+  ],
+  "historical": [
+    {
+      "protocol": "Beanstalk",
+      "date": "2022-04-17",
+      "loss": "$181M",
+      "description": "Flash loan governance attack, no delay on execution"
+    },
+    {
+      "protocol": "Tornado Cash Governance",
+      "date": "2023-05-20",
+      "loss": "N/A",
+      "description": "Malicious proposal passed via social engineering"
+    }
+  ]
+}

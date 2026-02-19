@@ -1,0 +1,43 @@
+{
+  "name": "@whiteclaws/mcp-white-rabbit",
+  "version": "2.0.0-alpha.1",
+  "description": "MCP server for White-Rabbit smart contract security scanner",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "white-rabbit-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start": "node dist/index.js",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "smart-contract",
+    "security",
+    "scanner",
+    "white-rabbit",
+    "whiteclaws"
+  ],
+  "author": "WhiteClaws Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@whiteclaws/white-rabbit": "^2.0.0-alpha.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.6.0"
+  }
+}
