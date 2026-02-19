@@ -1,0 +1,58 @@
+{
+  "$schema": "./pattern-schema.json",
+  "id": "flash-loan",
+  "name": "Flash Loan Attack Vector",
+  "version": "1.0.0",
+  "description": "Protocol logic vulnerable to flash loan manipulation",
+  "cwe": "CWE-400",
+  "severity": "high",
+  "confidence": "low",
+  "detectors": [
+    {
+      "id": "flash-loan-receiver",
+      "name": "Flash Loan Receiver Implementation",
+      "description": "Contract implements flash loan receiver (check for proper validation)",
+      "pattern": "(flashLoan|flash|executeOperation|onFlashLoan)",
+      "flags": "i"
+    },
+    {
+      "id": "price-dependent-logic",
+      "name": "Price-Dependent Logic Without Protection",
+      "description": "Critical logic depends on price that can be manipulated via flash loan",
+      "pattern": "(balanceOf\\(address\\(this\\)\\)|getReserves|price|oracle).*(swap|liquidate|borrow|collateral)",
+      "flags": "i"
+    },
+    {
+      "id": "governance-flash-loan",
+      "name": "Governance Flash Loan Attack",
+      "description": "Governance voting power can be obtained via flash loan",
+      "pattern": "(vote|governance|proposal).*balanceOf|getVotes",
+      "flags": "i",
+      "safePatterns": [
+        "snapshot",
+        "checkpoint",
+        "delegation"
+      ]
+    }
+  ],
+  "remediation": "Use time-weighted balances for governance, implement flash loan protection (check for flash loan in same block), add deposit/withdrawal delays for large amounts",
+  "references": [
+    "https://ethereum.org/en/developers/tutorials/flash-loans/",
+    "https://www.paradigm.xyz/2021/03/surviving-the-death-zone",
+    "https://blog.chain.link/flash-loans-and-the-importance-of-tamper-proof-oracles/"
+  ],
+  "historical": [
+    {
+      "protocol": "Beanstalk",
+      "date": "2022-04-17",
+      "loss": "$181M",
+      "description": "Governance attack using flash loan to pass malicious proposal"
+    },
+    {
+      "protocol": "Cream Finance",
+      "date": "2021-10-27",
+      "loss": "$130M",
+      "description": "Price oracle manipulation via flash loan"
+    }
+  ]
+}

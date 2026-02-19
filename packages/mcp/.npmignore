@@ -1,0 +1,27 @@
+# Source files
+src/
+tsconfig.json
+
+# Tests
+*.test.js
+*.test.d.ts
+
+# Development
+.vscode/
+.idea/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# Cache
+.cache/
+*.tsbuildinfo
+
+# Git
+.git/
+.gitignore

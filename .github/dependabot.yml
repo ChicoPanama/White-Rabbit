@@ -1,0 +1,77 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Dependabot Configuration - Automated dependency updates
+# ═══════════════════════════════════════════════════════════════════════════════
+
+version: 2
+
+updates:
+  # ═════════════════════════════════════════════════════════════════════════════
+  # npm dependencies
+  # ═════════════════════════════════════════════════════════════════════════════
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "whiteclaws/maintainers"
+    assignees:
+      - "whiteclaws/maintainers"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    labels:
+      - "dependencies"
+    groups:
+      # Group minor and patch updates together
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+      # Security updates get their own group
+      security:
+        patterns:
+          - "*"
+        update-types:
+          - "security"
+
+  # ═════════════════════════════════════════════════════════════════════════════
+  # Core package
+  # ═════════════════════════════════════════════════════════════════════════════
+  - package-ecosystem: "npm"
+    directory: "/packages/white-rabbit"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "package:core"
+
+  # ═════════════════════════════════════════════════════════════════════════════
+  # MCP package
+  # ═════════════════════════════════════════════════════════════════════════════
+  - package-ecosystem: "npm"
+    directory: "/packages/mcp-white-rabbit"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "package:mcp"
+
+  # ═════════════════════════════════════════════════════════════════════════════
+  # GitHub Actions
+  # ═════════════════════════════════════════════════════════════════════════════
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    labels:
+      - "dependencies"
+      - "ci/cd"

@@ -26,9 +26,15 @@ out/
 foundry.toml.disabled
 remappings.txt
 
-# Environment
+# Environment & Secrets
 .env
-.env.local
+.env.*
+.npmrc
+secrets/
+*.key
+*.pem
+*.p12
+*.pfx
 
 # Logs
 logs/

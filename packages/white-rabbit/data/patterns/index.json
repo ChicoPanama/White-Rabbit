@@ -1,0 +1,98 @@
+{
+  "$schema": "./pattern-schema.json",
+  "registry": {
+    "name": "White-Rabbit Vulnerability Pattern Registry",
+    "version": "1.0.0",
+    "description": "Curated collection of smart contract vulnerability detection patterns",
+    "lastUpdated": "2024-02-19",
+    "patternCount": 0
+  },
+  "patterns": [
+    {
+      "id": "reentrancy",
+      "file": "reentrancy.json",
+      "name": "Reentrancy",
+      "severity": "critical",
+      "cwe": "CWE-841",
+      "detectorCount": 4
+    },
+    {
+      "id": "access-control",
+      "file": "access-control.json",
+      "name": "Access Control",
+      "severity": "critical",
+      "cwe": "CWE-284",
+      "detectorCount": 5
+    },
+    {
+      "id": "oracle-manipulation",
+      "file": "oracle-manipulation.json",
+      "name": "Oracle Manipulation",
+      "severity": "critical",
+      "cwe": "CWE-20",
+      "detectorCount": 4
+    },
+    {
+      "id": "flash-loan",
+      "file": "flash-loan.json",
+      "name": "Flash Loan Attack",
+      "severity": "high",
+      "cwe": "CWE-400",
+      "detectorCount": 3
+    },
+    {
+      "id": "integer-overflow",
+      "file": "integer-overflow.json",
+      "name": "Integer Overflow",
+      "severity": "high",
+      "cwe": "CWE-190",
+      "detectorCount": 4
+    },
+    {
+      "id": "governance-attack",
+      "file": "governance-attack.json",
+      "name": "Governance Attack",
+      "severity": "critical",
+      "cwe": "CWE-284",
+      "detectorCount": 4
+    },
+    {
+      "id": "price-manipulation",
+      "file": "price-manipulation.json",
+      "name": "Price Manipulation",
+      "severity": "high",
+      "cwe": "CWE-20",
+      "detectorCount": 4
+    }
+  ],
+  "categories": {
+    "access-control": {
+      "name": "Access Control",
+      "patterns": ["access-control", "governance-attack"]
+    },
+    "arithmetic": {
+      "name": "Arithmetic Issues",
+      "patterns": ["integer-overflow"]
+    },
+    "oracle": {
+      "name": "Oracle & Price",
+      "patterns": ["oracle-manipulation", "price-manipulation"]
+    },
+    "reentrancy": {
+      "name": "Reentrancy",
+      "patterns": ["reentrancy"]
+    },
+    "economic": {
+      "name": "Economic Attacks",
+      "patterns": ["flash-loan"]
+    }
+  },
+  "severities": {
+    "critical": {
+      "patterns": ["reentrancy", "access-control", "oracle-manipulation", "governance-attack"]
+    },
+    "high": {
+      "patterns": ["flash-loan", "integer-overflow", "price-manipulation"]
+    }
+  }
+}

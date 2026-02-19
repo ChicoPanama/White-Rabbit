@@ -1,0 +1,97 @@
+{
+  "$schema": "./pattern-schema.json",
+  "id": "access-control",
+  "name": "Access Control",
+  "version": "1.0.0",
+  "description": "Missing or improper access control on privileged functions",
+  "cwe": "CWE-284",
+  "severity": "critical",
+  "confidence": "high",
+  "detectors": [
+    {
+      "id": "tx-origin-auth",
+      "name": "tx.origin Authorization",
+      "description": "Using tx.origin for authorization is vulnerable to phishing attacks",
+      "pattern": "tx\\.origin",
+      "flags": "i",
+      "examples": [
+        "require(tx.origin == owner);",
+        "if (tx.origin != owner) revert();"
+      ]
+    },
+    {
+      "id": "missing-access-control",
+      "name": "Missing Access Control",
+      "description": "Critical function may lack proper access control",
+      "pattern": "function\\s+(mint|burn|transferOwnership|upgrade|setMinter|pause|unpause)\\s*\\([^)]*\\)\\s*(public|external)",
+      "flags": "i",
+      "safePatterns": [
+        "onlyOwner",
+        "onlyAdmin",
+        "require.*msg\\.sender",
+        "_checkRole",
+        "auth\\s*\\[",
+        "authorized"
+      ]
+    },
+    {
+      "id": "selfdestruct-access",
+      "name": "Unprotected Selfdestruct",
+      "description": "Contract can be destroyed by unauthorized party",
+      "pattern": "(selfdestruct|suicide)\\s*\\(",
+      "flags": "i",
+      "safePatterns": [
+        "onlyOwner",
+        "onlyAdmin"
+      ],
+      "examples": [
+        "selfdestruct(payable(owner));",
+        "selfdestruct(msg.sender);"
+      ]
+    },
+    {
+      "id": "delegatecall-injection",
+      "name": "Delegatecall Injection",
+      "description": "Unprotected delegatecall allows arbitrary code execution",
+      "pattern": "delegatecall\\s*\\(",
+      "flags": "i",
+      "safePatterns": [
+        "assembly",
+        "implementation",
+        "proxy"
+      ]
+    },
+    {
+      "id": "unprotected-init",
+      "name": "Unprotected Initialize",
+      "description": "Initialize function can be called multiple times or by anyone",
+      "pattern": "function\\s+init(ialize)?\\s*\\([^)]*\\)\\s*(public|external)",
+      "flags": "i",
+      "safePatterns": [
+        "initialized",
+        "onlyOwner",
+        "initializer"
+      ]
+    }
+  ],
+  "remediation": "Use msg.sender instead of tx.origin, implement Ownable/AccessControl, use modifiers for privileged functions",
+  "references": [
+    "https://consensys.github.io/smart-contract-best-practices/development-recommendations/precautions/tx-origin/",
+    "https://swcregistry.io/docs/SWC-115",
+    "https://docs.openzeppelin.com/contracts/4.x/access-control"
+  ],
+  "historical": [
+    {
+      "protocol": "Parity Multisig",
+      "date": "2017-11-06",
+      "loss": "$150M",
+      "description": "Unprotected initWallet function"
+    },
+    {
+      "protocol": "Nomad Bridge",
+      "date": "2022-08-01",
+      "loss": "$190M",
+      "description": "Improper access control in replica contract"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "$schema": "./pattern-schema.json",
+  "id": "integer-overflow",
+  "name": "Integer Overflow and Underflow",
+  "version": "1.0.0",
+  "description": "Arithmetic operations can overflow or underflow in Solidity <0.8.0",
+  "cwe": "CWE-190",
+  "severity": "high",
+  "confidence": "medium",
+  "detectors": [
+    {
+      "id": "unchecked-arithmetic",
+      "name": "Unchecked Arithmetic (Post-0.8.0)",
+      "description": "Using unchecked block bypasses Solidity 0.8.0 overflow protection",
+      "pattern": "unchecked\\s*\\{",
+      "flags": "i"
+    },
+    {
+      "id": "no-safemath-pre-080",
+      "name": "No SafeMath (Pre-0.8.0)",
+      "description": "Solidity <0.8.0 without SafeMath or overflow checks",
+      "pattern": "pragma solidity [\\^<]?0\\.[567]",
+      "flags": "i",
+      "safePatterns": [
+        "SafeMath",
+        "using SafeMath"
+      ]
+    },
+    {
+      "id": "unsafe-casting",
+      "name": "Unsafe Type Casting",
+      "description": "Downcasting can cause overflow (e.g., uint256 to uint128)",
+      "pattern": "(uint128|uint64|uint32|uint16|uint8)\\s*\\(",
+      "flags": "i"
+    },
+    {
+      "id": "multiplication-before-division",
+      "name": "Multiplication Before Division",
+      "description": "May cause precision loss or overflow in intermediate result",
+      "pattern": "\\*.*\\/|mul\\(.*div",
+      "flags": "i"
+    }
+  ],
+  "remediation": "Use Solidity >=0.8.0 which has built-in overflow protection, use SafeMath for <0.8.0, carefully review unchecked blocks, use OpenZeppelin's Math library for precise calculations",
+  "references": [
+    "https://solidity.readthedocs.io/en/v0.8.0/080-breaking-changes.html",
+    "https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/SafeMath.sol",
+    "https://swcregistry.io/docs/SWC-101"
+  ],
+  "historical": [
+    {
+      "protocol": "BeautyChain (BEC)",
+      "date": "2018-04-22",
+      "loss": "$M",
+      "description": "BatchOverflow - integer overflow in batchTransfer"
+    },
+    {
+      "protocol": "SMT Token",
+      "date": "2018-04-25",
+      "loss": "$M",
+      "description": "ProxyOverflow - similar overflow vulnerability"
+    }
+  ]
+}

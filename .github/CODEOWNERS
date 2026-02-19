@@ -1,0 +1,22 @@
+# ═══════════════════════════════════════════════════════════════════════════════
+# Code Owners - Automatic PR reviewers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Default owners for everything
+* @whiteclaws/maintainers
+
+# Core package
+/packages/white-rabbit/ @whiteclaws/maintainers
+
+# MCP package  
+/packages/mcp-white-rabbit/ @whiteclaws/maintainers
+
+# CI/CD workflows
+/.github/workflows/ @whiteclaws/maintainers
+
+# Security-sensitive files
+SECURITY.md @whiteclaws/security-team
+.github/workflows/release.yml @whiteclaws/security-team
+
+# Pattern database
+/packages/white-rabbit/data/patterns/ @whiteclaws/security-team
