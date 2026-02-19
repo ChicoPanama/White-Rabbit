@@ -125,8 +125,8 @@ export class ContractResolver {
   ): Contract {
     // Handle proxy contracts
     let sourceCode = result.SourceCode;
-    let isProxy = result.Proxy === '1';
-    let implementationAddress = result.Implementation || null;
+    const isProxy = result.Proxy === '1';
+    const implementationAddress = result.Implementation || null;
 
     // Handle multi-file sources (wrapped in {{ }})
     if (sourceCode.startsWith('{{') && sourceCode.endsWith('}}')) {
