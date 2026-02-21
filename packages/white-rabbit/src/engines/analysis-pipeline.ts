@@ -67,6 +67,7 @@ export class AnalysisPipeline {
           engine.analyze(contract, {
             timeoutMs: options.timeoutMs,
             continueOnError: options.continueOnError,
+            intelContext: options.intelContext,
           }),
           options.timeoutMs || 300000,
           engineName

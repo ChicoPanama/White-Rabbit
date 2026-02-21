@@ -25,6 +25,7 @@ import {
 import { AnalysisPipeline } from '../engines/analysis-pipeline.js';
 import { ContractResolver } from '../utils/contract-resolver.js';
 import { WhiteClawsClient } from '../connectors/whiteclaws-client.js';
+import { TelemetryEmitter } from '../telemetry/emitter.js';
 import { EventEmitter } from 'events';
 
 export interface ScanProgress {
@@ -80,6 +81,7 @@ export class WhiteRabbit extends EventEmitter {
   private pipeline: AnalysisPipeline;
   private resolver: ContractResolver;
   private whiteclaws?: WhiteClawsClient;
+  private telemetry: TelemetryEmitter;
   private isShuttingDown = false;
 
   constructor(config: ScannerConfig = {}) {
@@ -99,8 +101,16 @@ export class WhiteRabbit extends EventEmitter {
     if (config.whiteclawsApiKey) {
       this.whiteclaws = new WhiteClawsClient({
         apiKey: config.whiteclawsApiKey,
+        baseUrl: config.whiteclawsApiUrl,
       });
     }
+
+    this.telemetry = new TelemetryEmitter({
+      enabled: config.enableTelemetry !== false && process.env.WR_TELEMETRY !== 'false',
+      apiKey: config.whiteclawsApiKey,
+      apiUrl: config.telemetryUrl,
+      agentType: config.agentType || 'white-rabbit-skill',
+    });
   }
 
   /**
@@ -141,6 +151,43 @@ export class WhiteRabbit extends EventEmitter {
       throw new ContractNotVerifiedError(address, chainId);
     }
 
+    this.telemetry.emit({
+      action: 'scan_started',
+      target: {
+        protocol_slug: contract.protocolName ? this.toSlug(contract.protocolName) : undefined,
+        contract_address: contract.address,
+        chain: chain.name,
+      },
+    });
+
+    let intel = null;
+    if (this.whiteclaws && contract.protocolName) {
+      try {
+        intel = await this.whiteclaws.getProtocolIntel(this.toSlug(contract.protocolName));
+        if (intel) {
+          this.emit('intelLoaded', {
+            protocol: intel.name,
+            patterns: intel.vulnerabilitySurface?.totalMatchingPatterns || 0,
+          });
+          this.telemetry.emit({
+            action: 'patterns_loaded',
+            target: {
+              protocol_slug: intel.slug,
+              contract_address: contract.address,
+              contract_type: intel.vulnerabilitySurface?.contractType,
+              chain: chain.name,
+            },
+            patterns: {
+              loaded: intel.vulnerabilitySurface?.evmbenchPatternMatches?.length || 0,
+              evmbench_matched: intel.vulnerabilitySurface?.totalMatchingPatterns || 0,
+            },
+          });
+        }
+      } catch {
+        // Optional intel lookup. Scanning continues even if unavailable.
+      }
+    }
+
     this.emit('contractResolved', { contract, duration: Date.now() - startTime });
 
     // Run analysis
@@ -152,13 +199,32 @@ export class WhiteRabbit extends EventEmitter {
     });
 
     const pipelineOptions = this.buildPipelineOptions(options);
-    const result = await this.pipeline.analyze(contract, pipelineOptions);
+    const result = await this.pipeline.analyze(contract, {
+      ...pipelineOptions,
+      intelContext: intel?.vulnerabilitySurface,
+    });
 
-    this.emit('analysisComplete', { 
-      contract, 
+    this.emit('analysisComplete', {
+      contract,
       findings: result.findings,
       duration: Date.now() - startTime,
     });
+
+    for (const finding of result.findings) {
+      this.telemetry.emit({
+        action: 'vulnerability_detected',
+        target: {
+          protocol_slug: contract.protocolName ? this.toSlug(contract.protocolName) : undefined,
+          contract_address: contract.address,
+          chain: chain.name,
+          contract_type: intel?.vulnerabilitySurface?.contractType,
+        },
+        finding: {
+          severity: finding.severity,
+          category: finding.detectorName,
+        },
+      });
+    }
 
     // Verify findings
     this.reportProgress(options, {
@@ -185,6 +251,25 @@ export class WhiteRabbit extends EventEmitter {
       findings: verifiedFindings,
       duration: Date.now() - startTime,
     });
+
+    this.telemetry.emit({
+      action: 'scan_complete',
+      target: {
+        protocol_slug: contract.protocolName ? this.toSlug(contract.protocolName) : undefined,
+        contract_address: contract.address,
+        chain: chain.name,
+        contract_type: intel?.vulnerabilitySurface?.contractType,
+      },
+      patterns: {
+        loaded: result.stats.total,
+        matched: result.findings.length,
+        evmbench_matched: intel?.vulnerabilitySurface?.totalMatchingPatterns || 0,
+      },
+      performance: {
+        stage_duration_ms: Date.now() - startTime,
+      },
+    });
+    await this.telemetry.flush();
 
     return verifiedFindings;
   }
@@ -294,6 +379,7 @@ export class WhiteRabbit extends EventEmitter {
     if (config.whiteclawsApiKey && !this.whiteclaws) {
       this.whiteclaws = new WhiteClawsClient({
         apiKey: config.whiteclawsApiKey,
+        baseUrl: config.whiteclawsApiUrl || this.config.whiteclawsApiUrl,
       });
     }
   }
@@ -412,5 +498,9 @@ export class WhiteRabbit extends EventEmitter {
       options.onProgress(progress);
     }
     this.emit('progress', progress);
+  }
+
+  private toSlug(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
   }
 }

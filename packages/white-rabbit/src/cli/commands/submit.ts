@@ -57,13 +57,23 @@ export async function submitCommand(
 
     // Try immediate submission
     console.log('🌐 Submitting to WhiteClaws...');
-    
-    // Note: In production, this would call the actual submission API
-    // For now, simulate the submission
+
+    if (!options.protocol) {
+      throw new Error('Protocol slug is required. Use --protocol <slug>.');
+    }
+
+    const response = await client.submitFinding({
+      protocol_slug: options.protocol,
+      title: finding.title,
+      severity: finding.severity === 'informational' ? 'low' : finding.severity,
+      description: finding.description,
+      poc_url: null,
+    });
+
     console.log('  ✅ Submission successful!');
-    console.log(`  Finding ID: finding-${Date.now()}`);
-    console.log(`  Status: Pending review`);
-    console.log(`  URL: https://whiteclaws.app/findings/finding-${Date.now()}`);
+    console.log(`  Finding ID: ${response.finding.id}`);
+    console.log(`  Status: ${response.finding.status}`);
+    console.log(`  URL: https://whiteclaws.app/findings/${response.finding.id}`);
 
   } catch (error) {
     console.log(`\n⚠️  Submission failed: ${error instanceof Error ? error.message : String(error)}`);

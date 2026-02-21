@@ -23,6 +23,20 @@ export interface EnrichedProtocol {
   similarProtocols: string[];
   audits: AuditInfo[];
   riskSignals: RiskSignal[];
+  vulnerabilitySurface?: {
+    evmbenchPatternMatches: Array<{
+      patternId: string;
+      category: string;
+      severity: string;
+      title: string;
+      relevanceScore: number;
+      detectionHints: string[];
+      codeIndicators: string[];
+    }>;
+    contractType: string;
+    riskLevel: 'critical' | 'high' | 'medium' | 'low';
+    totalMatchingPatterns: number;
+  };
   isFork: boolean;
   forkedFrom?: string;
   oracles: string[];
@@ -181,14 +195,32 @@ export class ProtocolIntelligence {
 
   private async fetchWhiteclawsData(slug: string): Promise<Partial<EnrichedProtocol> | null> {
     try {
-      const protocol = await this.whiteclaws.getProtocol(slug);
+      const protocol = await this.whiteclaws.getProtocolIntel(slug);
       if (!protocol) return null;
       return {
         slug: protocol.slug,
         name: protocol.name,
         category: protocol.category,
+        description: protocol.description,
+        website: protocol.website,
+        tvl: protocol.tvl,
+        chainTvls: protocol.chainTvls,
         chains: protocol.chains,
-        hasBounty: true,
+        primaryChain: protocol.primaryChain,
+        hasBounty: protocol.hasBounty,
+        maxBounty: protocol.maxBounty,
+        contracts: protocol.contracts,
+        knownVulnerabilities: (protocol.knownVulnerabilities || []).map((item) => ({
+          ...item,
+          severity: this.normalizeSeverity(item.severity),
+        })),
+        audits: protocol.audits,
+        riskSignals: protocol.riskSignals.map((signal) => ({
+          type: signal.type,
+          category: signal.signal,
+          description: signal.signal,
+        })),
+        vulnerabilitySurface: protocol.vulnerabilitySurface,
       };
     } catch {
       return null;
@@ -306,6 +338,13 @@ export class ProtocolIntelligence {
     }
 
     return assumptions;
+  }
+
+  private normalizeSeverity(value: string): 'critical' | 'high' | 'medium' | 'low' {
+    if (value === 'critical' || value === 'high' || value === 'medium' || value === 'low') {
+      return value;
+    }
+    return 'medium';
   }
 }
 

@@ -352,6 +352,7 @@ export interface EngineOptions {
   maxMemoryMb?: number;
   includeAiAnalysis?: boolean;
   continueOnError?: boolean;
+  intelContext?: IntelVulnerabilitySurface;
 }
 
 export interface EngineResult {
@@ -373,6 +374,7 @@ export interface PipelineOptions {
   enableAI?: boolean;
   continueOnError?: boolean;
   timeoutMs?: number;
+  intelContext?: IntelVulnerabilitySurface;
 }
 
 export interface PipelineResult {
@@ -446,37 +448,135 @@ export interface ProtocolInfo {
   url: string;
 }
 
+export interface IntelPatternMatch {
+  patternId: string;
+  category: string;
+  severity: string;
+  title: string;
+  relevanceScore: number;
+  detectionHints: string[];
+  codeIndicators: string[];
+}
+
+export interface IntelVulnerabilitySurface {
+  evmbenchPatternMatches: IntelPatternMatch[];
+  contractType: string;
+  riskLevel: 'critical' | 'high' | 'medium' | 'low';
+  totalMatchingPatterns: number;
+}
+
+export interface ProtocolIntel extends ProtocolInfo {
+  description?: string;
+  website?: string;
+  chainTvls: Record<string, number>;
+  primaryChain: string;
+  hasBounty: boolean;
+  maxBounty?: number;
+  programId?: string;
+  contracts: Array<{
+    address: string;
+    chain: string;
+    name?: string;
+    type?: 'core' | 'peripheral' | 'oracle' | 'governance' | 'vault';
+    tvl?: number;
+    isVerified: boolean;
+    inScope: boolean;
+    criticality: 'critical' | 'high' | 'medium' | 'low';
+  }>;
+  vulnerabilitySurface: IntelVulnerabilitySurface;
+  knownVulnerabilities: Array<{
+    id: string;
+    title: string;
+    severity: string;
+    type: string;
+    description: string;
+  }>;
+  audits: Array<{
+    auditor: string;
+    date: string;
+    findings: number;
+    highFindings: number;
+    criticalFindings: number;
+  }>;
+  riskSignals: Array<{
+    type: 'positive' | 'negative' | 'neutral';
+    signal: string;
+    weight: number;
+  }>;
+  isFork: boolean;
+  forkedFrom?: string;
+  oracles: string[];
+  fetchedAt: string;
+}
+
+export interface SubmitFindingRequest {
+  protocol_slug: string;
+  title: string;
+  severity: 'critical' | 'high' | 'medium' | 'low';
+  description?: string | null;
+  poc_url?: string | null;
+  scope_version?: number;
+  session_id?: string;
+  agent_type?: string;
+  skill_version?: string;
+  encrypted_report?: {
+    ciphertext: string;
+    nonce: string;
+    sender_pubkey?: string;
+    senderPublicKey?: string;
+  } | null;
+}
+
+export interface SubmitFindingResponse {
+  finding: {
+    id: string;
+    protocol: string;
+    protocol_name: string;
+    title: string;
+    severity: string;
+    status: string;
+    scope_version: number;
+    created_at: string;
+  };
+}
+
 // ── Configuration ──
 
 export interface ScannerConfig {
   // API Keys
   etherscanApiKey?: string;
   whiteclawsApiKey?: string;
+  whiteclawsApiUrl?: string;
   anthropicApiKey?: string;
-  
+
   // Chain Configuration
   chains?: ChainConfig[];
   defaultChain?: string;
-  
+
   // Analysis Options
   enableDeepAnalysis?: boolean;
   enableMythril?: boolean;
   enableSecurify?: boolean;
   enableMaian?: boolean;
   enableAI?: boolean;
-  
+
   // Filtering
   minSeverity?: Severity;
   minConfidence?: Confidence;
-  
+
   // Timeouts
   timeoutMs?: number;
   slitherTimeoutMs?: number;
   mythrilTimeoutMs?: number;
-  
+
   // Output
   outputFormat?: 'json' | 'sarif' | 'markdown';
   outputPath?: string;
+
+  // Telemetry
+  enableTelemetry?: boolean;
+  telemetryUrl?: string;
+  agentType?: string;
 }
 
 // ── Output Formats ──

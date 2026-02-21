@@ -35,6 +35,10 @@ export { ChainConnector } from './connectors/chain.js';
 export { DeFiLlamaConnector } from './connectors/defillama.js';
 export { OfflineQueue } from './connectors/offline-queue.js';
 
+// Telemetry
+export { TelemetryEmitter } from './telemetry/emitter.js';
+export type { ScanTelemetryEvent, TelemetryIngestRequest } from './telemetry/types.js';
+
 // Intelligence - Protocol data and analysis
 export { ProtocolIntelligence, EnrichedProtocol } from './intelligence/protocol-intel.js';
 export { KnownVulnDatabase, KnownVulnerability } from './intelligence/known-vulns.js';

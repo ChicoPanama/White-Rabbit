@@ -39,7 +39,8 @@ export class PatternEngine implements AnalysisEngine {
 
     try {
       // Load patterns from registry or fallback
-      const patterns = this.useFallback ? this.fallbackPatterns : this.registry.loadAll();
+      const rawPatterns = this.useFallback ? this.fallbackPatterns : this.registry.loadAll();
+      const patterns = this.prioritizeByIntel(rawPatterns, options.intelContext);
       
       for (const pattern of patterns) {
         for (const detector of pattern.detectors) {
@@ -138,6 +139,35 @@ export class PatternEngine implements AnalysisEngine {
       return this.fallbackPatterns.length;
     }
     return this.registry.getPatternIds().length;
+  }
+
+  /**
+   * Reorder patterns so that those matching WhiteClaws-provided intel are checked first.
+   */
+  private prioritizeByIntel(
+    patterns: VulnerabilityPattern[],
+    intelContext?: EngineOptions['intelContext']
+  ): VulnerabilityPattern[] {
+    if (!intelContext?.evmbenchPatternMatches?.length) return patterns;
+
+    const scoreByPatternId = new Map<string, number>();
+
+    for (const match of intelContext.evmbenchPatternMatches) {
+      const hint = `${match.patternId} ${match.category}`.toLowerCase();
+      for (const pattern of patterns) {
+        const patternKey = `${pattern.id} ${pattern.name}`.toLowerCase();
+        if (hint.includes(pattern.id.toLowerCase()) || patternKey.includes(match.category.toLowerCase())) {
+          const current = scoreByPatternId.get(pattern.id) || 0;
+          scoreByPatternId.set(pattern.id, Math.max(current, Number(match.relevanceScore || 0)));
+        }
+      }
+    }
+
+    return [...patterns].sort((a, b) => {
+      const scoreA = scoreByPatternId.get(a.id) || 0;
+      const scoreB = scoreByPatternId.get(b.id) || 0;
+      return scoreB - scoreA;
+    });
   }
 
   /**
