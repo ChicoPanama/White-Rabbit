@@ -1,66 +1,107 @@
-# White-Rabbit v2
+# White-Rabbit
 
-[![npm version](https://badge.fury.io/js/@whiteclaws%2Fwhite-rabbit.svg)](https://www.npmjs.com/package/@whiteclaws/white-rabbit)
+> Autonomous smart contract vulnerability scanner for [whiteclaws.app](https://whiteclaws.app). Multi-engine analysis across 30+ EVM chains.
+
+[![npm](https://img.shields.io/npm/v/@whiteclaws/white-rabbit)](https://www.npmjs.com/package/@whiteclaws/white-rabbit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-87%20passing-brightgreen)]()
+[![Chains](https://img.shields.io/badge/EVM%20Chains-30+-blue)]()
 
-> Portable smart contract security scanner for whiteclaws.app
+---
 
-White-Rabbit is a comprehensive security analysis toolkit for Ethereum smart contracts. It combines multiple industry-standard analysis engines with AI-powered verification to detect vulnerabilities before they reach production.
+## Architecture
 
-## What's New in v2
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        White-Rabbit Scanner                             │
+│                                                                         │
+│  ┌───────────┐  ┌────────────┐  ┌────────────┐                         │
+│  │    CLI    │  │  Library   │  │ MCP Server │                         │
+│  │ white-    │  │  import {  │  │ white-     │                         │
+│  │ rabbit    │  │  WhiteRab  │  │ rabbit-mcp │                         │
+│  │ scan 0x.. │  │  bit }     │  │            │                         │
+│  └─────┬─────┘  └─────┬──────┘  └─────┬──────┘                         │
+│        │              │              │                                  │
+│  ┌─────▼──────────────▼──────────────▼──────┐                           │
+│  │           WhiteRabbit Core               │                           │
+│  │     (scan, analyzeSource, events)        │                           │
+│  └──────────────────┬───────────────────────┘                           │
+│                     │                                                   │
+│  ┌──────────────────▼───────────────────────┐                           │
+│  │          Analysis Pipeline               │                           │
+│  │  Orchestrates engines, deduplicates      │                           │
+│  └───┬──────┬──────┬──────┬──────┬──────────┘                           │
+│      │      │      │      │      │                                     │
+│  ┌───▼──┐┌──▼───┐┌─▼────┐┌▼─────┐┌▼─────┐                             │
+│  │Patt- ││Sli-  ││Myth- ││Secu- ││MAIAN │                             │
+│  │ern   ││ther  ││ril   ││rify2 ││      │                             │
+│  │Engine││Engine││Engine││Engine││Engine│                             │
+│  │      ││      ││      ││      ││      │                             │
+│  │ JSON ││Static││Symbo-││Formal││Dynam-│                             │
+│  │ pat- ││anal- ││lic   ││verif-││ic    │                             │
+│  │terns ││ysis  ││exec  ││icatn ││anal. │                             │
+│  └──────┘└──────┘└──────┘└──────┘└──────┘                             │
+│                     │                                                   │
+│  ┌──────────────────▼───────────────────────────────────────────────┐   │
+│  │                    Connectors & Intelligence                      │   │
+│  │                                                                   │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────────┐  │   │
+│  │  │ Chain RPC    │  │ DeFiLlama   │  │ Protocol Intelligence  │  │   │
+│  │  │              │  │              │  │                        │  │   │
+│  │  │ 30+ chains   │  │ TVL data     │  │ Known vulns           │  │   │
+│  │  │ Etherscan V2 │  │ Protocol     │  │ Vulnerability surface │  │   │
+│  │  │ Source fetch  │  │ discovery    │  │ Risk signals          │  │   │
+│  │  └──────────────┘  └──────────────┘  └────────────────────────┘  │   │
+│  │                                                                   │   │
+│  │  ┌──────────────┐  ┌──────────────┐                               │   │
+│  │  │ WhiteClaws   │  │ Telemetry   │                               │   │
+│  │  │ Client       │  │ Emitter     │                               │   │
+│  │  │              │  │              │                               │   │
+│  │  │ Submit       │  │ Scan events  │                               │   │
+│  │  │ findings     │  │ Batched      │                               │   │
+│  │  │ Get intel    │  │ flush to WC  │                               │   │
+│  │  └──────────────┘  └──────────────┘                               │   │
+│  └───────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
-- **JSON Pattern Database** - External, versioned vulnerability patterns
-- **Multi-Engine Analysis** - Slither, Mythril, Securify2, MAIAN + Pattern matching
-- **MCP Server** - Model Context Protocol for AI assistants
-- **30+ Chains** - Full EVM multi-chain support
-- **TypeScript** - Complete type safety
-- **npm Packages** - Install anywhere, use as library or CLI
+---
 
 ## Packages
 
 | Package | Description | Install |
 |---------|-------------|---------|
-| `@whiteclaws/white-rabbit` | Core scanner | `npm i -g @whiteclaws/white-rabbit` |
-| `@whiteclaws/mcp-white-rabbit` | MCP server | `npm i -g @whiteclaws/mcp-white-rabbit` |
+| `@whiteclaws/white-rabbit` | Core scanner (CLI + library) | `npm i -g @whiteclaws/white-rabbit` |
+| `@whiteclaws/mcp-white-rabbit` | MCP server for AI assistants | `npm i -g @whiteclaws/mcp-white-rabbit` |
 
-## Features
-
-- 🔍 **Multi-Engine Analysis** - Combines multiple analyzers
-- 📦 **JSON Pattern Database** - Versioned vulnerability patterns
-- ⚡ **Quick & Deep Modes** - Fast CI/CD or thorough auditing
-- 🤖 **AI-Powered Verification** - LLM-based false positive reduction
-- 🔗 **WhiteClaws Integration** - Queue scans via API
-- 📊 **Multiple Output Formats** - JSON, SARIF, table
-- 🌐 **Multi-Chain Support** - 30+ EVM chains
-- 🏗️ **Programmatic API** - Use as library
-- 🖥️ **MCP Server** - AI assistant integration
+---
 
 ## Quick Start
 
-### CLI Usage
+### CLI
 
 ```bash
-# Install globally
 npm install -g @whiteclaws/white-rabbit
 
-# Set your API key
 export ETHERSCAN_API_KEY=your_key_here
 
-# Quick scan (PatternEngine only)
+# Quick scan (Pattern engine only)
 white-rabbit quick 0x1234... --chain ethereum
 
-# Full scan with all available tools
+# Full scan with all available engines
 white-rabbit scan 0x1234... --deep
 
-# Analyze local file
+# Analyze local Solidity file
 white-rabbit analyze ./contract.sol
 
 # Search vulnerability patterns
 white-rabbit hunt reentrancy
+
+# Get protocol intelligence
+white-rabbit intel aave
 ```
 
-### Programmatic Usage
+### Library
 
 ```typescript
 import { WhiteRabbit } from '@whiteclaws/white-rabbit';
@@ -75,20 +116,20 @@ const result = await scanner.analyzeSource({
 });
 
 console.log(`Found ${result.findings.length} issues`);
-
 for (const finding of result.findings) {
   console.log(`[${finding.severity.toUpperCase()}] ${finding.title}`);
 }
 ```
 
-### MCP Server (for AI Assistants)
+### MCP Server
 
 ```bash
-# Install MCP server
 npm install -g @whiteclaws/mcp-white-rabbit
+```
 
-# Configure in Claude Desktop
-# Add to claude_desktop_config.json:
+Add to Claude Desktop config:
+
+```json
 {
   "mcpServers": {
     "white-rabbit": {
@@ -99,79 +140,296 @@ npm install -g @whiteclaws/mcp-white-rabbit
 }
 ```
 
+---
+
+## Engines
+
+Five analysis engines. The pipeline orchestrates them and deduplicates findings.
+
+| Engine | Type | Requires | Description |
+|--------|------|----------|-------------|
+| **Pattern** | JSON pattern matching | Nothing (always available) | Versioned vulnerability patterns, pure JS |
+| **Slither** | Static analysis | `slither` binary | 90+ detectors, Solidity-specific |
+| **Mythril** | Symbolic execution | `mythril` binary | EVM bytecode analysis |
+| **Securify2** | Formal verification | `securify2` binary | Security property checking |
+| **MAIAN** | Dynamic analysis | `maian` binary | Runtime behavior analysis |
+
+All engines implement a common interface:
+
+```typescript
+interface AnalysisEngine {
+  name: string;
+  version: string;
+  isAvailable(): Promise<boolean>;
+  analyze(contract: Contract, options: EngineOptions): Promise<EngineResult>;
+}
+```
+
+### Vulnerability Categories
+
+| Category | Severity | Patterns |
+|----------|----------|----------|
+| Reentrancy | High | 5 |
+| Access Control | High | 4 |
+| Oracle Manipulation | Critical | 3 |
+| Flash Loan | High | 4 |
+| Integer Overflow | Medium | 3 |
+| Governance Attack | High | 4 |
+| Price Manipulation | Critical | 3 |
+
+---
+
+## Connectors
+
+| Connector | Purpose | Key Methods |
+|-----------|---------|-------------|
+| **ChainConnector** | RPC + block explorer | Contract fetching, balance queries, 30+ chains |
+| **DeFiLlamaConnector** | TVL + protocol data | Protocol discovery, chain rankings, historical TVL |
+| **WhiteClawsClient** | Platform integration | `submitFinding()`, `getProtocolIntel()`, `listScans()` |
+| **OfflineQueue** | Resilience | Queues requests when offline, retries on reconnect |
+
+---
+
+## Intelligence
+
+### Protocol Intelligence
+
+Enriched protocol data for prioritizing scans:
+
+```typescript
+interface EnrichedProtocol {
+  slug: string;
+  name: string;
+  tvl: number;
+  chains: string[];
+  hasBounty: boolean;
+  maxBounty?: number;
+  contracts: ContractIntel[];
+  knownVulnerabilities: KnownVuln[];
+  audits: AuditInfo[];
+  riskSignals: RiskSignal[];
+  vulnerabilitySurface?: {
+    contractType: string;
+    riskLevel: 'critical' | 'high' | 'medium' | 'low';
+    totalMatchingPatterns: number;
+  };
+  isFork: boolean;
+  forkedFrom?: string;
+}
+```
+
+### Known Vulnerability Database
+
+430+ historical exploits from DeFiLlama used to prioritize fork scanning and pattern matching.
+
+---
+
+## WhiteClaws Integration
+
+Bidirectional data flow between the scanner and the WhiteClaws platform.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     WR ←→ WC Data Flow                          │
+│                                                                  │
+│  SCAN START                                                      │
+│  ────────────────────────────────────────────────────────────── │
+│  WR: TelemetryEmitter.emit('scan_started')                      │
+│       │                                                          │
+│  WR: WhiteClawsClient.getProtocolIntel(slug)                    │
+│       │                                                          │
+│       └──▶ GET whiteclaws.app/api/intel/protocol/:slug           │
+│            (x402 payment if required)                            │
+│       ◀── EnrichedProtocol response                              │
+│                                                                  │
+│  SCAN RUNNING                                                    │
+│  ────────────────────────────────────────────────────────────── │
+│  WR: PatternEngine loads vulnerability_patterns from WC DB       │
+│  WR: TelemetryEmitter.emit('vulnerability_detected', ...)        │
+│  WR: TelemetryEmitter.emit('contract_classified', ...)           │
+│       │                                                          │
+│       └──▶ POST whiteclaws.app/api/telemetry/ingest              │
+│            (batched, max 100 events per flush)                   │
+│                                                                  │
+│  SCAN COMPLETE                                                   │
+│  ────────────────────────────────────────────────────────────── │
+│  WR: WhiteClawsClient.submitFinding(finding)                    │
+│       │                                                          │
+│       └──▶ POST whiteclaws.app/api/agents/submit                 │
+│            (+ contract_address, telemetry_session_id)            │
+│                                                                  │
+│  All WR→WC calls use exponential backoff retry                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Telemetry
+
+Event-based scan telemetry with batched flush to WhiteClaws.
+
+### Event Types
+
+| Action | Description |
+|--------|-------------|
+| `scan_started` | Scan initiated for contract/protocol |
+| `contract_classified` | Contract type identified |
+| `patterns_loaded` | Vulnerability patterns loaded from registry |
+| `vulnerability_detected` | Finding discovered by an engine |
+| `false_positive_filtered` | Finding removed by FP filter |
+| `verification_result` | Finding verified or rejected |
+| `scan_complete` | Scan finished with summary |
+
+### Configuration
+
+```typescript
+const emitter = new TelemetryEmitter({
+  enabled: true,
+  apiKey: 'wc_...',
+  apiUrl: 'https://whiteclaws.app/api/telemetry/ingest/',
+  agentType: 'white-rabbit',
+  flushEvery: 25,  // events per batch
+});
+
+emitter.emit({ action: 'scan_started', target: { protocol_slug: 'aave' } });
+await emitter.flush();
+```
+
+Falls back to local JSONL files at `~/.white-rabbit/telemetry/` if the API is unreachable.
+
+---
+
 ## CLI Commands
 
 | Command | Description |
 |---------|-------------|
 | `white-rabbit init` | Interactive configuration wizard |
-| `white-rabbit scan <address>` | Full contract scan |
-| `white-rabbit quick <address>` | Quick scan (Pattern only) |
-| `white-rabbit deep <address>` | Deep scan (all engines) |
+| `white-rabbit scan <address>` | Full scan with all available engines |
+| `white-rabbit quick <address>` | Quick scan (Pattern engine only) |
+| `white-rabbit deep <address>` | Deep scan (all engines + AI verification) |
 | `white-rabbit analyze <file>` | Analyze local Solidity file |
 | `white-rabbit hunt <keyword>` | Search vulnerability patterns |
+| `white-rabbit intel <protocol>` | Show protocol intelligence |
 | `white-rabbit status <scanId>` | Check scan status |
-| `white-rabbit engines` | List available engines |
-| `white-rabbit chains` | List supported chains |
+| `white-rabbit submit <file>` | Submit finding to WhiteClaws |
 
-## Vulnerability Detection
+### Options
 
-| Category | Severity | Patterns |
-|----------|----------|----------|
-| Reentrancy | 🔴 High | 5 patterns |
-| Access Control | 🔴 High | 4 patterns |
-| Oracle Manipulation | 🔴 Critical | 3 patterns |
-| Flash Loan | 🔴 High | 4 patterns |
-| Integer Overflow | 🟡 Medium | 3 patterns |
-| Governance Attack | 🔴 High | 4 patterns |
-| Price Manipulation | 🔴 Critical | 3 patterns |
+```bash
+--chain <name>      # Target chain (default: ethereum)
+--deep              # Enable all engines
+--format <type>     # Output: json, sarif, table
+--output <path>     # Write results to file
+--min-severity <s>  # Filter: critical, high, medium, low
+```
+
+---
 
 ## Supported Chains (30+)
 
-| Chain | Chain ID | Status |
-|-------|----------|--------|
-| Ethereum | 1 | ✅ Full |
-| Base | 8453 | ✅ Full |
-| Arbitrum | 42161 | ✅ Full |
-| Optimism | 10 | ✅ Full |
-| Polygon | 137 | ✅ Full |
-| BSC | 56 | ✅ Full |
-| Avalanche | 43114 | ✅ Full |
-| And 23 more... | | |
+| Tier | Chains | Chain IDs |
+|------|--------|-----------|
+| **Tier 1** | Ethereum, Base, Arbitrum, Optimism, Polygon, BSC, Avalanche | 1, 8453, 42161, 10, 137, 56, 43114 |
+| **Tier 2** | Fantom, Cronos, Gnosis, zkSync Era, Mantle, Manta, Mode | 250, 25, 100, 324, 5000, 169, 34443 |
+| **Tier 3** | Celo, Moonbeam, Moonriver, Scroll, Linea, Blast + more | 42220, 1284, 1285, 534352, 59144, 81457 |
 
-## Documentation
+All chains have pre-configured RPC endpoints and Etherscan V2 API URLs.
 
-- [API Reference](packages/white-rabbit/API.md)
-- [Contributing Guide](packages/white-rabbit/CONTRIBUTING.md)
-- [Security Policy](SECURITY.md)
-- [Release Process](RELEASING.md)
+---
 
-## Configuration
+## Monorepo Structure
 
-### Environment Variables
-
-```bash
-# Required for contract resolution
-export ETHERSCAN_API_KEY=your_etherscan_key
-
-# Optional
-export WHITECLAWS_API_KEY=your_whiteclaws_key
-export ETH_RPC_URL=https://eth.llamarpc.com
+```
+White-Rabbit/
+├── packages/
+│   ├── white-rabbit/                 # @whiteclaws/white-rabbit
+│   │   ├── src/
+│   │   │   ├── index.ts              # Main exports
+│   │   │   ├── types.ts              # Core types (428 lines, 30+ chain configs)
+│   │   │   ├── core/
+│   │   │   │   ├── white-rabbit.ts   # WhiteRabbit class (scan, analyzeSource)
+│   │   │   │   └── scope-checker.ts  # Scope validation
+│   │   │   ├── engines/
+│   │   │   │   ├── analysis-pipeline.ts  # Orchestrator
+│   │   │   │   ├── pattern.ts            # Pattern engine
+│   │   │   │   ├── slither.ts            # Slither engine
+│   │   │   │   ├── mythril.ts            # Mythril engine
+│   │   │   │   ├── securify.ts           # Securify2 engine
+│   │   │   │   └── maian.ts              # MAIAN engine
+│   │   │   ├── connectors/
+│   │   │   │   ├── whiteclaws-client.ts  # WhiteClaws API client
+│   │   │   │   ├── chain.ts             # RPC + Etherscan
+│   │   │   │   ├── defillama.ts         # DeFiLlama API
+│   │   │   │   └── offline-queue.ts     # Offline resilience
+│   │   │   ├── intelligence/
+│   │   │   │   ├── protocol-intel.ts    # Protocol enrichment
+│   │   │   │   └── known-vulns.ts       # 430+ exploit database
+│   │   │   ├── telemetry/
+│   │   │   │   ├── emitter.ts           # TelemetryEmitter
+│   │   │   │   └── types.ts            # Event types
+│   │   │   ├── cli/
+│   │   │   │   ├── bin/cli.ts           # CLI entry point
+│   │   │   │   └── commands/            # 7 command files
+│   │   │   └── tests/                   # 7 test files
+│   │   ├── data/                        # Pattern databases
+│   │   └── package.json
+│   │
+│   └── mcp/                             # @whiteclaws/mcp-white-rabbit
+│       ├── src/index.ts                 # MCP server
+│       └── package.json
+│
+├── research/
+│   ├── books/                           # 9 Git submodules + 1 PDF
+│   │   ├── slither/                     # Slither source
+│   │   ├── halmos/                      # Formal verification
+│   │   ├── z3/                          # SMT solver
+│   │   ├── ethernaut/                   # CTF challenges
+│   │   ├── smart-contract-vulnerabilities/
+│   │   ├── solidity-patterns/
+│   │   ├── consensys-best-practices/
+│   │   ├── mastering-ethereum/
+│   │   ├── mastering-bitcoin/
+│   │   └── princeton-bitcoin-book.pdf
+│   ├── layers/                          # 6-layer research taxonomy
+│   └── library/                         # Reference materials
+│
+├── .github/workflows/
+│   ├── ci.yml                           # Build + test (Node 18, 20)
+│   ├── pr.yml                           # PR validation
+│   ├── release.yml                      # npm publishing
+│   └── security.yml                     # TruffleHog + audit
+│
+├── package.json                         # Monorepo root (npm workspaces)
+└── tsconfig.json                        # Shared TypeScript config
 ```
 
-### Config File
+---
 
-Create `~/.white-rabbit/config.json`:
+## API Exports
 
-```json
-{
-  "etherscanApiKey": "your_key",
-  "defaultChain": "ethereum",
-  "engines": {
-    "pattern": true,
-    "slither": true
-  }
-}
+```typescript
+// Main entry: @whiteclaws/white-rabbit
+import {
+  WhiteRabbit,           // Core scanner class
+  ScopeChecker,          // Scope validation
+  AnalysisPipeline,      // Engine orchestrator
+  PatternEngine,         // Pattern-based detection
+  WhiteClawsClient,      // Platform API client
+  ChainConnector,        // Chain RPC connector
+  DeFiLlamaConnector,    // DeFiLlama API
+  TelemetryEmitter,      // Scan telemetry
+  ProtocolIntelligence,  // Protocol enrichment
+  ContractResolver,      // Contract fetching
+  VERSION,               // '2.0.0-alpha.1'
+} from '@whiteclaws/white-rabbit';
+
+// Sub-exports
+import { WhiteRabbit } from '@whiteclaws/white-rabbit/scanner';
+import { PatternEngine } from '@whiteclaws/white-rabbit/engines';
+import type { Finding, Severity, Contract } from '@whiteclaws/white-rabbit/types';
 ```
+
+---
 
 ## CI/CD Integration
 
@@ -196,70 +454,89 @@ jobs:
           sarif_file: results.sarif
 ```
 
+---
+
+## Configuration
+
+### Environment Variables
+
+```bash
+# Required for contract resolution
+export ETHERSCAN_API_KEY=your_etherscan_key
+
+# Optional
+export WHITECLAWS_API_KEY=wc_...           # For platform integration
+export ETH_RPC_URL=https://eth.llamarpc.com # Custom RPC
+```
+
+### Config File
+
+Create `~/.white-rabbit/config.json`:
+
+```json
+{
+  "etherscanApiKey": "your_key",
+  "defaultChain": "ethereum",
+  "engines": {
+    "pattern": true,
+    "slither": true
+  }
+}
+```
+
+---
+
 ## Development
 
 ```bash
 # Clone
-git clone https://github.com/whiteclaws/white-rabbit.git
-cd white-rabbit
+git clone https://github.com/ChicoPanama/White-Rabbit.git
+cd White-Rabbit
 
-# Install
+# Install (npm workspaces)
 npm install
 
-# Build
+# Build all packages
 npm run build
 
 # Test
 npm test
 
-# Benchmark
-npm run benchmark
+# Type check
+npm run typecheck
+
+# Lint
+npm run lint
+
+# Publish (alpha)
+npm run publish:alpha
 ```
 
-## Architecture
+---
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    WhiteRabbit Scanner                      │
-├─────────────────────────────────────────────────────────────┤
-│  CLI │ Library │ MCP Server │ API Routes                   │
-├─────────────────────────────────────────────────────────────┤
-│                    Analysis Pipeline                        │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
-│  │ Pattern  │ │ Slither  │ │ Mythril  │ │ Securify │ ...   │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘       │
-├─────────────────────────────────────────────────────────────┤
-│                JSON Pattern Database                        │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐   │
-│  │ Reentrancy  │ │ Access Ctrl │ │ Oracle Manipulation │   │
-│  └─────────────┘ └─────────────┘ └─────────────────────┘   │
-├─────────────────────────────────────────────────────────────┤
-│                 Connectors & Intelligence                   │
-│  Chain │ DeFiLlama │ Protocol Intel │ Known Vulns         │
-└─────────────────────────────────────────────────────────────┘
-```
+## Research Library
 
-## Security
+The `research/` directory contains 9 Git submodules and curated reference materials organized into a 6-layer taxonomy:
 
-See [SECURITY.md](SECURITY.md) for:
-- Security policy
-- Vulnerability reporting
-- Bug bounty program
+| Layer | Topic | Sources |
+|-------|-------|---------|
+| 0 | Foundations | Mastering Ethereum, Mastering Bitcoin, Princeton Bitcoin Book |
+| 1 | Smart Contract Failure Modes | SWC Registry, vulnerability patterns |
+| 2 | Formal Thinking | Halmos, Z3, Solidity patterns |
+| 3 | Economic & Game-Theoretic Attacks | Flash loan vectors, oracle manipulation |
+| 4 | Systemic Failures | Bridge exploits, governance attacks |
+| 5 | Historical Correlation | 430+ exploit database from DeFiLlama |
 
-## Contributing
+Plus 10 ingested Q1 2026 industry reports (TRM Labs, Chainalysis, SlowMist, Hacken, etc.).
 
-We welcome contributions! See [CONTRIBUTING.md](packages/white-rabbit/CONTRIBUTING.md) for:
-- Development setup
-- Code style
-- Testing guidelines
-- Pull request process
+---
 
 ## License
 
-MIT © WhiteClaws Team
+MIT
 
 ---
 
 <p align="center">
-  Built with ❤️ by <a href="https://whiteclaws.app">WhiteClaws</a>
+  Built by <a href="https://whiteclaws.app">WhiteClaws</a>
 </p>
