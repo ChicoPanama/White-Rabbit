@@ -1,6 +1,6 @@
 # White-Rabbit
 
-> Autonomous smart contract vulnerability scanner for [whiteclaws.app](https://whiteclaws.app). Multi-engine analysis across 30+ EVM chains.
+> An AI-powered tool that reads smart contract code and finds security bugs — automatically, across 30+ blockchains.
 
 [![npm](https://img.shields.io/npm/v/@whiteclaws/white-rabbit)](https://www.npmjs.com/package/@whiteclaws/white-rabbit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -9,125 +9,190 @@
 
 ---
 
-## Architecture
+## What Is White-Rabbit?
+
+**Smart contracts** are programs that run on blockchains and handle real money. If there's a bug, hackers can drain millions. White-Rabbit is a security scanner that reads these programs and finds vulnerabilities before hackers do.
+
+Think of it like an antivirus, but for blockchain code.
+
+### What It Does
+
+1. **Fetches** a smart contract's source code from the blockchain (or reads a local file)
+2. **Runs** the code through up to 5 different analysis engines simultaneously
+3. **Finds** potential vulnerabilities (reentrancy attacks, access control bugs, price manipulation, etc.)
+4. **Deduplicates** results across engines so you don't get the same bug reported 5 times
+5. **Submits** confirmed findings to [WhiteClaws](https://whiteclaws.app) for bounty payouts
+
+You can use it as a **command-line tool**, a **JavaScript library**, or through an **AI assistant** (via MCP).
+
+### How It Connects to WhiteClaws
+
+White-Rabbit is the scanner. WhiteClaws is the marketplace. Together they form a pipeline:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        White-Rabbit Scanner                             │
-│                                                                         │
-│  ┌───────────┐  ┌────────────┐  ┌────────────┐                         │
-│  │    CLI    │  │  Library   │  │ MCP Server │                         │
-│  │ white-    │  │  import {  │  │ white-     │                         │
-│  │ rabbit    │  │  WhiteRab  │  │ rabbit-mcp │                         │
-│  │ scan 0x.. │  │  bit }     │  │            │                         │
-│  └─────┬─────┘  └─────┬──────┘  └─────┬──────┘                         │
-│        │              │              │                                  │
-│  ┌─────▼──────────────▼──────────────▼──────┐                           │
-│  │           WhiteRabbit Core               │                           │
-│  │     (scan, analyzeSource, events)        │                           │
-│  └──────────────────┬───────────────────────┘                           │
-│                     │                                                   │
-│  ┌──────────────────▼───────────────────────┐                           │
-│  │          Analysis Pipeline               │                           │
-│  │  Orchestrates engines, deduplicates      │                           │
-│  └───┬──────┬──────┬──────┬──────┬──────────┘                           │
-│      │      │      │      │      │                                     │
-│  ┌───▼──┐┌──▼───┐┌─▼────┐┌▼─────┐┌▼─────┐                             │
-│  │Patt- ││Sli-  ││Myth- ││Secu- ││MAIAN │                             │
-│  │ern   ││ther  ││ril   ││rify2 ││      │                             │
-│  │Engine││Engine││Engine││Engine││Engine│                             │
-│  │      ││      ││      ││      ││      │                             │
-│  │ JSON ││Static││Symbo-││Formal││Dynam-│                             │
-│  │ pat- ││anal- ││lic   ││verif-││ic    │                             │
-│  │terns ││ysis  ││exec  ││icatn ││anal. │                             │
-│  └──────┘└──────┘└──────┘└──────┘└──────┘                             │
-│                     │                                                   │
-│  ┌──────────────────▼───────────────────────────────────────────────┐   │
-│  │                    Connectors & Intelligence                      │   │
-│  │                                                                   │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────────┐  │   │
-│  │  │ Chain RPC    │  │ DeFiLlama   │  │ Protocol Intelligence  │  │   │
-│  │  │              │  │              │  │                        │  │   │
-│  │  │ 30+ chains   │  │ TVL data     │  │ Known vulns           │  │   │
-│  │  │ Etherscan V2 │  │ Protocol     │  │ Vulnerability surface │  │   │
-│  │  │ Source fetch  │  │ discovery    │  │ Risk signals          │  │   │
-│  │  └──────────────┘  └──────────────┘  └────────────────────────┘  │   │
-│  │                                                                   │   │
-│  │  ┌──────────────┐  ┌──────────────┐                               │   │
-│  │  │ WhiteClaws   │  │ Telemetry   │                               │   │
-│  │  │ Client       │  │ Emitter     │                               │   │
-│  │  │              │  │              │                               │   │
-│  │  │ Submit       │  │ Scan events  │                               │   │
-│  │  │ findings     │  │ Batched      │                               │   │
-│  │  │ Get intel    │  │ flush to WC  │                               │   │
-│  │  └──────────────┘  └──────────────┘                               │   │
-│  └───────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────┘
+White-Rabbit finds a bug
+        │
+        ▼
+Submits it to WhiteClaws ──▶ Protocol team reviews it
+                                      │
+                              ┌───────▼───────┐
+                              │   Accepted?   │
+                              │   YES → Payout│
+                              │   NO → Reject │
+                              └───────────────┘
 ```
 
 ---
 
-## Packages
+## Key Concepts
 
-| Package | Description | Install |
-|---------|-------------|---------|
-| `@whiteclaws/white-rabbit` | Core scanner (CLI + library) | `npm i -g @whiteclaws/white-rabbit` |
-| `@whiteclaws/mcp-white-rabbit` | MCP server for AI assistants | `npm i -g @whiteclaws/mcp-white-rabbit` |
+| Term | What It Means |
+|------|---------------|
+| **Smart Contract** | A program on a blockchain that handles money automatically. Can't be changed once deployed. |
+| **Vulnerability** | A bug in a smart contract that could be exploited to steal funds or break things. |
+| **EVM Chain** | Any blockchain that runs Ethereum-compatible code (Ethereum, Base, Arbitrum, Polygon, etc.). White-Rabbit supports 30+. |
+| **Static Analysis** | Reading code without running it, looking for known bad patterns. Like a spell-checker for security. |
+| **Symbolic Execution** | Testing code with mathematical symbols instead of real values, to explore every possible path. |
+| **Pattern Matching** | Comparing code against a database of known vulnerability patterns (like checking fingerprints). |
+| **False Positive** | When the scanner says there's a bug, but there actually isn't. White-Rabbit uses multiple engines to reduce these. |
+| **MCP** | Model Context Protocol — a way for AI assistants (like Claude) to use external tools. White-Rabbit has an MCP server so AI can scan contracts directly. |
+| **Telemetry** | Data about what the scanner did — what it scanned, what it found, how long it took. Sent to WhiteClaws for analytics. |
 
 ---
 
-## Quick Start
+## How The Scanner Works
 
-### CLI
+```
+You give White-Rabbit a contract address (or a .sol file)
+        │
+        ▼
+┌─ Step 1: Resolve ────────────────────────────────────────────┐
+│  Fetches the source code from the blockchain using            │
+│  Etherscan V2 API. Works with 30+ chains automatically.      │
+│  (If you gave it a local file, this step is skipped.)        │
+└──────────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+┌─ Step 2: Analyze ────────────────────────────────────────────┐
+│  Runs the code through up to 5 analysis engines:              │
+│                                                               │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ ┌──────┐ │
+│  │ Pattern  │ │ Slither  │ │ Mythril  │ │Securify│ │MAIAN │ │
+│  │          │ │          │ │          │ │        │ │      │ │
+│  │ Checks   │ │ Reads    │ │ Tries    │ │ Proves │ │Tests │ │
+│  │ against  │ │ code     │ │ every    │ │ safety │ │real  │ │
+│  │ known    │ │ structure│ │ possible │ │ proper-│ │behav-│ │
+│  │ vuln     │ │ for 90+  │ │ execution│ │ ties   │ │ior   │ │
+│  │ patterns │ │ bug types│ │ path     │ │ math-  │ │      │ │
+│  │          │ │          │ │          │ │ ematic-│ │      │ │
+│  │ Always   │ │ Needs    │ │ Needs    │ │ ally   │ │Needs │ │
+│  │ available│ │ install  │ │ install  │ │        │ │inst. │ │
+│  └──────────┘ └──────────┘ └──────────┘ └────────┘ └──────┘ │
+└──────────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+┌─ Step 3: Deduplicate ────────────────────────────────────────┐
+│  Multiple engines often find the same bug. This step          │
+│  merges duplicates so you get one clean list.                 │
+└──────────────────────────┬───────────────────────────────────┘
+                           │
+                           ▼
+┌─ Step 4: Report ─────────────────────────────────────────────┐
+│  Returns findings with severity, description, affected code,  │
+│  and which engine(s) found it. Optionally submits to          │
+│  WhiteClaws for bounty processing.                            │
+└──────────────────────────────────────────────────────────────┘
+```
+
+### The Five Engines
+
+| Engine | What It Does | Needs Install? |
+|--------|-------------|----------------|
+| **Pattern** | Matches code against a JSON database of known vulnerability fingerprints. Pure JavaScript — works everywhere. | No (always available) |
+| **Slither** | Static analyzer built by Trail of Bits. Reads Solidity code structure and checks 90+ detector rules. Industry standard. | Yes (`pip install slither-analyzer`) |
+| **Mythril** | Symbolic execution engine. Explores every possible execution path to find bugs that only trigger under specific conditions. | Yes (`pip install mythril`) |
+| **Securify2** | Formal verification tool. Mathematically proves whether security properties hold or can be violated. | Yes (Docker) |
+| **MAIAN** | Dynamic analysis. Actually runs the contract in a sandbox to observe runtime behavior. | Yes (Docker) |
+
+The **Pattern engine** is always available and doesn't need anything installed. The others are optional — enable whichever ones you have installed.
+
+### What It Finds
+
+| Vulnerability Type | Severity | What It Means |
+|-------------------|----------|---------------|
+| **Reentrancy** | High | An attacker can call a function repeatedly before it finishes, draining funds. The #1 cause of DeFi hacks. |
+| **Access Control** | High | Functions that should be restricted (like withdrawals) can be called by anyone. |
+| **Oracle Manipulation** | Critical | An attacker can manipulate price feeds to trick the protocol into wrong calculations. |
+| **Flash Loan Attack** | High | Using borrowed funds (repaid in the same transaction) to manipulate the protocol. |
+| **Integer Overflow** | Medium | Math calculations wrap around (like an odometer going from 999999 to 000000), causing wrong amounts. |
+| **Governance Attack** | High | An attacker gains enough voting power to pass malicious proposals. |
+| **Price Manipulation** | Critical | Direct manipulation of token prices through trades or liquidity changes. |
+
+---
+
+## Getting Started
+
+### Option 1: Command Line (CLI)
+
+Install it globally and scan from your terminal:
 
 ```bash
+# Install
 npm install -g @whiteclaws/white-rabbit
 
+# Set your Etherscan API key (free at etherscan.io)
 export ETHERSCAN_API_KEY=your_key_here
 
-# Quick scan (Pattern engine only)
-white-rabbit quick 0x1234... --chain ethereum
+# Quick scan (Pattern engine only — fast, no extra tools needed)
+white-rabbit quick 0x1234...abcd --chain ethereum
 
-# Full scan with all available engines
-white-rabbit scan 0x1234... --deep
+# Full scan with all installed engines
+white-rabbit scan 0x1234...abcd --deep
 
-# Analyze local Solidity file
-white-rabbit analyze ./contract.sol
+# Analyze a local Solidity file
+white-rabbit analyze ./MyContract.sol
 
-# Search vulnerability patterns
+# Search for specific vulnerability patterns
 white-rabbit hunt reentrancy
 
-# Get protocol intelligence
+# Get intelligence about a protocol before scanning
 white-rabbit intel aave
 ```
 
-### Library
+### Option 2: JavaScript/TypeScript Library
+
+Use it in your own code:
 
 ```typescript
 import { WhiteRabbit } from '@whiteclaws/white-rabbit';
 
+// Create a scanner (enable whichever engines you have installed)
 const scanner = new WhiteRabbit({
   engines: { pattern: true, slither: true },
 });
 
+// Scan a local file
 const result = await scanner.analyzeSource({
   sourceCode: fs.readFileSync('contract.sol', 'utf-8'),
   filename: 'MyContract.sol',
 });
 
+// Print results
 console.log(`Found ${result.findings.length} issues`);
 for (const finding of result.findings) {
   console.log(`[${finding.severity.toUpperCase()}] ${finding.title}`);
 }
 ```
 
-### MCP Server
+### Option 3: AI Assistant (MCP Server)
+
+Let AI assistants like Claude use White-Rabbit as a tool:
 
 ```bash
 npm install -g @whiteclaws/mcp-white-rabbit
 ```
 
-Add to Claude Desktop config:
+Add to your Claude Desktop config:
 
 ```json
 {
@@ -140,318 +205,128 @@ Add to Claude Desktop config:
 }
 ```
 
----
-
-## Engines
-
-Five analysis engines. The pipeline orchestrates them and deduplicates findings.
-
-| Engine | Type | Requires | Description |
-|--------|------|----------|-------------|
-| **Pattern** | JSON pattern matching | Nothing (always available) | Versioned vulnerability patterns, pure JS |
-| **Slither** | Static analysis | `slither` binary | 90+ detectors, Solidity-specific |
-| **Mythril** | Symbolic execution | `mythril` binary | EVM bytecode analysis |
-| **Securify2** | Formal verification | `securify2` binary | Security property checking |
-| **MAIAN** | Dynamic analysis | `maian` binary | Runtime behavior analysis |
-
-All engines implement a common interface:
-
-```typescript
-interface AnalysisEngine {
-  name: string;
-  version: string;
-  isAvailable(): Promise<boolean>;
-  analyze(contract: Contract, options: EngineOptions): Promise<EngineResult>;
-}
-```
-
-### Vulnerability Categories
-
-| Category | Severity | Patterns |
-|----------|----------|----------|
-| Reentrancy | High | 5 |
-| Access Control | High | 4 |
-| Oracle Manipulation | Critical | 3 |
-| Flash Loan | High | 4 |
-| Integer Overflow | Medium | 3 |
-| Governance Attack | High | 4 |
-| Price Manipulation | Critical | 3 |
-
----
-
-## Connectors
-
-| Connector | Purpose | Key Methods |
-|-----------|---------|-------------|
-| **ChainConnector** | RPC + block explorer | Contract fetching, balance queries, 30+ chains |
-| **DeFiLlamaConnector** | TVL + protocol data | Protocol discovery, chain rankings, historical TVL |
-| **WhiteClawsClient** | Platform integration | `submitFinding()`, `getProtocolIntel()`, `listScans()` |
-| **OfflineQueue** | Resilience | Queues requests when offline, retries on reconnect |
-
----
-
-## Intelligence
-
-### Protocol Intelligence
-
-Enriched protocol data for prioritizing scans:
-
-```typescript
-interface EnrichedProtocol {
-  slug: string;
-  name: string;
-  tvl: number;
-  chains: string[];
-  hasBounty: boolean;
-  maxBounty?: number;
-  contracts: ContractIntel[];
-  knownVulnerabilities: KnownVuln[];
-  audits: AuditInfo[];
-  riskSignals: RiskSignal[];
-  vulnerabilitySurface?: {
-    contractType: string;
-    riskLevel: 'critical' | 'high' | 'medium' | 'low';
-    totalMatchingPatterns: number;
-  };
-  isFork: boolean;
-  forkedFrom?: string;
-}
-```
-
-### Known Vulnerability Database
-
-430+ historical exploits from DeFiLlama used to prioritize fork scanning and pattern matching.
-
----
-
-## WhiteClaws Integration
-
-Bidirectional data flow between the scanner and the WhiteClaws platform.
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     WR ←→ WC Data Flow                          │
-│                                                                  │
-│  SCAN START                                                      │
-│  ────────────────────────────────────────────────────────────── │
-│  WR: TelemetryEmitter.emit('scan_started')                      │
-│       │                                                          │
-│  WR: WhiteClawsClient.getProtocolIntel(slug)                    │
-│       │                                                          │
-│       └──▶ GET whiteclaws.app/api/intel/protocol/:slug           │
-│            (x402 payment if required)                            │
-│       ◀── EnrichedProtocol response                              │
-│                                                                  │
-│  SCAN RUNNING                                                    │
-│  ────────────────────────────────────────────────────────────── │
-│  WR: PatternEngine loads vulnerability_patterns from WC DB       │
-│  WR: TelemetryEmitter.emit('vulnerability_detected', ...)        │
-│  WR: TelemetryEmitter.emit('contract_classified', ...)           │
-│       │                                                          │
-│       └──▶ POST whiteclaws.app/api/telemetry/ingest              │
-│            (batched, max 100 events per flush)                   │
-│                                                                  │
-│  SCAN COMPLETE                                                   │
-│  ────────────────────────────────────────────────────────────── │
-│  WR: WhiteClawsClient.submitFinding(finding)                    │
-│       │                                                          │
-│       └──▶ POST whiteclaws.app/api/agents/submit                 │
-│            (+ contract_address, telemetry_session_id)            │
-│                                                                  │
-│  All WR→WC calls use exponential backoff retry                   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Telemetry
-
-Event-based scan telemetry with batched flush to WhiteClaws.
-
-### Event Types
-
-| Action | Description |
-|--------|-------------|
-| `scan_started` | Scan initiated for contract/protocol |
-| `contract_classified` | Contract type identified |
-| `patterns_loaded` | Vulnerability patterns loaded from registry |
-| `vulnerability_detected` | Finding discovered by an engine |
-| `false_positive_filtered` | Finding removed by FP filter |
-| `verification_result` | Finding verified or rejected |
-| `scan_complete` | Scan finished with summary |
-
-### Configuration
-
-```typescript
-const emitter = new TelemetryEmitter({
-  enabled: true,
-  apiKey: 'wc_...',
-  apiUrl: 'https://whiteclaws.app/api/telemetry/ingest/',
-  agentType: 'white-rabbit',
-  flushEvery: 25,  // events per batch
-});
-
-emitter.emit({ action: 'scan_started', target: { protocol_slug: 'aave' } });
-await emitter.flush();
-```
-
-Falls back to local JSONL files at `~/.white-rabbit/telemetry/` if the API is unreachable.
+Now Claude can scan contracts for you when you ask.
 
 ---
 
 ## CLI Commands
 
-| Command | Description |
+| Command | What It Does |
 |---------|-------------|
-| `white-rabbit init` | Interactive configuration wizard |
-| `white-rabbit scan <address>` | Full scan with all available engines |
-| `white-rabbit quick <address>` | Quick scan (Pattern engine only) |
-| `white-rabbit deep <address>` | Deep scan (all engines + AI verification) |
-| `white-rabbit analyze <file>` | Analyze local Solidity file |
-| `white-rabbit hunt <keyword>` | Search vulnerability patterns |
-| `white-rabbit intel <protocol>` | Show protocol intelligence |
-| `white-rabbit status <scanId>` | Check scan status |
-| `white-rabbit submit <file>` | Submit finding to WhiteClaws |
+| `white-rabbit init` | Interactive setup wizard — creates your config file |
+| `white-rabbit scan <address>` | Full scan of a deployed contract |
+| `white-rabbit quick <address>` | Fast scan using only the Pattern engine |
+| `white-rabbit deep <address>` | Thorough scan using every available engine |
+| `white-rabbit analyze <file>` | Scan a local Solidity file |
+| `white-rabbit hunt <keyword>` | Search the vulnerability pattern database |
+| `white-rabbit intel <protocol>` | Show intelligence about a protocol (TVL, risks, known vulns) |
+| `white-rabbit status <scanId>` | Check progress of a running scan |
+| `white-rabbit submit <file>` | Submit a finding to WhiteClaws for bounty processing |
 
-### Options
+### Common Options
 
-```bash
---chain <name>      # Target chain (default: ethereum)
---deep              # Enable all engines
---format <type>     # Output: json, sarif, table
---output <path>     # Write results to file
---min-severity <s>  # Filter: critical, high, medium, low
+| Option | What It Does |
+|--------|-------------|
+| `--chain ethereum` | Target a specific blockchain (default: ethereum) |
+| `--deep` | Enable all installed engines |
+| `--format json` | Output format: `json`, `sarif`, or `table` |
+| `--output results.json` | Save results to a file |
+| `--min-severity high` | Only show findings of this severity or higher |
+
+---
+
+## Supported Blockchains (30+)
+
+White-Rabbit can scan contracts on any of these chains:
+
+| Blockchain | Chain ID | What It Is |
+|-----------|----------|------------|
+| Ethereum | 1 | The original smart contract platform |
+| Base | 8453 | Coinbase's Layer 2, fast and cheap |
+| Arbitrum | 42161 | Ethereum Layer 2 with lower fees |
+| Optimism | 10 | Another Ethereum Layer 2 |
+| Polygon | 137 | Sidechain popular with gaming and NFTs |
+| BSC (BNB Chain) | 56 | Binance's chain, lots of DeFi |
+| Avalanche | 43114 | Fast finality blockchain |
+| Fantom | 250 | High-speed DeFi chain |
+| zkSync Era | 324 | Zero-knowledge Ethereum Layer 2 |
+| Gnosis | 100 | Community-owned Ethereum sidechain |
+| And 20+ more... | | Cronos, Mantle, Manta, Scroll, Linea, Blast, Celo, Moonbeam, etc. |
+
+All chains have pre-configured API endpoints. Just pass `--chain <name>` and it works.
+
+---
+
+## How Telemetry Works
+
+White-Rabbit tracks what it does during scans and sends that data to WhiteClaws for analytics. This helps improve the scanner over time.
+
+```
+Scanner runs ──▶ Events buffered locally
+                        │
+                        ▼ (every 25 events)
+                  Batch sent to WhiteClaws
+                  POST /api/telemetry/ingest
+                        │
+                        ▼
+                  If API unreachable:
+                  Saved to ~/.white-rabbit/telemetry/*.jsonl
+                  (retried later)
 ```
 
+### What Gets Tracked
+
+| Event | What It Means |
+|-------|---------------|
+| `scan_started` | A new scan began |
+| `contract_classified` | The contract type was identified (lending, DEX, governance, etc.) |
+| `patterns_loaded` | Vulnerability patterns were loaded from the database |
+| `vulnerability_detected` | A potential bug was found |
+| `false_positive_filtered` | A finding was removed because it's a known false alarm |
+| `verification_result` | A finding was confirmed or rejected |
+| `scan_complete` | The scan finished |
+
+Telemetry is **optional** and can be disabled. No source code or private data is ever sent — only metadata about the scan process.
+
 ---
 
-## Supported Chains (30+)
+## Packages
 
-| Tier | Chains | Chain IDs |
-|------|--------|-----------|
-| **Tier 1** | Ethereum, Base, Arbitrum, Optimism, Polygon, BSC, Avalanche | 1, 8453, 42161, 10, 137, 56, 43114 |
-| **Tier 2** | Fantom, Cronos, Gnosis, zkSync Era, Mantle, Manta, Mode | 250, 25, 100, 324, 5000, 169, 34443 |
-| **Tier 3** | Celo, Moonbeam, Moonriver, Scroll, Linea, Blast + more | 42220, 1284, 1285, 534352, 59144, 81457 |
+White-Rabbit is a monorepo with two publishable packages:
 
-All chains have pre-configured RPC endpoints and Etherscan V2 API URLs.
+| Package | What It Is | Install |
+|---------|-----------|---------|
+| `@whiteclaws/white-rabbit` | The scanner itself (CLI + library) | `npm i -g @whiteclaws/white-rabbit` |
+| `@whiteclaws/mcp-white-rabbit` | MCP server so AI assistants can use the scanner | `npm i -g @whiteclaws/mcp-white-rabbit` |
 
 ---
 
-## Monorepo Structure
+## Project Structure
 
 ```
 White-Rabbit/
+│
 ├── packages/
-│   ├── white-rabbit/                 # @whiteclaws/white-rabbit
+│   ├── white-rabbit/              # The main scanner package
 │   │   ├── src/
-│   │   │   ├── index.ts              # Main exports
-│   │   │   ├── types.ts              # Core types (428 lines, 30+ chain configs)
-│   │   │   ├── core/
-│   │   │   │   ├── white-rabbit.ts   # WhiteRabbit class (scan, analyzeSource)
-│   │   │   │   └── scope-checker.ts  # Scope validation
-│   │   │   ├── engines/
-│   │   │   │   ├── analysis-pipeline.ts  # Orchestrator
-│   │   │   │   ├── pattern.ts            # Pattern engine
-│   │   │   │   ├── slither.ts            # Slither engine
-│   │   │   │   ├── mythril.ts            # Mythril engine
-│   │   │   │   ├── securify.ts           # Securify2 engine
-│   │   │   │   └── maian.ts              # MAIAN engine
-│   │   │   ├── connectors/
-│   │   │   │   ├── whiteclaws-client.ts  # WhiteClaws API client
-│   │   │   │   ├── chain.ts             # RPC + Etherscan
-│   │   │   │   ├── defillama.ts         # DeFiLlama API
-│   │   │   │   └── offline-queue.ts     # Offline resilience
-│   │   │   ├── intelligence/
-│   │   │   │   ├── protocol-intel.ts    # Protocol enrichment
-│   │   │   │   └── known-vulns.ts       # 430+ exploit database
-│   │   │   ├── telemetry/
-│   │   │   │   ├── emitter.ts           # TelemetryEmitter
-│   │   │   │   └── types.ts            # Event types
-│   │   │   ├── cli/
-│   │   │   │   ├── bin/cli.ts           # CLI entry point
-│   │   │   │   └── commands/            # 7 command files
-│   │   │   └── tests/                   # 7 test files
-│   │   ├── data/                        # Pattern databases
-│   │   └── package.json
+│   │   │   ├── core/              # WhiteRabbit class (the main API)
+│   │   │   ├── engines/           # 5 analysis engines
+│   │   │   ├── connectors/        # Chain RPC, DeFiLlama, WhiteClaws API
+│   │   │   ├── intelligence/      # Protocol intel, known vulnerability database
+│   │   │   ├── telemetry/         # Scan event tracking
+│   │   │   ├── cli/               # Command-line interface
+│   │   │   ├── types.ts           # Type definitions (30+ chain configs)
+│   │   │   └── tests/             # 7 test files
+│   │   └── data/                  # Vulnerability pattern databases
 │   │
-│   └── mcp/                             # @whiteclaws/mcp-white-rabbit
-│       ├── src/index.ts                 # MCP server
-│       └── package.json
+│   └── mcp/                       # MCP server for AI assistants
 │
-├── research/
-│   ├── books/                           # 9 Git submodules + 1 PDF
-│   │   ├── slither/                     # Slither source
-│   │   ├── halmos/                      # Formal verification
-│   │   ├── z3/                          # SMT solver
-│   │   ├── ethernaut/                   # CTF challenges
-│   │   ├── smart-contract-vulnerabilities/
-│   │   ├── solidity-patterns/
-│   │   ├── consensys-best-practices/
-│   │   ├── mastering-ethereum/
-│   │   ├── mastering-bitcoin/
-│   │   └── princeton-bitcoin-book.pdf
-│   ├── layers/                          # 6-layer research taxonomy
-│   └── library/                         # Reference materials
+├── research/                      # Security research library
+│   └── books/                     # 9 reference repos (Slither, Z3, Ethernaut, etc.)
+│                                  # + Princeton Bitcoin Book PDF
 │
-├── .github/workflows/
-│   ├── ci.yml                           # Build + test (Node 18, 20)
-│   ├── pr.yml                           # PR validation
-│   ├── release.yml                      # npm publishing
-│   └── security.yml                     # TruffleHog + audit
-│
-├── package.json                         # Monorepo root (npm workspaces)
-└── tsconfig.json                        # Shared TypeScript config
-```
-
----
-
-## API Exports
-
-```typescript
-// Main entry: @whiteclaws/white-rabbit
-import {
-  WhiteRabbit,           // Core scanner class
-  ScopeChecker,          // Scope validation
-  AnalysisPipeline,      // Engine orchestrator
-  PatternEngine,         // Pattern-based detection
-  WhiteClawsClient,      // Platform API client
-  ChainConnector,        // Chain RPC connector
-  DeFiLlamaConnector,    // DeFiLlama API
-  TelemetryEmitter,      // Scan telemetry
-  ProtocolIntelligence,  // Protocol enrichment
-  ContractResolver,      // Contract fetching
-  VERSION,               // '2.0.0-alpha.1'
-} from '@whiteclaws/white-rabbit';
-
-// Sub-exports
-import { WhiteRabbit } from '@whiteclaws/white-rabbit/scanner';
-import { PatternEngine } from '@whiteclaws/white-rabbit/engines';
-import type { Finding, Severity, Contract } from '@whiteclaws/white-rabbit/types';
-```
-
----
-
-## CI/CD Integration
-
-### GitHub Actions
-
-```yaml
-name: Security Scan
-on: [push, pull_request]
-
-jobs:
-  scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - run: npm install -g @whiteclaws/white-rabbit
-      - run: white-rabbit analyze ./contracts --format sarif --output results.sarif
-      - uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: results.sarif
+├── .github/workflows/             # CI/CD (build, test, publish, security scan)
+└── package.json                   # Monorepo root
 ```
 
 ---
@@ -461,12 +336,14 @@ jobs:
 ### Environment Variables
 
 ```bash
-# Required for contract resolution
-export ETHERSCAN_API_KEY=your_etherscan_key
+# Required — get a free key at etherscan.io
+export ETHERSCAN_API_KEY=your_key
 
-# Optional
-export WHITECLAWS_API_KEY=wc_...           # For platform integration
-export ETH_RPC_URL=https://eth.llamarpc.com # Custom RPC
+# Optional — for WhiteClaws integration
+export WHITECLAWS_API_KEY=wc_...
+
+# Optional — custom RPC endpoint
+export ETH_RPC_URL=https://eth.llamarpc.com
 ```
 
 ### Config File
@@ -486,48 +363,56 @@ Create `~/.white-rabbit/config.json`:
 
 ---
 
-## Development
+## For Developers
+
+### Setup
 
 ```bash
-# Clone
 git clone https://github.com/ChicoPanama/White-Rabbit.git
 cd White-Rabbit
+npm install        # Installs both packages (npm workspaces)
+npm run build      # Builds everything
+npm test           # Runs all tests
+npm run typecheck  # TypeScript type checking
+npm run lint       # Code style checking
+```
 
-# Install (npm workspaces)
-npm install
+### CI/CD
 
-# Build all packages
-npm run build
+GitHub Actions runs on every push and PR:
+- **Build & Test** on Node 18 and 20
+- **Lint & Type Check**
+- **Security Audit** (dependency scanning + secret detection via TruffleHog)
 
-# Test
-npm test
+### Using as a Library
 
-# Type check
-npm run typecheck
-
-# Lint
-npm run lint
-
-# Publish (alpha)
-npm run publish:alpha
+```typescript
+import {
+  WhiteRabbit,           // Main scanner class
+  PatternEngine,         // Pattern-based detection
+  WhiteClawsClient,      // WhiteClaws API client
+  TelemetryEmitter,      // Scan telemetry
+  ProtocolIntelligence,  // Protocol enrichment data
+  VERSION,               // Package version
+} from '@whiteclaws/white-rabbit';
 ```
 
 ---
 
 ## Research Library
 
-The `research/` directory contains 9 Git submodules and curated reference materials organized into a 6-layer taxonomy:
+The `research/` directory contains curated security research, organized into 6 layers:
 
-| Layer | Topic | Sources |
-|-------|-------|---------|
+| Layer | Topic | Example Sources |
+|-------|-------|-----------------|
 | 0 | Foundations | Mastering Ethereum, Mastering Bitcoin, Princeton Bitcoin Book |
-| 1 | Smart Contract Failure Modes | SWC Registry, vulnerability patterns |
-| 2 | Formal Thinking | Halmos, Z3, Solidity patterns |
-| 3 | Economic & Game-Theoretic Attacks | Flash loan vectors, oracle manipulation |
-| 4 | Systemic Failures | Bridge exploits, governance attacks |
-| 5 | Historical Correlation | 430+ exploit database from DeFiLlama |
+| 1 | How Bugs Happen | SWC Registry, smart contract vulnerability catalogs |
+| 2 | Formal Thinking | Halmos (formal verification), Z3 (mathematical proofs) |
+| 3 | Economic Attacks | Flash loan vectors, oracle manipulation techniques |
+| 4 | System Failures | Bridge exploits, governance attacks |
+| 5 | Historical Data | 430+ real exploit entries from DeFiLlama |
 
-Plus 10 ingested Q1 2026 industry reports (TRM Labs, Chainalysis, SlowMist, Hacken, etc.).
+Plus 10 industry reports from Q1 2026 (TRM Labs, Chainalysis, SlowMist, Hacken, Kroll, and more).
 
 ---
 
